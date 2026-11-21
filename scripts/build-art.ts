@@ -1,5 +1,6 @@
 // Art pipeline: turns ChatGPT images in art/ into game-ready sprites in
-// public/art/, plus a manifest the game reads at startup.
+// public/art/, plus a manifest the game reads at startup. Ground textures in
+// art/terrain/ (ter_<surface>.png) are copied as they are.
 //
 //   npm run art                 build sprites
 //   npm run art -- --check DIR  also write images showing the footprint each
@@ -40,13 +41,33 @@ function walk(dir: string): string[] {
 
 interface Entry { file: string; tilePx: number; anchor: number[]; footprint: number[]; lights: number[][]; smoke: number[][] }
 
+/** Ground textures (art/terrain/ter_*.png): flat, seamless squares, copied as they are. */
+async function textures(problems: string[]): Promise<Record<string, string>> {
+  const dir = path.join(SRC, 'terrain');
+  const out: Record<string, string> = {};
+  if (!fs.existsSync(dir)) return out;
+  fs.mkdirSync(path.join(OUT, 'terrain'), { recursive: true });
+  for (const name of fs.readdirSync(dir).sort()) {
+    const m = name.match(/^ter_([a-z0-9_-]+)\.png$/);
+    if (!m) { if (name.endsWith('.png')) problems.push(`terrain/${name}: textures are named ter_<surface>.png`); continue; }
+    const meta = await sharp(path.join(dir, name)).metadata();
+    if (meta.width !== meta.height) problems.push(`terrain/${name}: textures should be square`);
+    await sharp(path.join(dir, name)).png({ compressionLevel: 9 }).toFile(path.join(OUT, 'terrain', name));
+    out[m[1]] = `terrain/${name}`;
+    console.log(`✓ terrain/${name}  ${meta.width}×${meta.height}px texture`);
+  }
+  return out;
+}
+
 async function build() {
   if (!fs.existsSync(SRC)) { console.log('No art/ folder yet.'); return; }
-  const manifest: { sprites: Record<string, Entry> } = { sprites: {} };
+  const manifest: { sprites: Record<string, Entry>; textures?: Record<string, string> } = { sprites: {} };
   const problems: string[] = [];
   if (CHECK) fs.mkdirSync(CHECK, { recursive: true });
+  manifest.textures = await textures(problems);
   for (const file of walk(SRC).sort()) {
     const rel = path.relative(SRC, file);
+    if (rel.startsWith(`terrain${path.sep}`)) continue;
     const base = path.basename(file, '.png');
     const m = base.match(NAME);
     if (!m) { problems.push(`${rel}: name doesn't follow kind_subject_era_WxH_vNN[_state].png`); continue; }
@@ -128,7 +149,7 @@ async function build() {
   fs.mkdirSync(OUT, { recursive: true });
   fs.writeFileSync(path.join(OUT, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
   for (const p of problems) console.warn(`! ${p}`);
-  console.log(`${Object.keys(manifest.sprites).length} sprites in public/art/manifest.json`);
+  console.log(`${Object.keys(manifest.sprites).length} sprites and ${Object.keys(manifest.textures ?? {}).length} textures in public/art/manifest.json`);
 }
 
 build().catch((e) => { console.error(e); process.exit(1); });

@@ -298,6 +298,160 @@
         ]
       ]
     },
+    "nat_barley_any_2x2_v01_growing": {
+      "file": "nature/nat_barley_any_2x2_v01_growing.png",
+      "tilePx": 236,
+      "anchor": [
+        228,
+        251
+      ],
+      "footprint": [
+        2,
+        2
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_barley_any_2x2_v01_harvested": {
+      "file": "nature/nat_barley_any_2x2_v01_harvested.png",
+      "tilePx": 236,
+      "anchor": [
+        228,
+        236
+      ],
+      "footprint": [
+        2,
+        2
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_barley_any_2x2_v01_ripe": {
+      "file": "nature/nat_barley_any_2x2_v01_ripe.png",
+      "tilePx": 236,
+      "anchor": [
+        229,
+        277
+      ],
+      "footprint": [
+        2,
+        2
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_barley_any_2x2_v01_sprouts": {
+      "file": "nature/nat_barley_any_2x2_v01_sprouts.png",
+      "tilePx": 236,
+      "anchor": [
+        227,
+        234
+      ],
+      "footprint": [
+        2,
+        2
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_barley_any_2x2_v01_winter-fallow": {
+      "file": "nature/nat_barley_any_2x2_v01_winter-fallow.png",
+      "tilePx": 236,
+      "anchor": [
+        228,
+        233
+      ],
+      "footprint": [
+        2,
+        2
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_berry-bush_any_1x1_v01": {
+      "file": "nature/nat_berry-bush_any_1x1_v01.png",
+      "tilePx": 256,
+      "anchor": [
+        58.7,
+        136.1
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_berry-bush_any_1x1_v01_autumn": {
+      "file": "nature/nat_berry-bush_any_1x1_v01_autumn.png",
+      "tilePx": 256,
+      "anchor": [
+        59.7,
+        136.1
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_berry-bush_any_1x1_v01_spring": {
+      "file": "nature/nat_berry-bush_any_1x1_v01_spring.png",
+      "tilePx": 256,
+      "anchor": [
+        53.7,
+        136.1
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_berry-bush_any_1x1_v01_winter": {
+      "file": "nature/nat_berry-bush_any_1x1_v01_winter.png",
+      "tilePx": 256,
+      "anchor": [
+        57.7,
+        136.1
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_berry-bush_any_1x1_v02": {
+      "file": "nature/nat_berry-bush_any_1x1_v02.png",
+      "tilePx": 256,
+      "anchor": [
+        63.3,
+        137.1
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_berry-bush_any_1x1_v03": {
+      "file": "nature/nat_berry-bush_any_1x1_v03.png",
+      "tilePx": 256,
+      "anchor": [
+        56.3,
+        137.1
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
     "nat_broadleaf_any_1x1_v01": {
       "file": "nature/nat_broadleaf_any_1x1_v01.png",
       "tilePx": 209,
@@ -396,6 +550,34 @@
       "lights": [],
       "smoke": []
     },
+    "nat_deadwood_any_1x1_v01": {
+      "file": "nature/nat_deadwood_any_1x1_v01.png",
+      "tilePx": 256,
+      "anchor": [
+        50.7,
+        151.4
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_fallen-log_any_1x1_v01": {
+      "file": "nature/nat_fallen-log_any_1x1_v01.png",
+      "tilePx": 256,
+      "anchor": [
+        57.4,
+        116.9
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
     "nat_fruit-tree_any_1x1_v01": {
       "file": "nature/nat_fruit-tree_any_1x1_v01.png",
       "tilePx": 256,
@@ -444,6 +626,20 @@
       "anchor": [
         121,
         290.1
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_log-pile_any_1x1_v01": {
+      "file": "nature/nat_log-pile_any_1x1_v01.png",
+      "tilePx": 256,
+      "anchor": [
+        53.2,
+        129.5
       ],
       "footprint": [
         1,
@@ -507,6 +703,228 @@
       ],
       "lights": [],
       "smoke": []
+    },
+    "nat_reeds_any_1x1_v01": {
+      "file": "nature/nat_reeds_any_1x1_v01.png",
+      "tilePx": 256,
+      "anchor": [
+        52.5,
+        148.1
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_reeds_any_1x1_v01_autumn": {
+      "file": "nature/nat_reeds_any_1x1_v01_autumn.png",
+      "tilePx": 256,
+      "anchor": [
+        53.5,
+        147.1
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_reeds_any_1x1_v01_spring": {
+      "file": "nature/nat_reeds_any_1x1_v01_spring.png",
+      "tilePx": 256,
+      "anchor": [
+        51.5,
+        148.1
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_reeds_any_1x1_v01_winter": {
+      "file": "nature/nat_reeds_any_1x1_v01_winter.png",
+      "tilePx": 256,
+      "anchor": [
+        54.5,
+        149.1
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_rock_any_1x1_v01": {
+      "file": "nature/nat_rock_any_1x1_v01.png",
+      "tilePx": 256,
+      "anchor": [
+        65.2,
+        160
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_rock_any_1x1_v01_winter": {
+      "file": "nature/nat_rock_any_1x1_v01_winter.png",
+      "tilePx": 256,
+      "anchor": [
+        65.2,
+        160
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_rock_any_1x1_v02": {
+      "file": "nature/nat_rock_any_1x1_v02.png",
+      "tilePx": 256,
+      "anchor": [
+        60.5,
+        123.6
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_rock_any_1x1_v02_winter": {
+      "file": "nature/nat_rock_any_1x1_v02_winter.png",
+      "tilePx": 256,
+      "anchor": [
+        60.5,
+        123.6
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_rock_any_1x1_v03": {
+      "file": "nature/nat_rock_any_1x1_v03.png",
+      "tilePx": 256,
+      "anchor": [
+        69.9,
+        189.4
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_rock_any_1x1_v03_winter": {
+      "file": "nature/nat_rock_any_1x1_v03_winter.png",
+      "tilePx": 256,
+      "anchor": [
+        69.9,
+        189.4
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_stump_any_1x1_v01": {
+      "file": "nature/nat_stump_any_1x1_v01.png",
+      "tilePx": 256,
+      "anchor": [
+        34.9,
+        119.8
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_wildflowers_any_1x1_v01": {
+      "file": "nature/nat_wildflowers_any_1x1_v01.png",
+      "tilePx": 256,
+      "anchor": [
+        50.4,
+        129.2
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_wildflowers_any_1x1_v01_autumn": {
+      "file": "nature/nat_wildflowers_any_1x1_v01_autumn.png",
+      "tilePx": 256,
+      "anchor": [
+        50.4,
+        129.2
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_wildflowers_any_1x1_v01_spring": {
+      "file": "nature/nat_wildflowers_any_1x1_v01_spring.png",
+      "tilePx": 256,
+      "anchor": [
+        51.4,
+        129.2
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_wildflowers_any_1x1_v01_winter": {
+      "file": "nature/nat_wildflowers_any_1x1_v01_winter.png",
+      "tilePx": 256,
+      "anchor": [
+        51.4,
+        129.2
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
     }
+  },
+  "textures": {
+    "dirt": "terrain/ter_dirt.png",
+    "grass_autumn": "terrain/ter_grass_autumn.png",
+    "grass_snow": "terrain/ter_grass_snow.png",
+    "grass_spring": "terrain/ter_grass_spring.png",
+    "grass_summer": "terrain/ter_grass_summer.png",
+    "rock": "terrain/ter_rock.png",
+    "sand": "terrain/ter_sand.png",
+    "soil_plowed": "terrain/ter_soil_plowed.png",
+    "water_deep": "terrain/ter_water_deep.png",
+    "water_shallow": "terrain/ter_water_shallow.png"
   }
 }

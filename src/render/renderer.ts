@@ -4,10 +4,12 @@ import { TERRAIN, TREE, type Building, type GameState } from '../sim/types';
 import { seasonIndex, seasonProgress } from '../sim/world';
 import { hashString } from '../sim/rng';
 import { C, CLOTHES, GRASS_BY_SEASON, HAIR, SKIN, mix, shade } from './palette';
-import { buildingSprite, graveSprite, hasBuildingArt, scaffoldSprite, treeSprite, type Sprite } from './sprites';
+import { buildingSprite, graveSprite, hasBuildingArt, onArtChange, realSprite, scaffoldSprite, treeSprite, type Sprite } from './sprites';
 import { Walkers } from './walkers';
 import { fieldsAsleep, indoorShare, snowOnGround } from '../sim/weather';
 import { Fauna, drawAnimal, drawBirds } from './fauna';
+import { groundReady, surface, type Surface } from './ground';
+import { DECOR_KEY, Decor } from './decor';
 import type { Selection } from '../game/store';
 
 const BASE_TW = 64; // tile width in CSS px at zoom 1
@@ -18,14 +20,45 @@ interface Puff { x: number; y: number; z: number; age: number; life: number; dri
 interface Flake { x: number; y: number; speed: number; sway: number }
 
 type Drawable =
-  | { depth: number; kind: 'sprite'; sprite: Sprite; gx: number; gy: number; b?: Building; alpha?: number; fit?: number }
+  | { depth: number; kind: 'sprite'; sprite: Sprite; gx: number; gy: number; b?: Building; alpha?: number; fit?: number; flip?: boolean }
   | { depth: number; kind: 'wall'; x: number; y: number }
   | { depth: number; kind: 'deck'; x: number; y: number; alongX: boolean }
   | { depth: number; kind: 'walker'; id: number }
   | { depth: number; kind: 'animal'; key: string };
 
+const BARLEY = 'nat_barley_any_2x2';
+
+/** The kinds of ground, and which is painted over which where they meet (higher over lower). */
+const KIND_OF: Record<number, string> = {
+  [TERRAIN.GRASS]: 'grass', [TERRAIN.SAND]: 'sand', [TERRAIN.ROCK]: 'rock', [TERRAIN.WATER]: 'shallow',
+  [TERRAIN.DEEP]: 'deep', [TERRAIN.MARSH]: 'marsh', [TERRAIN.PLAZA]: 'plaza', [TERRAIN.BRIDGE]: 'shallow',
+};
+const RANK: Record<string, number> = { grass: 0, plaza: 0, marsh: 1, rock: 2, sand: 3, shallow: 4, deep: 5 };
+/** Each corner of a tile: its two side neighbours and the one across, as (dx, dy) pairs. */
+const CORNERS: [number, number, number, number, number, number][] = [
+  [-1, 0, 0, -1, -1, -1], [1, 0, 0, -1, 1, -1], [1, 0, 0, 1, 1, 1], [-1, 0, 0, 1, -1, 1],
+];
+const kindAt = (map: GameState['map'], x: number, y: number) =>
+  x < 0 || y < 0 || x >= map.w || y >= map.h ? undefined : KIND_OF[map.terrain[y * map.w + x]];
+
+/**
+ * How a barley field looks today: sprouting in spring, green then ripening in summer, cut one
+ * field at a time through the autumn, and lying fallow (under snow, when there is some) in winter.
+ */
+function barleyState(s: GameState, b: Building, snowy: boolean): string {
+  const season = seasonIndex(s.day);
+  const p = seasonProgress(s.day);
+  if (snowy) return 'winter-fallow';
+  if (season === 3) return 'harvested';
+  if (season === 0) return p < 0.45 ? 'sprouts' : 'growing';
+  if (season === 1) return p < 0.55 ? 'growing' : 'ripe';
+  const cut = 0.15 + (hashString(`field${b.id}`) % 100) / 100 * 0.5; // each field is cut on its own day
+  return p < cut ? 'ripe' : 'harvested';
+}
+
 export class Renderer {
-  readonly g: CanvasRenderingContext2D;
+  /** The context drawn to: the canvas, or briefly the cached ground while it's being repainted. */
+  g: CanvasRenderingContext2D;
   dpr = 1;
   w = 0;
   h = 0;
@@ -34,6 +67,7 @@ export class Renderer {
   night = 1;
   walkers = new Walkers();
   fauna = new Fauna();
+  decor = new Decor();
   private puffs: Puff[] = [];
   /** The map width last drawn, to follow the map when it widens. */
   private mapW = 0;
@@ -46,7 +80,12 @@ export class Renderer {
   constructor(readonly canvas: HTMLCanvasElement) {
     this.g = canvas.getContext('2d')!;
     this.resize();
+    onArtChange(() => { this.groundKey = ''; });
   }
+
+  /** The textured ground, painted once and reused until the view moves or a day passes. */
+  private groundCache: HTMLCanvasElement | null = null;
+  private groundKey = '';
 
   get tw() { return BASE_TW * this.cam.zoom; }
 
@@ -114,6 +153,7 @@ export class Renderer {
       this.cam.x += d; this.cam.y += d;
       this.walkers = new Walkers();
       this.fauna = new Fauna();
+      this.decor = new Decor();
       this.puffs = [];
     }
     this.mapW = s.map.w;
@@ -154,8 +194,10 @@ export class Renderer {
     const treeSeason = blend < 0.5 && s.day >= 90 ? (season + 3) % 4 : season;
 
     this.drawBase(s, grass);
-    this.drawTerrain(s, grass, winter, now);
-    this.drawFields(s, season, blend);
+    const textured = groundReady(g);
+    if (textured) this.drawGroundCached(s, season, blend, snowy ? 0.55 + cover * 0.45 : 0, now);
+    else this.drawTerrain(s, grass, winter, now);
+    this.drawFields(s, season, blend, textured);
     this.collect(s, treeSeason, winter, selection);
     this.drawObjects(s, now, selection);
     this.drawHearthFire(s, now, running);
@@ -312,17 +354,187 @@ export class Renderer {
     }
   }
 
-  private drawFields(s: GameState, season: number, blend: number) {
+  /** Where the map's origin was on screen when the cached ground was painted. */
+  private groundAt = { x: 0, y: 0 };
+
+  /**
+   * The textured ground is painted with a margin around the view, then reused: a pan only slides
+   * it along, until the view runs past the margin; a zoom, a new day or new weather repaints it.
+   */
+  private drawGroundCached(s: GameState, season: number, blend: number, snow: number, now: number) {
+    const M = Math.round(Math.max(this.w, this.h) * 0.25);
+    const W = Math.round((this.w + 2 * M) * this.dpr), H = Math.round((this.h + 2 * M) * this.dpr);
+    let c = this.groundCache;
+    if (!c || c.width !== W || c.height !== H) {
+      c = document.createElement('canvas');
+      c.width = W; c.height = H;
+      this.groundCache = c;
+      this.groundKey = '';
+    }
+    const key = [this.cam.zoom, this.w, this.h, this.dpr, s.seed, s.day, s.map.w, !!s.weather?.ice, snow, season, blend].join(',');
+    const o = this.toScreen(0, 0);
+    let dx = o.x - this.groundAt.x, dy = o.y - this.groundAt.y;
+    if (key !== this.groundKey || Math.abs(dx) > M || Math.abs(dy) > M) {
+      const main = this.g;
+      const off = c.getContext('2d')!;
+      off.setTransform(1, 0, 0, 1, 0, 0);
+      off.clearRect(0, 0, W, H);
+      off.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+      off.imageSmoothingEnabled = true;
+      off.imageSmoothingQuality = 'high';
+      // Paint a view M bigger on every side (the camera stays at its centre).
+      const w = this.w, h = this.h;
+      this.g = off; this.w = w + 2 * M; this.h = h + 2 * M;
+      try { this.drawTexturedGround(s, season, blend, snow); } finally { this.g = main; this.w = w; this.h = h; }
+      this.groundKey = key;
+      this.groundAt = o;
+      dx = 0; dy = 0;
+    }
+    // Only the part that's on screen.
+    const d = this.dpr;
+    this.g.drawImage(c, (M - dx) * d, (M - dy) * d, this.w * d, this.h * d, 0, 0, this.w, this.h);
+    this.drawGlints(s, this.visibleRange(s), now, snow > 0 || !!s.weather?.ice);
+  }
+
+  /**
+   * The ground, from the art's textures: each kind of ground is gathered into one shape and
+   * filled with its texture, then the seasons, worn paths and snow are laid over it.
+   */
+  private drawTexturedGround(s: GameState, season: number, blend: number, snow: number) {
+    const g = this.g;
+    const { map } = s;
+    const tw = this.tw;
+    const hw = tw / 2 + 0.6;
+    const hh = tw / 4 + 0.4;
+    const r = this.visibleRange(s);
+    const ice = !!s.weather?.ice;
+    const shapes = new Map<string, Path2D>();
+    const add = (key: string, cx: number, cy: number) => {
+      let p = shapes.get(key);
+      if (!p) { p = new Path2D(); shapes.set(key, p); }
+      p.moveTo(cx, cy - hh); p.lineTo(cx + hw, cy); p.lineTo(cx, cy + hh); p.lineTo(cx - hw, cy); p.closePath();
+    };
+    for (let y = r.y0; y <= r.y1; y++) {
+      for (let x = r.x0; x <= r.x1; x++) {
+        const c = this.toScreen(x + 0.5, y + 0.5);
+        if (c.x < -tw || c.x > this.w + tw || c.y < -tw || c.y > this.h + tw) continue;
+        const i = y * map.w + x;
+        const t = map.terrain[i];
+        const wet = t === TERRAIN.WATER || t === TERRAIN.DEEP || t === TERRAIN.BRIDGE;
+        const own = KIND_OF[t] ?? 'grass';
+        add(own, c.x, c.y);
+        // Smooth the staircase where two kinds of ground meet: a corner closed in on both sides
+        // (and across) by a kind painted over this one is filled with it, along the tile's diagonal.
+        if (!map.occ[i] || wet) {
+          const rank = RANK[own];
+          for (const [ax, ay, bx, by, cx, cy] of CORNERS) {
+            const k1 = kindAt(map, x + ax, y + ay), k2 = kindAt(map, x + bx, y + by), k3 = kindAt(map, x + cx, y + cy);
+            if (k1 && k1 === k2 && k1 === k3 && RANK[k1] > rank) this.cornerPatch(shapes, `edge:${k1}`, x, y, ax + bx, ay + by);
+          }
+        }
+        if (wet) continue;
+        if (t === TERRAIN.GRASS && map.fertility[i] > 0.6) add('rich', c.x, c.y);
+        const wear = map.wear[i];
+        const worn = wear > 0.7 && t !== TERRAIN.PLAZA ? Math.min(4, Math.round(wear)) : 0;
+        if (worn) add(`worn${worn}`, c.x, c.y);
+        if (snow) add(t === TERRAIN.PLAZA ? 'snowPlaza' : worn >= 2 ? 'snowWorn' : 'snow', c.x, c.y);
+      }
+    }
+    const ox = this.toScreen(0, 0);
+    const fill = (key: string, name: Surface, alpha = 1) => {
+      const p = shapes.get(key);
+      if (!p || alpha <= 0) return;
+      const pat = surface(g, name, tw, this.dpr, ox.x, ox.y);
+      if (!pat) return;
+      g.globalAlpha = alpha;
+      g.fillStyle = pat;
+      g.fill(p);
+      g.globalAlpha = 1;
+    };
+    // The seasons' grasses, the new one fading in over the old for its first week or so.
+    const GRASS: Surface[] = ['grass_spring', 'grass_summer', 'grass_autumn', 'grass_winter'];
+    if (blend < 1) fill('grass', GRASS[(season + 3) % 4]);
+    fill('grass', GRASS[season], blend < 1 ? blend : 1);
+    const rich = shapes.get('rich');
+    if (rich && season !== 3) { g.fillStyle = 'rgba(40,70,25,0.08)'; g.fill(rich); }
+    fill('sand', 'sand');
+    fill('rock', 'rock');
+    fill('marsh', 'marsh');
+    fill('plaza', 'plaza');
+    fill('shallow', ice ? 'ice_shallow' : 'water_shallow');
+    fill('deep', ice ? 'ice_deep' : 'water_deep');
+    // Paths worn into the ground, deeper the more they're walked.
+    // Land smoothing into land goes under the paths and the snow; water into land goes over them.
+    fill('edge:sand', 'sand'); fill('edge:rock', 'rock'); fill('edge:marsh', 'marsh');
+    for (let k = 1; k <= 4; k++) fill(`worn${k}`, 'dirt', k / 4.6);
+    // Snow lies over everything but the water; trodden paths show through it.
+    if (snow) {
+      fill('snow', 'grass_snow', snow);
+      fill('snowWorn', 'grass_snow', snow * 0.55);
+      fill('snowPlaza', 'grass_snow', 0.4);
+    }
+    fill('edge:shallow', ice ? 'ice_shallow' : 'water_shallow');
+    fill('edge:deep', ice ? 'ice_deep' : 'water_deep');
+  }
+
+  /** Half a tile, cut along its diagonal: the half nearest the corner at (x + cx/2 + 0.5, y + cy/2 + 0.5). */
+  private cornerPatch(shapes: Map<string, Path2D>, key: string, x: number, y: number, cx: number, cy: number) {
+    // The corner and its two neighbouring corners, in grid space; cx, cy are each -1 or +1.
+    const kx = x + (cx > 0 ? 1 : 0), ky = y + (cy > 0 ? 1 : 0);
+    // (The tiles beside it are drawn a hair oversize, which hides any seam along its two sides.)
+    const a = this.toScreen(kx, ky), b = this.toScreen(kx - cx, ky), c = this.toScreen(kx, ky - cy);
+    let p = shapes.get(key);
+    if (!p) { p = new Path2D(); shapes.set(key, p); }
+    p.moveTo(a.x, a.y); p.lineTo(b.x, b.y); p.lineTo(c.x, c.y); p.closePath();
+  }
+
+  /** Light catching the moving water, when close enough to see it. */
+  private drawGlints(s: GameState, r: { x0: number; x1: number; y0: number; y1: number }, now: number, still: boolean) {
+    const tw = this.tw;
+    if (tw < 56 || still) return;
+    const g = this.g;
+    const { map } = s;
+    g.lineWidth = Math.max(1, tw / 48);
+    g.strokeStyle = 'rgba(255,255,255,0.35)';
+    g.beginPath();
+    const phase = now / 1400;
+    for (let y = r.y0; y <= r.y1; y++) {
+      for (let x = r.x0; x <= r.x1; x++) {
+        const t = map.terrain[y * map.w + x];
+        if (t !== TERRAIN.WATER && t !== TERRAIN.DEEP) continue;
+        const n = ((x * 2654435761) ^ (y * 40503)) >>> 0;
+        if (n % 5) continue;
+        const c = this.toScreen(x + 0.5, y + 0.5);
+        const k = Math.sin(phase + (n % 100)) * 0.5 + 0.5;
+        if (k > 0.55) { g.moveTo(c.x - tw * 0.12, c.y + tw * 0.03 * k); g.lineTo(c.x + tw * 0.1, c.y + tw * 0.03 * k); }
+      }
+    }
+    g.stroke();
+  }
+
+  private drawFields(s: GameState, season: number, blend: number, textured: boolean) {
     const g = this.g;
     const crop = ['#8DBE5A', '#B7B24A', '#D9B24A', ''][season];
     const snowy = snowOnGround(s);
+    const art = !!realSprite(BARLEY, 0, 'ripe');
+    const ox = this.toScreen(0, 0);
     for (const b of s.buildings) {
       if (b.kind !== 'field' || b.removed) continue;
+      if (art && b.built) continue; // the barley art stands among the other sprites
       const pts = [this.toScreen(b.x, b.y), this.toScreen(b.x + b.w, b.y), this.toScreen(b.x + b.w, b.y + b.h), this.toScreen(b.x, b.y + b.h)];
       if (pts.every((p) => p.x < -200 || p.x > this.w + 200 || p.y < -200 || p.y > this.h + 200)) continue;
       g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y))); g.closePath();
-      g.fillStyle = snowy ? mix(C.soil, C.snow, 0.55) : b.built ? C.soil : mix(C.soil, C.summerGrass, 0.4);
-      g.fill();
+      const soil = textured ? surface(g, 'soil_plowed', this.tw, this.dpr, ox.x, ox.y) : null;
+      if (soil) {
+        // Turned earth (half dug, while the field is still being made), under any snow.
+        g.globalAlpha = b.built ? 1 : 0.6; g.fillStyle = soil; g.fill();
+        const snowTex = snowy ? surface(g, 'grass_snow', this.tw, this.dpr, ox.x, ox.y) : null;
+        if (snowTex) { g.globalAlpha = 0.55; g.fillStyle = snowTex; g.fill(); }
+        g.globalAlpha = 1;
+      } else {
+        g.fillStyle = snowy ? mix(C.soil, C.snow, 0.55) : b.built ? C.soil : mix(C.soil, C.summerGrass, 0.4);
+        g.fill();
+      }
       g.strokeStyle = shade(C.timber, -0.1); g.lineWidth = Math.max(1, this.tw / 40); g.stroke();
       if (!b.built || season === 3) continue;
       // Crop rows (an early or late snow leaves only pale stubble showing through)
@@ -360,8 +572,26 @@ export class Renderer {
         list.push({ depth: x + y + 2, kind: 'sprite', sprite: treeSprite(t, winter ? 3 : season, v), gx: x + 1, gy: y + 1, fit });
       }
     }
+    // Low plants, rocks and logs: the day's scenery.
+    this.decor.update(s);
+    for (const d of this.decor.items) {
+      if (d.x < r.x0 || d.x > r.x1 || d.y < r.y0 || d.y > r.y1) continue;
+      const sprite = realSprite(DECOR_KEY[d.kind], d.variant, ['spring', undefined, 'autumn', 'winter'][winter ? 3 : season]);
+      if (!sprite) continue;
+      const gx = d.x + 1 + d.dx, gy = d.y + 1 + d.dy;
+      list.push({ depth: gx + gy, kind: 'sprite', sprite, gx, gy, flip: d.flip });
+    }
+    const snowy = snowOnGround(s);
     for (const b of s.buildings) {
-      if (b.removed || b.kind === 'field') continue;
+      if (b.removed) continue;
+      if (b.kind === 'field') {
+        // Barley, at whatever stage the year has it (fields being dug are drawn with the ground).
+        const sprite = b.built ? realSprite(BARLEY, 0, barleyState(s, b, snowy)) : undefined;
+        if (sprite && b.x + b.w >= r.x0 && b.x <= r.x1 + 1 && b.y + b.h >= r.y0 && b.y <= r.y1 + 1) {
+          list.push({ depth: b.x + b.y + 0.5, kind: 'sprite', sprite, gx: b.x + b.w, gy: b.y + b.h, b });
+        }
+        continue;
+      }
       if (b.x + b.w < r.x0 || b.x > r.x1 + 1 || b.y + b.h < r.y0 || b.y > r.y1 + 1) continue;
       if (b.kind === 'bridge' && b.built) {
         // A deck of planks over the water, a tile at a time.
@@ -400,10 +630,11 @@ export class Renderer {
     this.drawn = list;
   }
 
-  private drawSprite(sp: Sprite, gx: number, gy: number, alpha = 1, fit = 1) {
+  private drawSprite(sp: Sprite, gx: number, gy: number, alpha = 1, fit = 1, flip = false) {
     const scale = (this.tw / sp.tilePx) * fit;
     const a = this.toScreen(gx, gy);
-    const x = a.x - sp.ax * scale;
+    // Mirrored (for variety in plants and rocks) about the anchor.
+    const x = flip ? a.x - (sp.w - sp.ax) * scale : a.x - sp.ax * scale;
     const y = a.y - sp.ay * scale;
     const w = sp.w * scale;
     const h = sp.h * scale;
@@ -413,7 +644,15 @@ export class Renderer {
     // Always drawn at the exact size and place for this zoom (the pre-shrunk copy is within 3%
     // of it), so buildings stay planted on their tiles while zooming instead of shifting a little
     // each time the zoom crosses one of the pre-shrunk sizes.
-    g.drawImage(this.prescaled(sp, scale), x, y, w, h);
+    if (flip) {
+      g.save();
+      g.translate(x + w, y);
+      g.scale(-1, 1);
+      g.drawImage(this.prescaled(sp, scale), 0, 0, w, h);
+      g.restore();
+    } else {
+      g.drawImage(this.prescaled(sp, scale), x, y, w, h);
+    }
     if (alpha < 1) g.globalAlpha = 1;
   }
 
@@ -490,7 +729,7 @@ export class Renderer {
           // A charred shell.
           this.drawSprite(this.charred(d.sprite), d.gx, d.gy, d.alpha, d.fit);
         } else {
-          this.drawSprite(d.sprite, d.gx, d.gy, d.alpha, d.fit);
+          this.drawSprite(d.sprite, d.gx, d.gy, d.alpha, d.fit, d.flip);
         }
         if (d.b?.burning !== undefined) this.drawFlames(d.b, now);
         continue;

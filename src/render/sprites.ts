@@ -4,6 +4,7 @@
 // replace a placeholder one asset at a time.
 import { C, mix, shade } from './palette';
 import type { BuildingKind, Era } from '../sim/types';
+import { addTexture } from './ground';
 
 export interface Sprite {
   img: CanvasImageSource;
@@ -58,7 +59,7 @@ export const ART_KEY: Partial<Record<BuildingKind, string>> = {
   landing: 'lmk_river-landing_bronze_1x1',
 };
 
-export const TREE_KEY = ['', 'nat_broadleaf_any_1x1', 'nat_pine_any_1x1', 'nat_fruit-tree_any_1x1', 'nat_bush_any_1x1', 'nat_rock_any_1x1', 'nat_stump_any_1x1'];
+export const TREE_KEY = ['', 'nat_broadleaf_any_1x1', 'nat_pine_any_1x1', 'nat_fruit-tree_any_1x1', 'nat_berry-bush_any_1x1', 'nat_rock_any_1x1', 'nat_stump_any_1x1'];
 
 // ---------------------------------------------------------------------------
 // Real art
@@ -78,7 +79,7 @@ export const onArtChange = (fn: () => void) => { listeners.add(fn); return () =>
 const artChanged = () => { for (const fn of listeners) fn(); };
 
 export async function loadManifest(base = './art/'): Promise<void> {
-  let manifest: { sprites: Record<string, ManifestEntry> };
+  let manifest: { sprites: Record<string, ManifestEntry>; textures?: Record<string, string> };
   try {
     const res = await fetch(`${base}manifest.json`);
     if (!res.ok) return;
@@ -86,7 +87,7 @@ export async function loadManifest(base = './art/'): Promise<void> {
   } catch {
     return;
   }
-  await Promise.all(Object.entries(manifest.sprites).map(async ([key, e]) => {
+  await Promise.all([...Object.entries(manifest.sprites).map(async ([key, e]) => {
     try {
       const img = await loadImage(base + e.file);
       realArt.set(key, withDefaultLights(key, {
@@ -94,7 +95,9 @@ export async function loadManifest(base = './art/'): Promise<void> {
         tiles: e.footprint?.[0], lights: e.lights ?? [], smoke: e.smoke ?? [], real: true,
       }));
     } catch { /* missing file: keep the placeholder */ }
-  }));
+  }), ...Object.entries(manifest.textures ?? {}).map(async ([name, file]) => {
+    try { addTexture(name, await loadImage(base + file)); } catch { /* the ground stays flat colour */ }
+  })]);
   artChanged();
 }
 

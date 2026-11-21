@@ -15,7 +15,7 @@ Images made against a footprint template line up exactly. Others work too: the a
 | `nature/nat_broadleaf_any_1x1_v01_autumn.png` | A broadleaf tree in autumn |
 | `landmarks/lmk_hearth_bronze_1x1_v01.png` | The Hearth, a one-of-a-kind landmark |
 
-Any number of variants (`v01`, `v02`, …) of anything are used at random. States the game looks for: `winter` for buildings; `spring`, `autumn` and `winter` for trees. A state goes with the variant of the same number, so `_v02_winter` must be the snowy version of `_v02`.
+Any number of variants (`v01`, `v02`, …) of anything are used at random. States the game looks for: `winter` for buildings; `spring`, `autumn` and `winter` for trees, bushes, reeds, wildflowers and rocks; `sprouts`, `growing`, `ripe`, `harvested` and `winter-fallow` for barley fields. A state goes with the variant of the same number, so `_v02_winter` must be the snowy version of `_v02`.
 
 ## Asset names the game uses today
 
@@ -38,7 +38,9 @@ Any number of variants (`v01`, `v02`, …) of anything are used at random. State
 | The Hearth (in `landmarks/`) | `lmk_hearth_bronze_1x1` |
 | Places of the dead, by the village's custom (in `landmarks/`): a pyre ground (2×2), a sky platform (2×2), a family tomb (2×2), a river landing | `lmk_pyre-ground_bronze_2x2`, `lmk_sky-platform_bronze_2x2`, `lmk_tomb_bronze_2x2`, `lmk_river-landing_bronze_1x1` |
 | Sacred places found near the village (in `landmarks/`): standing stones (2×2), a sacred grove (2×2), a spring, a barrow (2×2), a cairn, a great old tree | `lmk_standing-stones_any_2x2`, `lmk_sacred-grove_any_2x2`, `lmk_spring_any_1x1`, `lmk_barrow_any_2x2`, `lmk_cairn_any_1x1`, `lmk_great-tree_any_1x1` |
-| Trees, rocks and stumps | `nat_broadleaf_any_1x1`, `nat_pine_any_1x1`, `nat_fruit-tree_any_1x1`, `nat_bush_any_1x1`, `nat_rock_any_1x1`, `nat_stump_any_1x1` |
+| Trees, berry bushes, rocks and stumps | `nat_broadleaf_any_1x1`, `nat_pine_any_1x1`, `nat_fruit-tree_any_1x1`, `nat_berry-bush_any_1x1`, `nat_rock_any_1x1`, `nat_stump_any_1x1` |
+| Barley field (2×2), in each stage of its year | `nat_barley_any_2x2` (`_sprouts`, `_growing`, `_ripe`, `_harvested`, `_winter-fallow`) |
+| Scenery: wildflowers in the meadows, reeds along the water and in the marsh, fallen logs and dead wood in the forest, a log pile by each woodcutter's door | `nat_wildflowers_any_1x1`, `nat_reeds_any_1x1`, `nat_fallen-log_any_1x1`, `nat_deadwood_any_1x1`, `nat_log-pile_any_1x1` |
 | Animal pen (2×2) | `bld_pen_bronze_2x2` |
 | Two-storey house (towns) | `bld_townhouse_bronze_1x1` |
 | Alehouse (2×2) | `bld_alehouse_bronze_2x2` |
@@ -56,6 +58,14 @@ Every building above can also be drawn for a later era: swap `bronze` for `iron`
 ## Trees
 
 Trees stand with the foot of the trunk at the middle of their tile. Each season of a tree should keep the same tree at the same size and place, so the tree doesn't jump when the season turns. Spring, autumn and winter versions fall back to the summer one (or to `v01`'s) when missing.
+
+Small things (bushes, flowers, reeds, rocks, logs) stand the same way, at the middle of their tile, and are sized by hand in their sidecars against the people: a person is about a fifth of a tile tall, a berry bush a little taller, a stump a little shorter, wildflowers about knee height. Scenery is placed by the game, a little off-centre and sometimes mirrored, so it never lines up on the grid.
+
+A barley field is drawn as one 2×2 sprite that changes with the year: sprouts and then green barley in spring, ripening through summer, cut one field at a time in autumn, and stubble (under snow, when there is some) in winter.
+
+## Ground
+
+The ground is painted from flat, seamless squares in `terrain/`, named `ter_<surface>.png`: `grass_spring`, `grass_summer`, `grass_autumn`, `grass_snow`, `dirt`, `soil_plowed`, `sand`, `rock`, `water_shallow` and `water_deep`. They're laid over the map pinned to the ground and squashed to the view's slant, so paint them top-down, with no shading toward any edge. The game blends the seasons' grasses, wears dirt paths into the grass where people walk, lays snow over everything when it snows, and smooths the edges where two kinds of ground meet. Winter grass, marsh, ice and the hearth's square are recoloured from the nearest texture until they get their own.
 
 ## Night lights and smoke
 
