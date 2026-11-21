@@ -16,6 +16,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = ["tray-icon", "image-png", "devtools"] }
 tauri-plugin-notification = "2"
+tauri-plugin-dialog = "2"
 
 [profile.release]
 codegen-units = 1

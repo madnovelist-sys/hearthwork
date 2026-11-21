@@ -195,6 +195,90 @@
         ]
       ]
     },
+    "bld_round-hut_bronze_1x1_v01": {
+      "file": "buildings/bronze/bld_round-hut_bronze_1x1_v01.png",
+      "tilePx": 256,
+      "anchor": [
+        155.7,
+        355.4
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "bld_round-hut_bronze_1x1_v01_winter": {
+      "file": "buildings/bronze/bld_round-hut_bronze_1x1_v01_winter.png",
+      "tilePx": 256,
+      "anchor": [
+        155.4,
+        357.7
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "bld_round-hut_bronze_1x1_v02": {
+      "file": "buildings/bronze/bld_round-hut_bronze_1x1_v02.png",
+      "tilePx": 256,
+      "anchor": [
+        138.2,
+        338.8
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "bld_round-hut_bronze_1x1_v02_winter": {
+      "file": "buildings/bronze/bld_round-hut_bronze_1x1_v02_winter.png",
+      "tilePx": 256,
+      "anchor": [
+        140.1,
+        345.4
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "bld_round-hut_bronze_1x1_v03": {
+      "file": "buildings/bronze/bld_round-hut_bronze_1x1_v03.png",
+      "tilePx": 256,
+      "anchor": [
+        120.2,
+        340.6
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "bld_round-hut_bronze_1x1_v03_winter": {
+      "file": "buildings/bronze/bld_round-hut_bronze_1x1_v03_winter.png",
+      "tilePx": 256,
+      "anchor": [
+        119.6,
+        345.4
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
     "lmk_hearth_bronze_1x1_v01": {
       "file": "landmarks/lmk_hearth_bronze_1x1_v01.png",
       "tilePx": 256,
@@ -213,20 +297,6 @@
           57.8
         ]
       ]
-    },
-    "lmk_old-stone_bronze_1x1_v01": {
-      "file": "landmarks/lmk_old-stone_bronze_1x1_v01.png",
-      "tilePx": 256,
-      "anchor": [
-        132.2,
-        409.3
-      ],
-      "footprint": [
-        1,
-        1
-      ],
-      "lights": [],
-      "smoke": []
     }
   }
 }

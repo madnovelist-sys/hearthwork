@@ -1,12 +1,13 @@
-// Acts: the player's powers, bought with Favor. Plus the travelers waiting at
-// the gate after each Spark.
+// Acts: the player's powers, bought with Favor. Plus the people who can be called
+// with Sparks, and the people who come on their own.
 import { useState } from 'preact/hooks';
 import { ACTS, actCost, applyPending, createSettler, inspire, lawCost, nameChild, nameYear, raiseProphet, sendOnQuest, welcomeParty, whisperLaw } from '../sim/acts';
-import { candidates, titleCase } from '../sim/ages';
-import { answerPetition } from '../sim/petitions';
+import { CALL_COST, call, callOptions } from '../sim/callers';
+import { cameLastYear, draws } from '../sim/arrivals';
+import { candidates, ideaTitle } from '../sim/ages';
 import { FORTUNES, takeFortune } from '../sim/fortunes';
 import { LAWS, TENETS, hasLaw, opinion } from '../sim/society';
-import { RichText } from './format';
+
 import { QUEST_KIND_LABEL } from '../sim/names';
 import { DREAMS, DREAM_LABEL, JOB_LABEL, TRADES, TRAITS, TRAIT_LABEL } from '../sim/people';
 import { store } from '../game/store';
@@ -29,7 +30,6 @@ export function ActsPanel() {
   return (
     <>
       <Fortunes />
-      <Petitions />
       <p class="note">
         You have <b class="cost">✦ {s.favor} Favor</b>. Every Spark earns 1; reaching your daily goal earns 5.
         {!s.focus.running && ' Anything that brings people or sends them away happens at dawn, when you next start working.'}
@@ -232,31 +232,59 @@ function NameForm() {
 export function ArrivalsPanel() {
   const s = store.state!;
   const running = !!s.focus.running;
+  const { perYear, reasons } = draws(s);
+  const options = callOptions(s);
+  const sparks = s.sparks ?? 0;
+  const doCall = (id: number) => {
+    const r = call(s, id, running);
+    if (!r.ok) store.toast(r.reason);
+    else store.toast(running ? 'They walk in out of the evening, as if they had been expected.' : 'They will arrive at dawn, when you next start working.', 'gold');
+    store.changed();
+  };
   const welcome = (id: number) => {
     const r = welcomeParty(s, id, running);
     if (!r.ok) store.toast(r.reason);
-    else store.toast(running ? 'They walk in to a warm welcome.' : 'They will arrive at dawn, when you next start working.', 'gold');
     store.changed();
   };
   const waiting = s.pending.filter((p) => p.kind === 'party' && !p.patron);
+  const top = reasons.slice().sort((a, b) => b.weight - a.weight).slice(0, 3);
   return (
     <>
-      <p class="note">Every Spark brings three parties to the road. Choose one to welcome; the other two move on. If you don't choose, the settlement takes one in on its own at dawn.</p>
-      {s.arrivals.length === 0 && waiting.length === 0 && <p class="note">No one on the road right now. The next Spark will bring travelers.</p>}
+      <p class="note">
+        People come to {s.name} on their own when it's doing well, or when there's work for them.
+        {' '}{cameLastYear(s) ? `${cameLastYear(s)} came in the last year.` : 'Nobody has come in the last year.'}
+        {' '}Just now, word is going around {perYear >= 6 ? 'far and wide' : perYear >= 3 ? 'the valley' : 'only a little'}: {top.map((r) => r.why).join('; ')}.
+      </p>
+      <div class="group">
+        <h4>Call someone</h4>
+        <p class="note">
+          You have <b class="cost">✧ {sparks} Spark{sparks === 1 ? '' : 's'}</b>. Spend {CALL_COST} to call one of these three to {s.name}. Each carries a story that will come back, years from now.
+          {sparks < CALL_COST && ` Every Spark you earn while you work is kept for this.`}
+        </p>
+        {options.map((party) => (
+          <div class="party" key={party.id}>
+            {party.title && <h5 class="call-title">{party.title}</h5>}
+            <div class="story">{party.story}</div>
+            <ul>
+              {party.people.map((d, i) => (
+                <li key={i}>
+                  <b>{d.first} {d.family}</b>, {d.age < 1 ? 'a baby' : d.age} · {d.age >= 16 ? `${JOB_LABEL[d.skill]} · ` : ''}{d.traits.map((t) => TRAIT_LABEL[t]).join(', ')}
+                </li>
+              ))}
+            </ul>
+            <button class="btn small primary" disabled={sparks < CALL_COST} onClick={() => doCall(party.id)}>
+              Call {party.people.length > 1 ? 'them' : party.people[0].first} <span class="cost">✧{CALL_COST}</span>
+            </button>
+          </div>
+        ))}
+      </div>
       {s.arrivals.map((group, gi) => (
-        <div class="group" key={gi}>
-          <h4>Travelers on the road{s.arrivals.length > 1 ? ` (${gi + 1} of ${s.arrivals.length})` : ''}</h4>
+        <div class="group" key={`old${gi}`}>
+          <h4>Travelers still on the road</h4>
           {group.map((party) => (
             <div class="party" key={party.id}>
               <div class="story">{party.story}</div>
-              <ul>
-                {party.people.map((d, i) => (
-                  <li key={i}>
-                    <b>{d.first} {d.family}</b>, {d.age} · {JOB_LABEL[d.skill]} · {d.traits.map((t) => TRAIT_LABEL[t]).join(', ')}
-                  </li>
-                ))}
-              </ul>
-              <button class="btn small primary" onClick={() => welcome(party.id)}>Welcome {party.people.length > 1 ? 'them' : party.people[0].first}</button>
+              <button class="btn small" onClick={() => welcome(party.id)}>Welcome {party.people.length > 1 ? 'them' : party.people[0].first}</button>
             </div>
           ))}
         </div>
@@ -264,7 +292,7 @@ export function ArrivalsPanel() {
       {waiting.length > 0 && (
         <div class="group">
           <h4>Arriving at dawn</h4>
-          {waiting.map((p, i) => p.kind === 'party' && <p class="note" key={i}>{p.party.story}</p>)}
+          {waiting.map((p, i) => p.kind === 'party' && <p class="note" key={i}>{p.party.title ? <b>{p.party.title}. </b> : null}{p.party.story}</p>)}
         </div>
       )}
       <Newest />
@@ -305,28 +333,6 @@ function Fortunes() {
               <button class="btn small primary" onClick={() => take(offer.id, id)}>Choose</button>
             </div>
           ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Petitions() {
-  const s = store.state!;
-  if (!s.petitions.length) return null;
-  const answer = (id: number) => {
-    const r = answerPetition(s, id);
-    if (!r.ok) store.toast(r.reason); else store.toast('The prayer is answered.', 'gold');
-    store.changed();
-  };
-  return (
-    <div class="group">
-      <h4>Petitions at the Old Stone</h4>
-      {s.petitions.map((p) => (
-        <div class="party petition" key={p.id}>
-          <div class="story" style={{ fontStyle: 'normal' }}><RichText s={s} text={p.text} /></div>
-          <button class="btn small primary" disabled={s.favor < p.cost} onClick={() => answer(p.id)}>Answer · ✦{p.cost}</button>
-          <span class="sub" style={{ marginLeft: 8 }}>or let life take its course</span>
         </div>
       ))}
     </div>
@@ -435,7 +441,7 @@ function InspireForm() {
       </select>
       <p class="sub" style={{ marginTop: 6 }}>
         {theirs.length
-          ? <>Their work could lead to: {theirs.map((d) => titleCase(d.name)).join(', ')}.</>
+          ? <>Their work could lead to: {theirs.map((d) => ideaTitle(d)).join(', ')}.</>
           : <>Nothing their trade leads to is in the air just now, but the knowledge still helps.</>}
       </p>
       {error && <div class="error">{error}</div>}

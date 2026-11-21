@@ -47,7 +47,7 @@ export function nameYear(s: GameState, year: number): void {
   let name: string;
   if (best && best.weight >= 5) name = best.yearName!;
   else if (deaths >= 4) name = 'The Year of Many Graves';
-  else if (arrivals >= 5) name = 'The Year of Many Wagons';
+  else if (arrivals >= 5) name = s.lore?.known.some((k) => k.id === 'wheel') ? 'The Year of Many Wagons' : 'The Year of Many Newcomers';
   else if (births >= 4) name = 'The Year of Cradles';
   else if (best && best.weight >= 4) name = best.yearName!;
   else name = QUIET_YEARS[year % QUIET_YEARS.length];

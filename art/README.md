@@ -15,7 +15,7 @@ Images made against a footprint template line up exactly. Others work too: the a
 | `nature/nat_broadleaf_any_1x1_v01_autumn.png` | A broadleaf tree in autumn |
 | `landmarks/lmk_hearth_bronze_1x1_v01.png` | The Hearth, a one-of-a-kind landmark |
 
-Any number of variants (`v01`, `v02`, …) of anything are used at random. States the game looks for: `winter` for buildings; `spring`, `autumn` and `winter` for trees.
+Any number of variants (`v01`, `v02`, …) of anything are used at random. States the game looks for: `winter` for buildings; `spring`, `autumn` and `winter` for trees. A state goes with the variant of the same number, so `_v02_winter` must be the snowy version of `_v02`.
 
 ## Asset names the game uses today
 
@@ -23,7 +23,7 @@ Any number of variants (`v01`, `v02`, …) of anything are used at random. State
 | --- | --- |
 | Hide tent (families with nowhere to live yet) | `bld_hide-tent_bronze_1x1` |
 | Lean-to (one person with nowhere to live yet) | `bld_lean-to_bronze_1x1` |
-| Round hut | `bld_hut-round_bronze_1x1` |
+| Round hut | `bld_round-hut_bronze_1x1` |
 | Mudbrick home (any number of variants) | `bld_home_bronze_1x1` |
 | Family house (2×2, built by big families) | `bld_house-large_bronze_2x2` |
 | Gathering hall (3×3) | `bld_longhouse_bronze_3x3` |
@@ -36,7 +36,7 @@ Any number of variants (`v01`, `v02`, …) of anything are used at random. State
 | Market stall | `bld_stall_bronze_1x1` |
 | Burial ground (3×3) | `bld_burial_bronze_3x3` |
 | The Hearth (in `landmarks/`) | `lmk_hearth_bronze_1x1` |
-| The Old Stone (in `landmarks/`, tall template) | `lmk_old-stone_bronze_1x1` |
+| Sacred places found near the village (in `landmarks/`): standing stones (2×2), a sacred grove (2×2), a spring, a barrow (2×2), a cairn, a great old tree | `lmk_standing-stones_any_2x2`, `lmk_sacred-grove_any_2x2`, `lmk_spring_any_1x1`, `lmk_barrow_any_2x2`, `lmk_cairn_any_1x1`, `lmk_great-tree_any_1x1` |
 | Trees, rocks and stumps | `nat_broadleaf_any_1x1`, `nat_pine_any_1x1`, `nat_fruit_any_1x1`, `nat_bush_any_1x1`, `nat_rock_any_1x1`, `nat_stump_any_1x1` |
 | Animal pen (2×2) | `bld_pen_bronze_2x2` |
 | Two-storey house (towns) | `bld_townhouse_bronze_1x1` |
@@ -68,4 +68,4 @@ Use the full-size image, not a pre-shrunk copy: sidecar points are in the full-s
 
 In the game, **Settings → Art test scene** lets you drop in an image, see it on the real grid next to other buildings (by day and night, summer and winter, and at 48 px), and use it in your city right away. Art used that way stays on that computer until the file is added here.
 
-`_reference/` holds the style anchor, the era style sheets and the footprint templates.
+`_reference/` holds the style anchor, the era style sheets and the footprint templates. `_retired/` keeps art for things no longer in the game (the Old Stone).

@@ -45,7 +45,7 @@ export function GoalFields({ goals, onChange }: { goals: Goals; onChange: (g: Go
         {words
           ? 'You still press Start and Stop so the city knows when you\'re working. At the end of each session, you enter how many words you wrote.'
           : 'The timer does it all: press Start when you begin and Stop when you take a break.'}
-        {' '}Each Spark brings travelers to your gate and 1 Favor; reaching your daily goal earns 5 Favor.
+        {' '}Each Spark is kept to spend on calling someone to your village, and brings 1 Favor; reaching your daily goal earns 5 Favor.
       </p>
     </>
   );

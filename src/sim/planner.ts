@@ -16,12 +16,14 @@ export const FOOTPRINT: Record<BuildingKind, [number, number]> = {
   granary: [2, 2], kiln: [2, 2], furnace: [1, 1], shrine: [2, 2], well: [1, 1], dock: [1, 1], stall: [1, 1],
   field: [2, 2], graveyard: [3, 3], pen: [2, 2],
   townhouse: [1, 1], alehouse: [2, 2], healer: [1, 1], scribes: [2, 2], temple: [3, 3], guildhall: [2, 2], bridge: [1, 1],
+  stones: [2, 2], grove: [2, 2], spring: [1, 1], barrow: [2, 2], cairn: [1, 1], bigtree: [1, 1],
 };
 
 export const BUILD_WORK: Record<BuildingKind, number> = {
   hearth: 0, stone: 0, tent: 0, leanto: 0, hut: 24, house: 50, bighouse: 80, hall: 160, granary: 40, kiln: 30,
   furnace: 40, shrine: 40, well: 20, dock: 25, stall: 12, field: 6, graveyard: 0, pen: 14,
   townhouse: 70, alehouse: 60, healer: 30, scribes: 70, temple: 200, guildhall: 90, bridge: 25,
+  stones: 0, grove: 0, spring: 0, barrow: 0, cairn: 0, bigtree: 0,
 };
 
 /** Wood used per unit of building work. Fields and graveyards need none. */
@@ -37,6 +39,7 @@ export const BUILDING_LABEL: Record<BuildingKind, string> = {
   field: 'Barley field', graveyard: 'Burial ground', pen: 'Animal pen',
   townhouse: 'Two-storey house', alehouse: 'Alehouse', healer: "Healer's hut", scribes: 'House of scribes',
   temple: 'Temple', guildhall: 'Guildhall', bridge: 'Bridge',
+  stones: 'Standing stones', grove: 'Grove', spring: 'Spring', barrow: 'Barrow', cairn: 'Cairn', bigtree: 'Great tree',
 };
 
 const regionCache = new WeakMap<object, Uint8Array>();

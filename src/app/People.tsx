@@ -12,6 +12,7 @@ import { leaderTitle } from '../sim/society';
 import { ITEM_KIND_LABEL, itemsOf } from '../sim/items';
 import { petsOf } from '../sim/animals';
 import { guildOf } from '../sim/town';
+import { isSite } from '../sim/places';
 import { ERA_LABEL, discovery } from '../sim/ages';
 
 const cap = (t: string) => t[0].toUpperCase() + t.slice(1);
@@ -171,18 +172,24 @@ export function BuildingCard({ id }: { id: number }) {
   return (
     <div class="card paper" role="dialog" aria-label={BUILDING_LABEL[b.kind]}>
       <button class="btn small ghost close" onClick={() => store.setUi({ selection: null })} aria-label="Close">✕</button>
-      <h3>{b.kind === 'hearth' ? `The Hearth of ${s.name}` : b.name ?? BUILDING_LABEL[b.kind]}</h3>
+      <h3>{b.kind === 'hearth' ? `The Hearth of ${s.name}` : b.name ? cap(b.name) : BUILDING_LABEL[b.kind]}</h3>
       {b.name && <div class="sub">{BUILDING_LABEL[b.kind]}{b.owner !== undefined && s.people[b.owner] ? <>, run by <PersonLink p={s.people[b.owner]} /></> : ''}</div>}
       {b.burning !== undefined && <p class="note" style={{ background: '#f3d2cc' }}>On fire!</p>}
       {b.burned && <p class="note">A burned-out shell. It will be cleared away.</p>}
       <div class="sub">
-        {b.built ? (b.kind === 'hearth' ? 'Lit in the spring of Year 1' : `Built ${when(b.completed ?? b.founded)}`) : `Being built: ${Math.round((b.progress / Math.max(1, b.required)) * 100)}%`}
+        {isSite(b.kind) ? '' : b.built ? (b.kind === 'hearth' ? 'Lit in the spring of Year 1' : `Built ${when(b.completed ?? b.founded)}`) : `Being built: ${Math.round((b.progress / Math.max(1, b.required)) * 100)}%`}
       </div>
       {b.kind === 'hearth' && <p class="story">The first fire. It burns while you work; when you rest, it banks to embers and the city sleeps.</p>}
       {b.era && b.era !== 'bronze' && b.kind !== 'bridge' && <div class="sub">Built in the {ERA_LABEL[b.era]} style.</div>}
       {b.kind === 'temple' && b.faith !== undefined && s.faiths[b.faith] && <p class="story">The house of {s.faiths[b.faith].name}.</p>}
       {b.kind === 'bridge' && <p class="story">Timber laid over the river, so the town could cross to the far bank.</p>}
-      {b.kind === 'stone' && <p class="story">The Old Stone, where the settlers leave petitions. A spiral is carved in it that nobody remembers carving.</p>}
+      {isSite(b.kind) && (
+        <p class="story">
+          {(b.sacred ?? 0) >= 70 ? 'A holy place. People go quiet when they come near it.' : (b.sacred ?? 0) >= 35 ? 'People leave small offerings here.' : 'Nobody pays it much mind yet.'}
+          {b.faith !== undefined && s.faiths[b.faith] ? ` The holy place of ${s.faiths[b.faith].name}.` : ''}
+        </p>
+      )}
+      {isSite(b.kind) && b.foundBy !== undefined && s.people[b.foundBy] && <div class="sub">Found in Year {yearOf(b.founded)} by <PersonLink p={s.people[b.foundBy]} />.</div>}
       {people.length > 0 && (
         <section>
           <h4>Lives here</h4>

@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "What the game's window may do. The basics, plus system notifications.",
+  "description": "What the game's window may do. The basics, system notifications, and save/open dialogs.",
   "windows": ["main"],
-  "permissions": ["core:default", "notification:default"]
+  "permissions": ["core:default", "notification:default", "dialog:allow-save", "dialog:allow-open"]
 }

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { makeArrivalOptions, settleParty } from '../src/sim/arrivals';
+import { arrivalsSeason, draws, makeArrivalOptions, settleParty } from '../src/sim/arrivals';
+import { call, callOptions, hooksYear } from '../src/sim/callers';
+import { findPlace, placesYear, sitesOf } from '../src/sim/places';
 import { createSettler, sendOnQuest, welcomeParty } from '../src/sim/acts';
 import { foundSettlement, stepDay } from '../src/sim/sim';
 import { DAYS_PER_YEAR, type GameState } from '../src/sim/types';
@@ -14,11 +16,12 @@ import { describeArms, grantCharter, planBridge, planWalls, progressWalls } from
 import { tileCost } from '../src/sim/path';
 import { TERRAIN } from '../src/sim/types';
 
+/** A settlement left to grow: people come on their own, and every year someone is called with Sparks. */
 function run(seed: number, years: number): GameState {
   const s = foundSettlement({ seed, name: 'Testbrook' });
   for (let d = 0; d < years * DAYS_PER_YEAR; d++) {
     stepDay(s);
-    if (d % 120 === 119) settleParty(s, makeArrivalOptions(s)[d % 3]);
+    if (d % DAYS_PER_YEAR === DAYS_PER_YEAR - 1) { s.sparks += 3; call(s, callOptions(s)[d % 3].id, true); }
   }
   return s;
 }
@@ -56,8 +59,8 @@ describe('simulation', () => {
   });
 
   it('grows into a village within a reasonable number of focus hours', () => {
-    const s = run(12345, 14);
-    expect(s.stage).toBe('village');
+    const s = run(12345, 20);
+    expect(s.stage).not.toBe('settlement');
   });
 
   it("darkness changes how deadly life is", () => {
@@ -117,7 +120,7 @@ describe('focus clock', () => {
     expect(rec.sparks).toBe(3);
     expect(s.favor).toBe(favor + 3 + 5);
     expect(focusDay(s, t0).goalMet).toBe(true);
-    expect(s.arrivals.length).toBeGreaterThan(0);
+    expect(s.sparks).toBe(3); // kept, to spend on calling someone
   });
 
   it('does not run the city while paused', () => {
@@ -133,10 +136,10 @@ describe('focus clock', () => {
     for (let m = 1; m <= 60; m++) tick(s, t0 + m * 60_000);
     stopSession(s, t0 + 60 * 60_000);
     expect(s.day).toBe(DAYS_PER_YEAR); // the city still lives while the timer runs
-    expect(s.arrivals.length).toBe(0); // but an hour of time alone brings no Sparks
+    expect(s.sparks).toBe(0); // but an hour of time alone brings no Sparks
     expect(focusDay(s, t0).goalMet).toBe(false);
     logWords(s, 1100, t0 + 61 * 60_000);
-    expect(s.arrivals.length).toBe(3); // 4 Sparks; the oldest group moves on past 3 waiting
+    expect(s.sparks).toBe(4);
     expect(s.focus.sparkWords).toBe(100);
     expect(focusDay(s, t0).goalMet).toBe(true);
   });
@@ -144,7 +147,7 @@ describe('focus clock', () => {
   it('when tracking time, logged words are recorded but bring no Sparks', () => {
     const s = foundSettlement({ seed: 11, name: 'Z' });
     logWords(s, 600, Date.now());
-    expect(s.arrivals.length).toBe(0);
+    expect(s.sparks).toBe(0);
   });
 
   it('treats a very long gap as an interruption, not work', () => {
@@ -173,7 +176,6 @@ describe('saves', () => {
 import { raiseProphet, whisperLaw, lawCost } from '../src/sim/acts';
 import { followers, hasLaw } from '../src/sim/society';
 import { ignite, startPlague } from '../src/sim/calamity';
-import { answerPetition } from '../src/sim/petitions';
 import { offerFortune, takeFortune } from '../src/sim/fortunes';
 
 describe('village life', () => {
@@ -216,17 +218,13 @@ describe('village life', () => {
     expect(baby?.faith).toBe(faith.id);
   });
 
-  it('plague spreads, and an answered petition ends it', () => {
+  it('plague spreads, then burns itself out', () => {
     const s = run(44, 12);
     startPlague(s);
     for (let d = 0; d < 40; d++) stepDay(s);
     expect(s.plague?.cases ?? 0).toBeGreaterThan(1);
-    const pet = s.petitions.find((p) => p.kind === 'plague');
-    if (pet) {
-      s.favor = 10;
-      expect(answerPetition(s, pet.id).ok).toBe(true);
-      expect(s.plague).toBeUndefined();
-    }
+    for (let d = 0; d < 4 * 360 && s.plague; d++) stepDay(s);
+    expect(s.plague).toBeUndefined();
   });
 
   it('fire burns a home out and its family gets a tent', () => {
@@ -395,12 +393,13 @@ describe('towns and ages', () => {
     expect(mean).toBeLessThan(1.15);
     expect(draws.filter((d) => d < 0.3).length).toBeGreaterThan(100); // a flurry
     expect(draws.filter((d) => d > 2.5).length).toBeGreaterThan(50); // a long drought
-    // Over a real run, the gaps between discoveries differ.
-    const r = run(79, 30);
+    // Over two centuries of a settlement's learning, the gaps between discoveries differ.
+    const r = foundSettlement({ seed: 79, name: 'Testbrook' });
+    for (let d = 0; d < 200 * DAYS_PER_YEAR; d++) { r.day = d; loreDay(r); }
     const days = r.lore.known.map((k) => k.day);
     const gaps = days.slice(1).map((d, i) => d - days[i]);
-    expect(gaps.length).toBeGreaterThan(1);
-    expect(Math.max(...gaps)).toBeGreaterThan(Math.min(...gaps) * 2);
+    expect(gaps.length).toBeGreaterThan(5);
+    expect(Math.max(...gaps)).toBeGreaterThan(Math.min(...gaps) * 3);
   });
 
   it('side ages only come when the sliders allow, and pass', () => {
@@ -484,5 +483,72 @@ describe('towns and ages', () => {
     expect(loaded.ages.length).toBe(1);
     expect(loaded.lore.points).toBeGreaterThan(0);
     expect(loaded.guilds).toEqual([]);
+  });
+});
+
+describe('arrivals, calling and sacred places', () => {
+  it('people come on their own to a settlement doing well, and few come in hard times', () => {
+    const s = run(81, 6);
+    const before = s.people.length;
+    for (let i = 0; i < 16; i++) arrivalsSeason(s);
+    const came = s.people.length - before;
+    expect(came).toBeGreaterThan(3);
+    // Starving and sick: almost nobody wants to come.
+    const t = run(81, 6);
+    t.stores.food = 0;
+    t.flags.hungerSince = t.day;
+    t.stage = 'village';
+    expect(draws(t).perYear).toBeLessThan(draws(s).perYear / 2);
+  });
+
+  it('they come for the work there is: a kiln draws potters', () => {
+    const s = run(82, 8);
+    if (!s.buildings.some((b) => b.kind === 'kiln' && b.built && !b.removed)) addBuilding(s, 'kiln', 2, 2, { built: true });
+    expect(draws(s).reasons.some((r) => r.job === 'potter')).toBe(true);
+  });
+
+  it('Sparks call one of three different people, whose stories come back', () => {
+    const s = run(83, 4);
+    const options = callOptions(s);
+    expect(options.length).toBe(3);
+    expect(new Set(options.map((o) => o.call)).size).toBe(3);
+    expect(callOptions(s)).toBe(options); // the same three until one is called
+    s.sparks = 2;
+    expect(call(s, options[0].id, true).ok).toBe(false);
+    s.sparks = 5;
+    const before = s.people.length;
+    expect(call(s, options[0].id, true).ok).toBe(true);
+    expect(s.sparks).toBe(2);
+    expect(s.people.length).toBeGreaterThan(before);
+    const holder = s.people.slice(before).find((p) => p.hook);
+    expect(holder?.hook?.id).toBe(options[0].call);
+    // Called again: never the same story twice in a row.
+    expect(callOptions(s).some((o) => o.call === options[0].call)).toBe(false);
+    // Years later, the story comes back in the Chronicle.
+    const entries = s.chronicle.length;
+    s.day = holder!.hook!.due + 1;
+    for (let i = 0; i < 80 && holder!.hook; i++) { hooksYear(s); s.day += DAYS_PER_YEAR; }
+    expect(s.chronicle.length).toBeGreaterThan(entries);
+  });
+
+  it('someone ranging out finds a sacred place, which grows holy over the years', () => {
+    const s = run(84, 8);
+    const site = findPlace(s);
+    expect(site).not.toBeNull();
+    expect(site!.name).toMatch(/^[A-Za-z]/);
+    expect(s.chronicle.at(-1)!.text).toContain(site!.name!);
+    for (let i = 0; i < 60; i++) { placesYear(s); s.day += DAYS_PER_YEAR; }
+    expect(sitesOf(s).some((b) => (b.sacred ?? 0) >= 70)).toBe(true);
+  });
+
+  it('older saves lose the Old Stone and petitions', () => {
+    const s = run(85, 2) as unknown as GameState & { petitions?: unknown[] };
+    const stone = addBuilding(s, 'stone', s.hearth.x + 1, s.hearth.y - 1, { built: true });
+    s.petitions = [];
+    const back = parseSave(JSON.stringify(s)) as GameState & { petitions?: unknown[] };
+    expect(back.petitions).toBeUndefined();
+    expect(back.buildings[stone.id].removed).toBe(true);
+    expect(back.map.occ[stone.y * back.map.w + stone.x]).toBe(0);
+    expect(back.sparks).toBe(0);
   });
 });

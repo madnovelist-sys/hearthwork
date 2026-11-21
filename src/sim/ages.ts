@@ -7,6 +7,7 @@ import { log, P } from './chronicle';
 import { chance, rand, weighted, int } from './rng';
 import { DAYS_PER_YEAR, type BuildingKind, type Era, type GameState, type JobId, type Person } from './types';
 import { ageOf, darkFactor, present } from './world';
+import { isSite } from './places';
 
 export const ERAS: Era[] = ['bronze', 'iron', 'stone-timber', 'sail-dome', 'steam', 'electric', 'glass'];
 export const ERA_LABEL: Record<Era, string> = {
@@ -34,6 +35,8 @@ export interface Discovery {
   text: string;
   /** Extra likelihood from the city's circumstances. */
   likes?: (s: GameState) => number;
+  /** Discoveries it builds on, which must come first. */
+  needs?: string[];
 }
 
 const count = (s: GameState, kind: BuildingKind) => s.buildings.filter((b) => b.kind === kind && b.built && !b.removed).length;
@@ -65,7 +68,7 @@ export const DISCOVERIES: Discovery[] = [
     likes: (s) => workers(s, 'healer') * 2 + workers(s, 'gatherer') * 0.3 },
   { id: 'wheel', name: 'the wheel', era: 0, age: 'The Age of the Wheel', jobs: ['builder', 'smith', 'potter'], boosts: { build: 0.2 },
     note: 'Carts: building goes faster',
-    text: "{p} turned the potter's wheel on its side, gave it a twin and an axle, and loaded a whole tree on top. Children rode the first cart up and down {town} all afternoon.",
+    text: '{p} watched a log roll down the riverbank, and thought about it for a whole winter. In spring {p:they} cut two slices from a trunk, joined them with an axle, and loaded a whole tree on top. Children rode the first cart up and down {town} all afternoon.',
     likes: (s) => workers(s, 'builder') * 0.5 + (s.flags.knowledge ?? 0) },
   { id: 'writing', name: 'writing', era: 0, age: 'The Age of Writing', jobs: ['elder', 'potter', 'none'], boosts: { knowledge: 0.25 }, unlocks: ['scribes'],
     note: 'Knowledge is kept; a house of scribes can be built',
@@ -79,7 +82,7 @@ export const DISCOVERIES: Discovery[] = [
     likes: (s) => workers(s, 'smith') * 2 },
   { id: 'law', name: 'written law', era: 1, age: 'The Age of Law', jobs: ['elder'], boosts: { health: 0.05 },
     note: 'Laws are written down',
-    text: '{p} had the laws of {town} cut into a standing stone in the square, so that no chief could ever say they had been different.',
+    text: '{p} had the laws of {town} cut into a standing stone beside the hearth, so that no chief could ever say they had been different.',
     likes: (s) => s.laws.length * 2 },
   { id: 'coin', name: 'coin', era: 1, age: 'The Age of Coin', jobs: ['smith', 'potter'], boosts: { goods: 0.25 },
     note: 'Trade flourishes',
@@ -96,7 +99,7 @@ export const DISCOVERIES: Discovery[] = [
     text: '{p} cut steps into the hillside and walled them with stones, and grew barley where only goats had walked.' },
   { id: 'medicine', name: 'the art of medicine', era: 1, jobs: ['healer'], boosts: { health: 0.15, births: 0.05 },
     note: 'Fewer die in sickness and childbirth',
-    text: '{p} wrote down every illness {p:they} had ever seen and what had helped, and the book was copied until it fell apart.' },
+    text: '{p} spent a lifetime learning every illness and what helped it, and taught it all to anyone who would sit still long enough to listen.' },
 
   { id: 'roads', name: 'paved roads', era: 1, jobs: ['builder'], boosts: { build: 0.05, goods: 0.05 },
     note: 'Roads that last',
@@ -112,7 +115,7 @@ export const DISCOVERIES: Discovery[] = [
     likes: (s) => s.faiths.filter((f) => !f.gone).length * 3 },
   { id: 'plow', name: 'the heavy plough', era: 2, age: 'The Age of the Plow', jobs: ['farmer', 'smith'], boosts: { food: 0.2 },
     note: 'Heavy soil turned: much more food',
-    text: '{p} fitted an iron share and a mouldboard to a plough that took eight oxen to pull, and turned the heavy valley clay that had beaten every farmer before.',
+    text: '{p} fitted a heavy share and a mouldboard to a plough that took eight oxen to pull, and turned the heavy valley clay that had beaten every farmer before.',
     likes: (s) => workers(s, 'farmer') * 0.4 },
   { id: 'castles', name: 'the castle', era: 2, age: 'The Age of Castles', jobs: ['builder'], boosts: { build: 0.1 },
     note: 'Walls of stone',
@@ -123,7 +126,7 @@ export const DISCOVERIES: Discovery[] = [
     text: '{p} built a wheel the river could turn, and the river ground more grain in a day than ten people in a week.' },
   { id: 'guild-charter', name: 'the guild charter', era: 2, jobs: ['potter', 'smith', 'builder'], boosts: { goods: 0.15 },
     note: 'Crafts pass on their secrets',
-    text: '{p} wrote down the rules of the craft and the oath of the apprentice, and the guilds of {town} have kept them ever since.' },
+    text: '{p} set down the rules of the craft and the oath of the apprentice, and the guilds of {town} have kept them ever since.' },
   { id: 'clock', name: 'the clock', era: 2, jobs: ['smith'], boosts: { goods: 0.05, knowledge: 0.1 },
     note: 'The hours are kept',
     text: '{p} built a machine of weights and wheels that rang a bell every hour, and the whole of {town} started keeping time by it.' },
@@ -131,12 +134,12 @@ export const DISCOVERIES: Discovery[] = [
   { id: 'windmill', name: 'the windmill', era: 2, jobs: ['builder', 'farmer'], boosts: { food: 0.08 },
     note: 'The wind grinds the grain',
     text: '{p} built a mill on the ridge that turned its sails to face the wind, and it ground grain even in the dry months when the river ran low.' },
-  { id: 'paper', name: 'paper', era: 2, jobs: ['potter', 'elder'], boosts: { knowledge: 0.15 },
+  { id: 'paper', needs: ['writing'], name: 'paper', era: 2, jobs: ['potter', 'elder'], boosts: { knowledge: 0.15 },
     note: 'Cheap pages for writing',
     text: '{p} pounded rags to pulp and dried it in thin sheets, and suddenly writing things down cost almost nothing.' },
 
   // --- Sail and Dome ------------------------------------------------------
-  { id: 'print', name: 'the printing press', era: 3, age: 'The Age of Print', jobs: ['smith', 'elder'], boosts: { knowledge: 0.35 },
+  { id: 'print', needs: ['writing'], name: 'the printing press', era: 3, age: 'The Age of Print', jobs: ['smith', 'elder'], boosts: { knowledge: 0.35 },
     note: 'Books for everyone',
     text: '{p} cast letters in metal and pressed them onto paper, a whole page at once. Within a year there were more books in {town} than there had ever been.' },
   { id: 'sail', name: 'the tall ship', era: 3, age: 'The Age of Sail', jobs: ['fisher', 'builder'], boosts: { food: 0.1, goods: 0.2 },
@@ -149,7 +152,7 @@ export const DISCOVERIES: Discovery[] = [
   { id: 'compass', name: 'the compass', era: 3, jobs: ['fisher', 'smith'], boosts: { goods: 0.1 },
     note: 'Sailors find their way',
     text: '{p} floated a magnetized needle on a cork in a bowl of water, and it pointed north every time.' },
-  { id: 'banking', name: 'banking', era: 3, jobs: ['potter', 'smith', 'elder'], boosts: { goods: 0.2 },
+  { id: 'banking', needs: ['coin'], name: 'banking', era: 3, jobs: ['potter', 'smith', 'elder'], boosts: { goods: 0.2 },
     note: 'Money lent and borrowed',
     text: '{p} opened a counting house in the square, and soon half of {town} owed it money and the other half was owed.' },
   { id: 'lens', name: 'the lens', era: 3, jobs: ['potter', 'healer'], boosts: { knowledge: 0.15, health: 0.05 },
@@ -160,13 +163,13 @@ export const DISCOVERIES: Discovery[] = [
     text: '{p} worked out how to raise a dome of brick without any frame to hold it up, and the people of {town} came to watch it close.' },
 
   // --- Steam and Brick ----------------------------------------------------
-  { id: 'steam', name: 'the steam engine', era: 4, age: 'The Age of Steam', jobs: ['smith'], boosts: { goods: 0.35 },
+  { id: 'steam', needs: ['iron'], name: 'the steam engine', era: 4, age: 'The Age of Steam', jobs: ['smith'], boosts: { goods: 0.35 },
     note: 'Engines do the work',
     text: '{p} built an engine that boiled water to push a piston, and it pumped, hammered and spun day and night without tiring.' },
   { id: 'coal', name: 'coal', era: 4, age: 'The Age of Coal', jobs: ['smith', 'woodcutter'], boosts: { goods: 0.2, wood: 0.3 },
     note: 'Black stone burns hotter than wood',
     text: '{p} dug into the black seam in the hillside, and {town} burned it in every hearth. The sky above the city was never quite as blue again.' },
-  { id: 'rail', name: 'the railway', era: 4, age: 'The Age of Rail', jobs: ['smith', 'builder'], boosts: { goods: 0.2, build: 0.1 },
+  { id: 'rail', needs: ['steam'], name: 'the railway', era: 4, age: 'The Age of Rail', jobs: ['smith', 'builder'], boosts: { goods: 0.2, build: 0.1 },
     note: 'Trains link the cities',
     text: '{p} set an engine on iron rails, and the journey to the coast that had taken a week took an afternoon.' },
   { id: 'vaccination', name: 'vaccination', era: 4, jobs: ['healer'], boosts: { health: 0.3 },
@@ -187,7 +190,7 @@ export const DISCOVERIES: Discovery[] = [
   { id: 'lightning', name: 'electricity', era: 5, age: 'The Age of Lightning', jobs: ['smith'], boosts: { goods: 0.3, knowledge: 0.15 },
     note: 'Power down a wire',
     text: '{p} caught lightning in a wire, more or less, and by the end of the decade every street in {town} had electric light.' },
-  { id: 'radio', name: 'the radio', era: 5, age: 'The Age of Radio', jobs: ['smith', 'elder'], boosts: { knowledge: 0.2 },
+  { id: 'radio', needs: ['lightning'], name: 'the radio', era: 5, age: 'The Age of Radio', jobs: ['smith', 'elder'], boosts: { knowledge: 0.2 },
     note: 'Voices through the air',
     text: '{p} heard a voice from a city a hundred miles away coming out of a box of wires, and wept.' },
   { id: 'flight', name: 'flight', era: 5, age: 'The Age of Flight', jobs: ['builder', 'smith'], boosts: { goods: 0.15 },
@@ -196,14 +199,14 @@ export const DISCOVERIES: Discovery[] = [
   { id: 'antibiotics', name: 'antibiotics', era: 5, jobs: ['healer'], boosts: { health: 0.35, births: 0.1 },
     note: 'Infections cured',
     text: '{p} noticed that a mould growing on a forgotten dish had killed the sickness around it.' },
-  { id: 'tram', name: 'the tram', era: 5, jobs: ['builder', 'smith'], boosts: { build: 0.1 },
+  { id: 'tram', needs: ['lightning'], name: 'the tram', era: 5, jobs: ['builder', 'smith'], boosts: { build: 0.1 },
     note: 'Trams along the avenues',
     text: '{p} laid rails down the main street of {town}, and the trams ran from dawn to midnight.' },
-  { id: 'telephone', name: 'the telephone', era: 5, jobs: ['smith'], boosts: { knowledge: 0.1 },
+  { id: 'telephone', needs: ['lightning'], name: 'the telephone', era: 5, jobs: ['smith'], boosts: { knowledge: 0.1 },
     note: 'Talking across the city',
     text: '{p} spoke into a horn on one side of {town} and was heard on the other.' },
 
-  { id: 'film', name: 'moving pictures', era: 5, jobs: ['smith', 'elder'], boosts: { knowledge: 0.05 },
+  { id: 'film', needs: ['lightning'], name: 'moving pictures', era: 5, jobs: ['smith', 'elder'], boosts: { knowledge: 0.05 },
     note: 'Cinemas open',
     text: '{p} projected pictures that moved onto a sheet in the square, and half of {town} screamed when the train came toward them.' },
 
@@ -211,10 +214,10 @@ export const DISCOVERIES: Discovery[] = [
   { id: 'atom', name: 'the atom', era: 6, age: 'The Age of the Atom', jobs: ['smith', 'healer'], boosts: { goods: 0.2 },
     note: 'Power from the smallest things',
     text: '{p} split the atom in a basement laboratory, and the world changed in ways nobody was ready for.' },
-  { id: 'silicon', name: 'the microchip', era: 6, age: 'The Age of Silicon', jobs: ['smith'], boosts: { knowledge: 0.3 },
+  { id: 'silicon', needs: ['lightning'], name: 'the microchip', era: 6, age: 'The Age of Silicon', jobs: ['smith'], boosts: { knowledge: 0.3 },
     note: 'Thinking machines',
     text: '{p} etched a thousand switches onto a sliver of sand smaller than a fingernail.' },
-  { id: 'networks', name: 'the network', era: 6, age: 'The Age of Networks', jobs: ['smith', 'elder'], boosts: { knowledge: 0.3, goods: 0.15 },
+  { id: 'networks', needs: ['silicon'], name: 'the network', era: 6, age: 'The Age of Networks', jobs: ['smith', 'elder'], boosts: { knowledge: 0.3, goods: 0.15 },
     note: 'Everyone connected',
     text: '{p} linked the machines of {town} to every other city in the world, and nobody was ever quite alone, or quite at peace, again.' },
   { id: 'vaccines', name: 'modern medicine', era: 6, jobs: ['healer'], boosts: { health: 0.3 },
@@ -344,6 +347,7 @@ export function candidates(s: GameState): Discovery[] {
   const ripe = s.day - eraStart >= eraYears(s, era) * DAYS_PER_YEAR && (knownHere >= 5 || hereLeft === 0);
   return DISCOVERIES.filter((d) => {
     if (knows(s, d.id)) return false;
+    if (d.needs && !d.needs.every((n) => knows(s, n))) return false;
     if (d.era <= era) return true;
     return d.era === era + 1 && !!d.age && ripe;
   });
@@ -406,6 +410,11 @@ export function discover(s: GameState, d: Discovery, by?: Person) {
   }
 }
 
+/** An idea's name as a title: "the potter's wheel" → "Potter's Wheel". */
+export function ideaTitle(d: Discovery): string {
+  return titleCase(d.name.replace(/^the /, ''));
+}
+
 /** "the potter's wheel" → "the Potter's Wheel" */
 export function titleCase(t: string): string {
   return t.split(' ').map((w, i) => (i > 0 || w !== 'the') && !['of', 'a'].includes(w) ? w[0].toUpperCase() + w.slice(1) : w).join(' ');
@@ -447,7 +456,7 @@ export function agesYear(s: GameState) {
   }
   // The Comet: a rare sight, if the world is strange enough.
   if (s.settings.weirdness >= 2 && chance(s.rng, 1 / 70)) {
-    beginSideAge(s, 'comet', `A comet hung over ${s.name} for a whole season, a smear of green fire with a tail that pointed at the Old Stone. People began to call it the Age of the Comet.`);
+    beginSideAge(s, 'comet', `A comet hung over ${s.name} for a whole season, a smear of green fire with a tail that pointed at the hearth. People began to call it the Age of the Comet.`);
   }
 }
 
@@ -455,7 +464,7 @@ export function agesYear(s: GameState) {
 export function rebuildOld(s: GameState, queueRebuild: (b: GameState['buildings'][number]) => boolean) {
   const era = eraIndex(s);
   if (era === 0) return;
-  const old = s.buildings.filter((b) => b.built && !b.removed && b.kind !== 'hearth' && b.kind !== 'stone' && b.kind !== 'field' && b.kind !== 'graveyard'
+  const old = s.buildings.filter((b) => b.built && !b.removed && b.kind !== 'hearth' && b.kind !== 'stone' && b.kind !== 'field' && b.kind !== 'graveyard' && !isSite(b.kind)
     && ERAS.indexOf(b.era ?? 'bronze') < era && s.day - (b.completed ?? 0) > 25 * DAYS_PER_YEAR);
   if (!old.length) return;
   const n = Math.max(1, Math.round(old.length * 0.04));

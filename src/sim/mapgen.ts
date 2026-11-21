@@ -330,7 +330,7 @@ export function growMap(s: GameState, quiet = false): number {
   if (s.map.w >= want) return 0;
   const d = expandMap(s, want);
   if (d && !quiet) {
-    log(s, 'stage', `Hunters and herders walked farther than anyone had before, and came back with news of the land beyond: more woods, more meadow, and the river running on.`, [], 4);
+    log(s, 'season', `Hunters and herders walked farther than anyone had before, and came back with news of the land beyond: more woods, more meadow, and the river running on.`, [], 4);
   }
   return d;
 }

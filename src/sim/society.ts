@@ -20,13 +20,13 @@ export interface LawInfo {
 
 export const LAWS: LawInfo[] = [
   { id: 'share-harvest', name: 'Share the Harvest', decree: 'in a hungry season, the stores belong to everyone', effect: 'Hunger hurts less, and fewer families give up and leave.', likes: ['generous', 'kind'], dislikes: ['greedy', 'ambitious'] },
-  { id: 'open-gates', name: 'Open Gates', decree: 'any traveler who asks may stay', effect: 'More travelers come with each Spark.', likes: ['kind', 'gregarious', 'curious'], dislikes: ['timid', 'cruel'] },
+  { id: 'open-gates', name: 'Open Gates', decree: 'any traveler who asks may stay', effect: 'More people come to stay.', likes: ['kind', 'gregarious', 'curious'], dislikes: ['timid', 'cruel'] },
   { id: 'fever-huts', name: 'The Fever Huts', decree: 'the sick must sleep apart until they are well', effect: 'Fevers and plague spread more slowly and kill fewer.', likes: ['clever', 'skeptical'], dislikes: ['stubborn', 'gregarious'] },
   { id: 'feast-days', name: 'Feast Days', decree: 'the turn of every season is a feast day', effect: 'Everyone is happier; a little more food is eaten.', likes: ['cheerful', 'gregarious', 'generous'], dislikes: ['greedy', 'gloomy'] },
   { id: 'work-dawn', name: 'Work from Dawn', decree: 'every able hand works from dawn to dusk', effect: 'Everyone produces more, and likes it less.', likes: ['diligent', 'ambitious'], dislikes: ['lazy', 'content'] },
   { id: 'no-blades', name: 'No Blades at the Fire', decree: 'no blade may be drawn within sight of the hearth', effect: 'Fewer quarrels; a calmer settlement.', likes: ['kind', 'timid', 'honest'], dislikes: ['cruel', 'brave'] },
   { id: 'elders-voice', name: "The Elders' Voice", decree: 'no decision is made without the elders', effect: 'Elders are honored and happier; leaders are chosen older.', likes: ['content', 'pious'], dislikes: ['ambitious', 'restless'] },
-  { id: 'tithe', name: 'The Tithe to the Stone', decree: 'a share of every craft is left at the Old Stone', effect: 'Faith spreads faster; fewer goods to go around.', likes: ['pious'], dislikes: ['greedy', 'skeptical'] },
+  { id: 'tithe', name: 'The Hearth Tithe', decree: 'a share of every craft is given to the keepers of the hearth', effect: 'Faith spreads faster; fewer goods to go around.', likes: ['pious'], dislikes: ['greedy', 'skeptical'] },
 ];
 export const LAW = Object.fromEntries(LAWS.map((l) => [l.id, l])) as Record<LawId, LawInfo>;
 
@@ -173,7 +173,7 @@ function population(s: GameState) { return present(s).length; }
 // Faith
 
 export const TENETS: Record<TenetId, { name: string; text: string }> = {
-  hearth: { name: 'The Unseen Keeper', text: 'Someone tends the first fire, and answers those who ask at the Old Stone.' },
+  hearth: { name: 'The Unseen Keeper', text: 'Someone unseen tends the first fire, and watches over those who keep it.' },
   ancestors: { name: 'The Ancestors', text: 'The dead watch over the living, and are owed a place at the meal.' },
   river: { name: 'The River', text: 'The river gives and the river takes; it must be thanked for both.' },
   peace: { name: 'Peace', text: 'No hand raised in anger. Ever.' },
@@ -181,10 +181,11 @@ export const TENETS: Record<TenetId, { name: string; text: string }> = {
   austerity: { name: 'Austerity', text: 'Want little. Waste nothing. Fast at the turn of the year.' },
   comet: { name: 'The Wandering Star', text: 'The comet will return, and it will bring an ending, or a beginning.' },
   relics: { name: 'The Relics', text: 'Things from the far places carry power, and must be kept.' },
+  land: { name: 'The Old Places', text: 'The stones, the groves and the springs were holy before anyone came here. They must be kept.' },
 };
 
 const FAITH_NAMES: Record<TenetId, string[]> = {
-  hearth: ['the Keepers of the Flame', 'the Way of the Hearth', 'the Children of the Stone'],
+  hearth: ['the Keepers of the Flame', 'the Way of the Hearth', 'the Children of the Fire'],
   ancestors: ['the Long Remembering', 'the Way of the Grandmothers', 'the Kin of the Barrow'],
   river: ['the River Folk', 'the Way of the Water', 'the Followers of the Current'],
   peace: ['the Open Hands', 'the Gentle Way'],
@@ -192,6 +193,7 @@ const FAITH_NAMES: Record<TenetId, string[]> = {
   austerity: ['the Bare Path', 'the Little Bowl'],
   comet: ['the Watchers of the Star', 'the Comet Kin'],
   relics: ['the Keepers of the Warm Stone', 'the Way of Far Things'],
+  land: ['the Keepers of the Grove', 'the Way of the Old Places', 'the Ring Folk'],
 };
 
 /** Something happened that might inspire a faith. */

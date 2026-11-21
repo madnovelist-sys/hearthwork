@@ -34,7 +34,7 @@ The art direction lives in its own document (the Art Design Document). This file
 | Tier | Default | Reward |
 | --- | --- | --- |
 | Every focus minute | — | City time moves forward |
-| Spark | every 20 minutes, or every 250 words when tracking words | Three parties of travelers arrive at the gate (welcome one, or the city takes one in at dawn), plus 1 Favor |
+| Spark | every 20 minutes, or every 250 words when tracking words | 1 Spark, kept to spend (3 call someone special to the village), plus 1 Favor |
 | Daily goal | 60 minutes, or 1,000 words when tracking words | +5 Favor (later: a Fortune, one of three rare opportunities) |
 | Weekly goal | 5 goal days in 7 | Later: a Wonder or a Golden Age |
 
@@ -42,7 +42,9 @@ The art direction lives in its own document (the Art Design Document). This file
 
 Built: **Bless** (1), **Name** a year or a baby (1), **Create a Settler** (3), **Send on a Quest** (3), **Inspire** (4: someone gets an idea that won't let go; knowledge gathers faster and the next discovery likely comes from their trade), **Whisper a Law** (5, +2 for each trait that makes the leader dislike it), **Raise a Prophet** (8). Acts that bring people or send them away wait for dawn (the next session start).
 
-**Petitions** at the Old Stone: when someone is gravely ill, away on a long quest, longing for a child, worried about the harvest, or when plague or fire strikes, people ask. Answering costs 1–4 Favor; ignored prayers lapse and life takes its course. Answered prayers inspire faith in the Unseen Keeper.
+**Calling someone (3 Sparks)**: at any time, spend Sparks to call one of three people to the village. Each is a different story (a sealed jar, a runaway bride, a chief without a village, a foundling, a deserter, a widow whose husband may yet come home…), and each comes back years later in the Chronicle with real consequences. A story is told once, until they've all been told.
+
+(Petitions, and the Old Stone where they were left, were removed: there was never a reason not to answer them. The hearth is the one gathering place.)
 
 **Fortunes** (daily goal reward): three rare opportunities, pick one: a master crafter, a traveling healer, a treasure map, a bumper harvest, a master builder, a great feast, or (in a village) a free Raise a Prophet.
 
@@ -87,6 +89,18 @@ Planned: Matchmake, Inspire, Call a Festival, Commission, Avert Calamity, Found 
 - **Businesses**: kilns, forges and market stalls open under names (*The Red Kiln*, *Mira's Pots*) and pass to heirs.
 - **Family houses**: big families (six or more under one roof) build a 2×2 family house.
 - **Family tree** view for anyone.
+
+### Arrivals and sacred places
+
+- **People come on their own** a few times a year: more when the village is fed, housed, healthy and happy, fewer or none in hard times (a young settlement draws people even through a lean year). They come for what's here: work at the kiln or the furnace, fish from the dock, pasture, building work, the market, the healers. Open Gates brings more.
+- **Sacred places**: people who range out (gatherers, herders, woodcutters, fishers, the restless and curious) sometimes find something in the country around the village: standing stones, an old grove, a spring, a barrow, a cairn, a vast old tree. Over the years they grow sacred: offerings and weddings, a spring that heals, holy places that stir faith, and faiths that honor the land, the ancestors or the river take them as their own. Pious people take comfort in them.
+- **Nothing before its time**: discoveries that build on others wait for them (printing needs writing, banking needs coin, steam needs iron), and the Chronicle doesn't mention beer, money, wagons or iron before they exist.
+
+### Saving
+
+- Saved automatically every 30 seconds, with a backup from each of the last 7 days.
+- **Save to a file / Open a village file**: in the Mac app through the system's own dialogs.
+- **Start a new village**: the current one is kept, and you can go back to it (from Settings, or from the founding screen).
 
 ### Towns and ages (Phase 3, first part)
 

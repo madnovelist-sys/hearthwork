@@ -1,6 +1,7 @@
 // Settings: goals, the two sliders, saves and backups, the art test scene.
 import { useEffect, useState } from 'preact/hooks';
-import { exportGame, importGame, listBackups, loadBackup, deleteSave } from '../game/save';
+import { archiveVillage, deleteSave, forgetVillage, listBackups, listVillages, loadBackup, parseSave, saveVillageToFile, takeVillage, type VillageInfo } from '../game/save';
+import { openTextFile } from '../game/files';
 import { store } from '../game/store';
 import { exportChronicle } from './Chronicle';
 import { GoalFields } from './GoalFields';
@@ -24,27 +25,17 @@ export const DARK_HINT = (d: number) => (d < 34
 export function SettingsPanel() {
   const s = store.state!;
   const [backups, setBackups] = useState<string[]>([]);
-  const [confirm, setConfirm] = useState('');
   useEffect(() => { listBackups().then(setBackups); }, []);
   const g = s.goals;
-  const onImport = async (e: Event) => {
-    const f = (e.target as HTMLInputElement).files?.[0];
-    if (!f) return;
-    try {
-      const next = await importGame(f);
-      store.setState(next);
-      store.toast(`Loaded ${next.name}.`);
-    } catch (err) {
-      store.toast((err as Error).message);
-    }
-  };
   const restore = async (date: string) => {
     const b = await loadBackup(date);
     if (b) { store.setState(b); store.toast(`Restored the backup from ${date}.`); }
   };
   return (
     <div class="form">
-      <h4 style={{ margin: '0 0 4px' }}>Goals</h4>
+      <VillageSection />
+
+      <h4 style={{ margin: '16px 0 4px' }}>Goals</h4>
       <GoalFields goals={g} onChange={(next) => { Object.assign(g, next); store.changed(); }} />
 
       <h4 style={{ margin: '16px 0 4px' }}>While you work</h4>
@@ -96,29 +87,94 @@ export function SettingsPanel() {
       <div class="slider-labels">{WEIRD_LABEL.map((w) => <span key={w}>{w}</span>)}</div>
       <p class="hint">{WEIRD_HINT[s.settings.weirdness]}</p>
 
-      <h4 style={{ margin: '16px 0 6px' }}>Your city</h4>
+      <h4 style={{ margin: '16px 0 6px' }}>More</h4>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        <button class="btn small" type="button" onClick={() => exportGame(s)}>Export save file</button>
-        <label class="btn small" style={{ margin: 0 }}>Import save file<input type="file" accept="application/json,.json" hidden onChange={onImport} /></label>
-        <button class="btn small" type="button" onClick={() => exportChronicle()}>Export the Chronicle</button>
+        <button class="btn small" type="button" onClick={() => exportChronicle()}>Save the Chronicle to a file</button>
         <button class="btn small" type="button" onClick={() => store.setUi({ panel: 'art' })}>Art test scene</button>
       </div>
-      <p class="hint">Hearthwork saves every 30 seconds and keeps a backup from each of the last 7 days you played. Exported files are full backups you can keep anywhere.</p>
       {backups.length > 0 && (
         <>
-          <label>Restore a daily backup</label>
+          <label>Restore a daily backup of {s.name}</label>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {backups.map((b) => <button key={b} type="button" class="btn small" onClick={() => restore(b)}>{b}</button>)}
           </div>
         </>
       )}
-
-      <h4 style={{ margin: '20px 0 4px' }}>Start over</h4>
-      <p class="hint">Type the city's name to found a new settlement. Export first if you might want this one back.</p>
-      <div class="two">
-        <input type="text" placeholder={s.name} value={confirm} onInput={(e) => setConfirm((e.target as HTMLInputElement).value)} />
-        <button class="btn small" type="button" disabled={confirm.trim() !== s.name} onClick={async () => { await deleteSave(); store.setState(null); }}>Found a new settlement</button>
-      </div>
     </div>
+  );
+}
+
+/** Saving the village to a file, opening one, starting a new village, and the villages put away. */
+function VillageSection() {
+  const s = store.state!;
+  const [villages, setVillages] = useState<VillageInfo[]>([]);
+  const [asking, setAsking] = useState(false);
+  const [forgetting, setForgetting] = useState<string | null>(null);
+  const refresh = () => { listVillages().then(setVillages); };
+  useEffect(refresh, []);
+  const saveToFile = async () => {
+    try {
+      if (await saveVillageToFile(s)) store.toast(`${s.name} was saved to a file.`, 'gold');
+    } catch (e) {
+      store.toast(`Couldn't save the file: ${(e as Error).message ?? e}`);
+    }
+  };
+  const openFile = async () => {
+    try {
+      const text = await openTextFile();
+      if (!text) return;
+      const next = parseSave(text);
+      if (next.seed !== s.seed) await archiveVillage(s); // keep the one you had
+      store.setState(next);
+      store.toast(`Opened ${next.name}.${next.seed !== s.seed ? ` ${s.name} is kept under Your other villages.` : ''}`);
+    } catch (e) {
+      store.toast((e as Error).message);
+    }
+  };
+  const startNew = async () => {
+    await store.save();
+    await archiveVillage(s);
+    await deleteSave();
+    store.setState(null);
+  };
+  const switchTo = async (key: string) => {
+    await store.save();
+    await archiveVillage(s);
+    const next = await takeVillage(key);
+    if (next) { store.setState(next); store.toast(`Back in ${next.name}.`); }
+  };
+  return (
+    <>
+      <h4 style={{ margin: '0 0 6px' }}>Your village</h4>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <button class="btn small" type="button" onClick={saveToFile}>Save {s.name} to a file…</button>
+        <button class="btn small" type="button" onClick={openFile}>Open a village file…</button>
+        <button class="btn small" type="button" onClick={() => setAsking(true)}>Start a new village…</button>
+      </div>
+      <p class="hint">{s.name} is saved on this computer every 30 seconds, with a backup from each of the last 7 days. A saved file is a complete copy you can keep anywhere, or open on another computer.</p>
+      {asking && (
+        <div class="note">
+          Start a new village? {s.name} will be kept, and you can come back to it here any time.
+          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+            <button class="btn small primary" type="button" onClick={startNew}>Start a new village</button>
+            <button class="btn small ghost" type="button" onClick={() => setAsking(false)}>Not now</button>
+          </div>
+        </div>
+      )}
+      {villages.length > 0 && (
+        <>
+          <label>Your other villages</label>
+          {villages.map((v) => (
+            <div class="party" key={v.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ flex: 1 }}><b>{v.name}</b> <span class="sub">Year {v.year} · {v.people} people</span></div>
+              <button class="btn small" type="button" onClick={() => switchTo(v.key)}>Go there</button>
+              {forgetting === v.key
+                ? <button class="btn small" type="button" onClick={async () => { await forgetVillage(v.key); setForgetting(null); refresh(); }}>Delete for good</button>
+                : <button class="btn small ghost" type="button" onClick={() => setForgetting(v.key)}>Delete</button>}
+            </div>
+          ))}
+        </>
+      )}
+    </>
   );
 }

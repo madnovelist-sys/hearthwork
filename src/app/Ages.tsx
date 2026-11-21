@@ -3,7 +3,7 @@
 // the town is granted its charter.
 import { useState } from 'preact/hooks';
 import { store } from '../game/store';
-import { DISCOVERIES, ERA_LABEL, candidates, discovery, discoveryProgress, titleCase } from '../sim/ages';
+import { DISCOVERIES, ERA_LABEL, candidates, discovery, discoveryProgress, ideaTitle } from '../sim/ages';
 import { JOB_LABEL } from '../sim/people';
 import { describeArms } from '../sim/town';
 import { fullName, yearOf } from '../sim/world';
@@ -39,7 +39,7 @@ export function AgesPanel() {
             <div class="sub" style={{ margin: '6px 0 2px' }}>Ideas in the air</div>
             {ideas.map((d) => (
               <div key={d.id} class="idea">
-                <b>{titleCase(d.name)}</b>{d.age ? <span class="tag gold">A new age</span> : null}
+                <b>{ideaTitle(d)}</b>{d.age ? <span class="tag gold">A new age</span> : null}
                 <span class="sub"> · likeliest from {d.jobs.map((j) => JOB_LABEL[j].toLowerCase()).join(', ')}</span>
               </div>
             ))}
@@ -70,7 +70,7 @@ export function AgesPanel() {
           const by = k.by !== undefined ? s.people[k.by] : undefined;
           return (
             <div key={k.id} class="age-row">
-              <b>{titleCase(d.name)}</b> <span class="sub">Year {yearOf(k.day)}{by ? <> · by <PersonLink p={by} /></> : ''}</span>
+              <b>{ideaTitle(d)}</b> <span class="sub">Year {yearOf(k.day)}{by ? <> · by <PersonLink p={by} /></> : ''}</span>
               <div class="sub">{d.note}</div>
             </div>
           );

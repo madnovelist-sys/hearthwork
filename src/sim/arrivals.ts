@@ -1,5 +1,7 @@
-// Newcomers. Each Spark brings three parties to the road; the player welcomes
-// one at their next break, or the settlement takes one in on its own.
+// Newcomers. People come on their own when the settlement is doing well, or
+// has work they can do: a kiln draws potters, a dock draws fishers, building
+// draws journeymen. In hard times, few come. (Calling someone special with
+// Sparks is in callers.ts.)
 import { F, log, P } from './chronicle';
 import { familyName } from './names';
 import { createPerson, draftPerson } from './people';
@@ -7,7 +9,11 @@ import { pitchShelter } from './planner';
 import { chance, int, pick, weighted } from './rng';
 import { makeItem } from './items';
 import { hasLaw } from './society';
-import type { GameState, Party, PersonDraft } from './types';
+import { boost } from './ages';
+import { consumption } from './economy';
+import { rand } from './rng';
+import { DAYS_PER_YEAR, type GameState, type JobId, type Party, type PersonDraft } from './types';
+import { ageOf, present } from './world';
 
 type PartyShape = 'single' | 'couple' | 'family' | 'siblings' | 'elder' | 'caravan' | 'journeymen' | 'scholars' | 'pilgrims';
 
@@ -137,7 +143,7 @@ export function makeArrivalOptions(s: GameState): Party[] {
 }
 
 /** The party arrives: real people, a tent, and a line in the Chronicle. */
-export function settleParty(s: GameState, party: Party, patron = false) {
+export function settleParty(s: GameState, party: Party, patron = false, quiet = false) {
   const created = party.people.map((d) => createPerson(s, d, patron ? 'patron' : 'arrival'));
   party.people.forEach((d, i) => {
     const p = created[i];
@@ -152,6 +158,7 @@ export function settleParty(s: GameState, party: Party, patron = false) {
   const shelter = pitchShelter(s, created.length);
   for (const p of created) p.home = shelter?.id;
   const ids = created.map((p) => p.id);
+  if (quiet) return created;
   if (patron) {
     const p = created[0];
     // Your settlers sometimes bring a keepsake from wherever they came from.
@@ -164,4 +171,72 @@ export function settleParty(s: GameState, party: Party, patron = false) {
     log(s, 'arrival', `New arrivals: ${story}`, ids, 3, created.length >= 4 ? `The Year the ${created[0].family}s Came` : undefined);
   }
   return created;
+}
+
+// ---------------------------------------------------------------------------
+// Coming on their own
+
+interface Draw { why: string; job?: JobId; weight: number }
+
+/** What draws people to the settlement just now, and how strongly. */
+export function draws(s: GameState): { perYear: number; reasons: Draw[] } {
+  const people = present(s);
+  const pop = people.length;
+  const built = (k: string) => s.buildings.some((b) => b.kind === k && b.built && !b.removed);
+  const workers = (j: JobId) => people.filter((p) => p.job === j).length;
+  const reasons: Draw[] = [{ why: 'that the land along the river was good and the people kind', weight: 2 }];
+  if (built('kiln')) reasons.push({ why: `there was work at the kiln in ${s.name}`, job: 'potter', weight: workers('potter') < 2 + pop / 40 ? 2 : 0.6 });
+  if (built('furnace')) reasons.push({ why: `the furnace in ${s.name} needed hands`, job: 'smith', weight: workers('smith') < 1 + pop / 60 ? 2 : 0.5 });
+  if (built('dock')) reasons.push({ why: 'the river here was full of fish', job: 'fisher', weight: 1.2 });
+  if (built('pen')) reasons.push({ why: `the pasture around ${s.name} was rich`, job: 'herder', weight: 0.8 });
+  if (s.buildings.some((b) => !b.built && !b.removed)) reasons.push({ why: `${s.name} was building and needed builders`, job: 'builder', weight: 1.4 });
+  if (built('stall')) reasons.push({ why: `there was trade to be done at the market in ${s.name}`, weight: 1.2 });
+  if (built('healer')) reasons.push({ why: `the healers of ${s.name} could help where others couldn't`, weight: 0.6 });
+  if (built('alehouse')) reasons.push({ why: `the beer in ${s.name} was worth the walk`, weight: 0.5 });
+
+  // How well things are going: food in store, homes, health, mood.
+  const need = people.reduce((t, p) => t + consumption(s, p), 0);
+  const foodDays = s.stores.food / Math.max(1, need);
+  let well = foodDays < 20 ? 0.15 : foodDays < 90 ? 0.6 : foodDays < 300 ? 1 : 1.25;
+  if (s.flags.hungerSince !== undefined) well *= 0.2;
+  if (s.plague) well *= 0.25;
+  const homeless = people.filter((p) => p.home === undefined && ageOf(s, p) >= 16).length;
+  if (homeless > pop * 0.1) well *= 0.7;
+  const mood = people.reduce((t, p) => t + p.mood, 0) / Math.max(1, pop);
+  well *= mood > 20 ? 1.15 : mood < 0 ? 0.75 : 1;
+  well = Math.min(1.3, well * Math.min(1.2, boost(s, 'goods') ** 0.2));
+  // A young settlement is news: people come to see it even through a lean year.
+  if (s.stage === 'settlement') well = Math.max(well, 0.7);
+  else if (s.stage === 'village') well = Math.max(well, 0.35);
+  // About three parties a year for a village doing fine, a few more as it grows into a town.
+  const perYear = (2.2 + Math.sqrt(pop) * 0.06) * well * (hasLaw(s, 'open-gates') ? 1.5 : 1);
+  return { perYear, reasons };
+}
+
+/** Each season: some people may come to stay, drawn by what the settlement has to offer. */
+export function arrivalsSeason(s: GameState) {
+  const { perYear, reasons } = draws(s);
+  let expected = perYear / 4;
+  while (expected > 0) {
+    if (rand(s.rng) < Math.min(1, expected)) {
+      const reason = weighted(s.rng, reasons.map((r) => [r, r.weight] as const));
+      const party = makeParty(s);
+      // Those who came for the work have the trade for it.
+      if (reason.job) for (const d of party.people) if (d.age >= 16 && chance(s.rng, 0.75)) d.skill = reason.job;
+      party.story = `${party.story} ${party.people.length > 1 ? 'They' : party.people[0].first} had heard ${reason.why}.`;
+      settleParty(s, party);
+    }
+    expected -= 1;
+  }
+}
+
+/** How many people came on their own in the last year (for the Arrivals panel). */
+export function cameLastYear(s: GameState): number {
+  let n = 0;
+  for (let i = s.chronicle.length - 1; i >= 0; i--) {
+    const e = s.chronicle[i];
+    if (e.day < s.day - DAYS_PER_YEAR) break;
+    if (e.kind === 'arrival') n += e.people.length;
+  }
+  return n;
 }

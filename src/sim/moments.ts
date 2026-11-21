@@ -71,7 +71,7 @@ const MOMENTS: Moment[] = [
     const pair = two(s, k)!;
     return { text: pick(s.rng, [
       `${P(pair[0].id)} and ${P(pair[1].id)} built a dam across the stream and flooded the path.`,
-      `${P(pair[0].id)} dared ${P(pair[1].id)} to touch the Old Stone at night. ${cap(pronoun(pair[1]))} did, and ran all the way home.`,
+      `${P(pair[0].id)} dared ${P(pair[1].id)} to walk to the edge of the dark woods at night. ${cap(pronoun(pair[1]))} did, and ran all the way home.`,
       `The children played at founding a village of their own, with ${P(pair[0].id)} as chief.`,
     ]), who: pair };
   },
@@ -93,7 +93,7 @@ const MOMENTS: Moment[] = [
     const p = pick(s.rng, withTrait(adults(s, ps), 'pious'));
     if (!p) return null;
     return { text: pick(s.rng, [
-      `${P(p.id)} left a bowl of milk at the Old Stone every morning that season, and swore something drank it.`,
+      `${P(p.id)} left a bowl of milk beside the hearth every night that season, and swore something drank it.`,
       `${P(p.id)} said the fire spoke to ${p.sex === 'f' ? 'her' : 'him'} in the night. Some people laughed. Some didn't.`,
     ]), who: [p] };
   },

@@ -26,7 +26,7 @@ export interface Sprite {
 export const ART_KEY: Partial<Record<BuildingKind, string>> = {
   tent: 'bld_hide-tent_bronze_1x1',
   leanto: 'bld_lean-to_bronze_1x1',
-  hut: 'bld_hut-round_bronze_1x1',
+  hut: 'bld_round-hut_bronze_1x1',
   house: 'bld_home_bronze_1x1',
   bighouse: 'bld_house-large_bronze_2x2',
   hall: 'bld_longhouse_bronze_3x3',
@@ -46,7 +46,12 @@ export const ART_KEY: Partial<Record<BuildingKind, string>> = {
   temple: 'bld_temple_bronze_3x3',
   guildhall: 'bld_guildhall_bronze_2x2',
   hearth: 'lmk_hearth_bronze_1x1',
-  stone: 'lmk_old-stone_bronze_1x1',
+  stones: 'lmk_standing-stones_any_2x2',
+  grove: 'lmk_sacred-grove_any_2x2',
+  spring: 'lmk_spring_any_1x1',
+  barrow: 'lmk_barrow_any_2x2',
+  cairn: 'lmk_cairn_any_1x1',
+  bigtree: 'lmk_great-tree_any_1x1',
 };
 
 export const TREE_KEY = ['', 'nat_broadleaf_any_1x1', 'nat_pine_any_1x1', 'nat_fruit_any_1x1', 'nat_bush_any_1x1', 'nat_rock_any_1x1', 'nat_stump_any_1x1'];
@@ -140,7 +145,7 @@ export function realSprite(base: string, variant: number, state?: string): Sprit
 
 /** Homes without marked windows still glow at the door at night. */
 function withDefaultLights(key: string, s: Sprite): Sprite {
-  if (s.lights.length || !/^bld_(home|hut|house|hide-tent|tent|lean-to|townhouse)/.test(key)) return s;
+  if (s.lights.length || !/^bld_(home|hut|round-hut|house|hide-tent|tent|lean-to|townhouse)/.test(key)) return s;
   const t = s.tilePx;
   return { ...s, lights: [[s.ax - t * 0.24, s.ay - t * 0.12 - t * 0.28]] };
 }
@@ -365,6 +370,107 @@ function placeholderBuilding(kind: BuildingKind, variant: number): Sprite {
       const roof = [C.thatch, shade(C.thatch, 0.06), shade(C.thatch, -0.04)][v];
       const apex = pyramidRoof(c, inset - 0.08, h - 4, 44, roof);
       return c.sprite([d, w1, w2], v === 2 ? [{ x: apex.x + 10, y: apex.y + 14 }] : []);
+    }
+    case 'stones': {
+      // A ring of weathered standing stones, some leaning, one fallen.
+      const c = new Canvas(2, 2, 90);
+      c.poly([c.pt(0.1, 1.9), c.pt(1.9, 1.9), c.pt(1.9, 0.1), c.pt(0.1, 0.1)], 'rgba(120,140,90,0.25)');
+      const n = 9;
+      const stones: [number, number, number][] = [];
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + v * 0.3;
+        stones.push([1 + Math.cos(a) * 0.72, 1 + Math.sin(a) * 0.72, i === 4 ? 0 : 26 + ((i * 7 + v) % 4) * 7]);
+      }
+      stones.sort((a, b) => a[0] + a[1] - (b[0] + b[1]));
+      const g = c.g;
+      for (const [x, y, hgt] of stones) {
+        const p = c.pt(x, y);
+        if (!hgt) { g.fillStyle = shade(C.stone, -0.1); g.beginPath(); g.ellipse(p.x, p.y - 3, 12, 5, -0.4, 0, Math.PI * 2); g.fill(); continue; }
+        const grad = g.createLinearGradient(p.x - 7, 0, p.x + 7, 0);
+        grad.addColorStop(0, shade(C.stone, 0.18)); grad.addColorStop(1, shade(C.stone, -0.25));
+        g.fillStyle = grad;
+        g.beginPath();
+        g.moveTo(p.x - 7, p.y); g.lineTo(p.x - 6, p.y - hgt); g.quadraticCurveTo(p.x, p.y - hgt - 6, p.x + 6, p.y - hgt + 2); g.lineTo(p.x + 7, p.y);
+        g.closePath(); g.fill();
+        g.strokeStyle = edge(C.stone); g.lineWidth = 1.1; g.stroke();
+        g.fillStyle = 'rgba(122,150,74,0.6)'; g.fillRect(p.x - 5, p.y - hgt * 0.4, 4, 3);
+      }
+      return c.sprite();
+    }
+    case 'grove': {
+      // A ring of old trees around a clearing, ribbons on the branches.
+      const c = new Canvas(2, 2, 170);
+      const g = c.g;
+      c.poly([c.pt(0.2, 1.8), c.pt(1.8, 1.8), c.pt(1.8, 0.2), c.pt(0.2, 0.2)], 'rgba(90,110,60,0.3)');
+      const trees: [number, number][] = [[0.45, 0.45], [1.55, 0.45], [0.4, 1.5], [1.5, 1.55], [1, 0.3]];
+      trees.sort((a, b) => a[0] + a[1] - (b[0] + b[1]));
+      for (const [x, y] of trees) {
+        const p = c.pt(x, y);
+        g.fillStyle = shade(C.timber, -0.1); g.fillRect(p.x - 5, p.y - 46, 10, 46);
+        g.fillStyle = shade('#4E6B3A', ((x + y) % 0.5) - 0.2);
+        g.beginPath(); g.ellipse(p.x, p.y - 74, 34, 30, 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = shade('#4E6B3A', 0.12);
+        g.beginPath(); g.ellipse(p.x - 8, p.y - 84, 18, 14, 0, 0, Math.PI * 2); g.fill();
+        for (let i = 0; i < 3; i++) { g.fillStyle = ['#C9483A', '#E8D9A8', '#5B7FB0'][i]; g.fillRect(p.x - 14 + i * 10, p.y - 52 + (i % 2) * 4, 2, 9); }
+      }
+      return c.sprite();
+    }
+    case 'spring': {
+      const c = new Canvas(1, 1, 40);
+      const g = c.g;
+      const ctr = c.pt(0.5, 0.5);
+      for (let i = 0; i < 10; i++) {
+        const a = (i / 10) * Math.PI * 2;
+        g.fillStyle = shade(C.stone, (i % 3) * 0.06 - 0.06);
+        g.beginPath(); g.ellipse(ctr.x + Math.cos(a) * 30, ctr.y + Math.sin(a) * 15 - 2, 8, 5, 0, 0, Math.PI * 2); g.fill();
+      }
+      g.fillStyle = '#6FA8C9'; g.beginPath(); g.ellipse(ctr.x, ctr.y - 2, 24, 11, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.5)'; g.beginPath(); g.ellipse(ctr.x - 6, ctr.y - 5, 8, 3, 0, 0, Math.PI * 2); g.fill();
+      return c.sprite();
+    }
+    case 'barrow': {
+      // A long grassy mound with a stone doorway.
+      const c = new Canvas(2, 2, 80);
+      const g = c.g;
+      const ctr = c.pt(1, 1);
+      g.fillStyle = 'rgba(62,58,79,0.22)'; g.beginPath(); g.ellipse(ctr.x + 4, ctr.y + 4, 98, 42, 0, 0, Math.PI * 2); g.fill();
+      const grad = g.createLinearGradient(0, ctr.y - 50, 0, ctr.y + 20);
+      grad.addColorStop(0, '#9DB86A'); grad.addColorStop(1, '#6E8A48');
+      g.fillStyle = grad;
+      g.beginPath(); g.ellipse(ctr.x, ctr.y, 94, 40, 0, Math.PI, 0); g.ellipse(ctr.x, ctr.y, 94, 18, 0, 0, Math.PI); g.fill();
+      g.beginPath(); g.ellipse(ctr.x, ctr.y - 6, 80, 46, 0, Math.PI, 0); g.fill();
+      const d = c.pt(1.25, 1.85);
+      g.fillStyle = shade(C.stone, 0.05); g.fillRect(d.x - 14, d.y - 30, 28, 30);
+      g.fillStyle = '#2E2620'; g.fillRect(d.x - 8, d.y - 24, 16, 24);
+      return c.sprite();
+    }
+    case 'cairn': {
+      const c = new Canvas(1, 1, 70);
+      const g = c.g;
+      const ctr = c.pt(0.5, 0.5);
+      const rows = [[5, 0], [4, 12], [3, 23], [2, 33], [1, 42]];
+      for (const [n, z] of rows) {
+        for (let i = 0; i < n; i++) {
+          const x = ctr.x + (i - (n - 1) / 2) * 13;
+          g.fillStyle = shade(C.stone, ((i + z) % 3) * 0.07 - 0.08);
+          g.beginPath(); g.ellipse(x, ctr.y - z - 4, 9, 7, 0, 0, Math.PI * 2); g.fill();
+          g.strokeStyle = edge(C.stone); g.lineWidth = 0.8; g.stroke();
+        }
+      }
+      return c.sprite();
+    }
+    case 'bigtree': {
+      // One vast old oak.
+      const c = new Canvas(1, 1, 200);
+      const g = c.g;
+      const p = c.pt(0.5, 0.5);
+      g.fillStyle = 'rgba(62,58,79,0.25)'; g.beginPath(); g.ellipse(p.x + 6, p.y, 52, 20, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = shade(C.timber, -0.15);
+      g.beginPath(); g.moveTo(p.x - 16, p.y); g.quadraticCurveTo(p.x - 8, p.y - 50, p.x - 12, p.y - 90); g.lineTo(p.x + 12, p.y - 90); g.quadraticCurveTo(p.x + 8, p.y - 50, p.x + 18, p.y); g.closePath(); g.fill();
+      for (const [dx, dy, r, t] of [[-34, -110, 34, -0.1], [30, -112, 36, -0.15], [0, -140, 44, 0.05], [-14, -168, 28, 0.15], [20, -160, 26, 0.1]] as const) {
+        g.fillStyle = shade('#567A3C', t); g.beginPath(); g.ellipse(p.x + dx, p.y + dy, r, r * 0.85, 0, 0, Math.PI * 2); g.fill();
+      }
+      return c.sprite();
     }
     case 'townhouse': {
       // Two storeys of mudbrick, a ladder up the side, and a flat roof with a parapet and awning.

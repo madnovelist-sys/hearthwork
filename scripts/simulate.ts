@@ -1,7 +1,8 @@
 // Headless run for tuning: simulate N focus hours with a Spark every 20
-// minutes (one arrival party welcomed each time) and print a census per year.
+// minutes (spending every three on calling someone) and print a census per year.
+// Everyone else who arrives comes on their own.
 //   npm run simulate -- [hours] [seed] [darkness]
-import { makeArrivalOptions, settleParty } from '../src/sim/arrivals';
+import { call, callOptions } from '../src/sim/callers';
 import { foundSettlement, stepDay } from '../src/sim/sim';
 import { DAYS_PER_YEAR } from '../src/sim/types';
 import { population } from '../src/sim/world';
@@ -18,8 +19,8 @@ for (let day = 0; day < hours * DAYS_PER_YEAR; day++) {
   stepDay(s);
   if (s.day >= nextSpark) {
     nextSpark += daysPerSpark;
-    const options = makeArrivalOptions(s);
-    settleParty(s, options[day % 3]);
+    s.sparks += 1;
+    if (s.sparks >= 3) call(s, callOptions(s)[day % 3].id, true);
   }
   if (s.day % DAYS_PER_YEAR === 0) {
     const year = s.day / DAYS_PER_YEAR;

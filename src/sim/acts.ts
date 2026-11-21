@@ -8,6 +8,7 @@ import { enactLaw, foundFaith, hasLaw, opinion, repealLaw } from './society';
 import type { LawId, TenetId } from './types';
 import { DAYS_PER_YEAR, type GameState, type Party, type PersonDraft, type QuestKind } from './types';
 import { ageOf, yearOf } from './world';
+import { arriveCalled } from './callers';
 import { nextCost } from './ages';
 
 export type ActId = 'bless' | 'name' | 'settler' | 'quest' | 'law' | 'prophet' | 'inspire';
@@ -145,7 +146,7 @@ export function applyPending(s: GameState) {
   const queue = s.pending;
   s.pending = [];
   for (const act of queue) {
-    if (act.kind === 'party') settleParty(s, act.party, act.patron);
+    if (act.kind === 'party') { if (act.party.call) arriveCalled(s, act.party); else settleParty(s, act.party, act.patron); }
     else {
       const leader = s.people[act.leader];
       const members = act.members.map((id) => s.people[id]).filter((m) => m?.alive && m.away === undefined);

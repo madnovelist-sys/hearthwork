@@ -60,7 +60,7 @@ export function grantCharter(s: GameState) {
   s.arms = makeArms(s);
   paveSquare(s, 2.8);
   const how = knows(s, 'writing') ? 'A charter was written down at last, pressed into clay and fired so it would last'
-    : 'A charter was cut into a standing stone beside the square, since nobody yet knew how to write one down';
+    : 'A charter was sung at the hearth, and a stone was raised beside the square so that no one would forget the day';
   log(s, 'stage', `${s.name} had become a town. ${how}. The town took arms, ${describeArms(s.arms)}, and a motto: "${s.arms.motto}."`, [], 10, 'The Year of the Town Charter');
   s.flags.ceremony = { kind: 'charter', day: s.day };
 }
@@ -225,7 +225,7 @@ const GUILD_NAMES: Partial<Record<JobId, string[]>> = {
   smith: ["the Smiths' Guild", 'the Brotherhood of the Hammer'],
   builder: ["the Builders' Guild", 'the Lodge of Masons'],
   fisher: ["the Fishers' Guild", 'the Company of the Net'],
-  farmer: ["the Ploughmen's Guild", 'the Fellowship of the Furrow'],
+  farmer: ["the Sowers' Guild", 'the Fellowship of the Furrow'],
   herder: ["the Herders' Guild", 'the Company of the Fleece'],
   woodcutter: ["the Woodcutters' Guild", 'the Brotherhood of the Axe'],
 };
@@ -279,10 +279,10 @@ function guildsYear(s: GameState) {
 function guildMoment(s: GameState, g: Guild, members: Person[]) {
   const a = pick(s.rng, members);
   const lines = [
-    `${cap(g.name)} held its feast. ${P(a.id)} drank too much and swore to make a masterwork before the year was out.`,
+    `${cap(g.name)} held its feast. ${P(a.id)} ${knows(s, 'brewing') ? 'drank too much' : 'stayed up singing far too late'} and swore to make a masterwork before the year was out.`,
     `${cap(g.name)} argued all winter over who could call themselves a master, and in the end nobody was satisfied.`,
     `${P(a.id)} took an apprentice, a sullen youngster who turned out to have a gift for the work.`,
-    `${cap(g.name)} raised money for the widows of its members, and put up a stone with their names.`,
+    `${cap(g.name)} gathered goods for the widows of its members, and put up a stone in their memory.`,
   ];
   log(s, 'guild', pick(s.rng, lines), [a.id], 2);
 }

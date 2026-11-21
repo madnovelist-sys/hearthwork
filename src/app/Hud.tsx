@@ -7,6 +7,7 @@ import { currentYearName } from '../sim/chronicle';
 import { population, seasonName, yearOf } from '../sim/world';
 import { hms } from './format';
 import { ArmsShield } from './Arms';
+import { CALL_COST } from '../sim/callers';
 
 const STAGE: Record<string, string> = { settlement: 'Settlement', village: 'Village', town: 'Town', city: 'City', metropolis: 'Metropolis' };
 
@@ -37,7 +38,7 @@ export function Hud() {
   const goalFrac = byWords
     ? Math.min(1, words / Math.max(1, g.dailyWords))
     : g.dailyMinutes > 0 ? Math.min(1, todayMs / (g.dailyMinutes * 60_000)) : 0;
-  const waiting = s.arrivals.length;
+  const calls = Math.floor((s.sparks ?? 0) / CALL_COST) + s.arrivals.length;
   const yearName = currentYearName(s);
   const panel = store.ui.panel;
   const tab = (p: Panel, label: string, badge?: number) => (
@@ -67,7 +68,7 @@ export function Hud() {
           <button class="btn small" onClick={() => store.setUi({ logWords: true })} title="Add words you wrote">+ Words</button>
         )}
         <div class="meters">
-          <div class="meter" title="Every Spark brings travelers and 1 Favor">
+          <div class="meter" title="Every Spark is kept to spend on calling someone, and brings 1 Favor">
             <span>Spark</span><div class="bar"><i style={{ width: `${sparkFrac * 100}%` }} /></div><span>{sparkLeft}</span>
           </div>
           <div class="meter" title={`Daily goal: ${byWords ? `${g.dailyWords} words` : `${g.dailyMinutes} minutes`}. ${goalDaysThisWeek(s, now)} goal days this week.`}>
@@ -79,6 +80,7 @@ export function Hud() {
       </div>
       <div class="stats">
         <div class="stat favor" title="Favor: spend it on Acts"><b>✦ {s.favor}</b><span>Favor</span></div>
+        <div class="stat spark" title={`Sparks: spend ${CALL_COST} to call someone to ${s.name}`}><b>✧ {s.sparks ?? 0}</b><span>Sparks</span></div>
         <div class="stat"><b>{population(s)}</b><span>People</span></div>
       </div>
       <div class="tabs">
@@ -86,8 +88,8 @@ export function Hud() {
         {tab('people', 'People')}
         {tab('society', 'Society')}
         {tab('ages', 'Ages')}
-        {tab('acts', 'Acts', s.petitions.length + s.fortunes.length)}
-        {tab('arrivals', 'Arrivals', waiting)}
+        {tab('acts', 'Acts', s.fortunes.length)}
+        {tab('arrivals', 'Arrivals', calls)}
         {tab('settings', 'Settings')}
       </div>
     </div>

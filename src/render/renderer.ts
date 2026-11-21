@@ -118,7 +118,7 @@ export class Renderer {
     if (Math.abs(this.night - skyNight) < 0.002) this.night = skyNight;
     if (running) {
       this.walkers.update(s, now, dt, this.night);
-      this.fauna.update(s, this.walkers, now, dt, this.night, this.w, this.h);
+      this.fauna.update(s, this.walkers, now, dt, this.night, this.w, this.h, (sx, sy) => this.toGrid(sx, sy));
     }
     now = anim;
 
@@ -147,7 +147,7 @@ export class Renderer {
     this.drawObjects(s, now, selection);
     this.drawHearthFire(s, now, running);
     this.updateSmoke(s, now, dt, running);
-    drawBirds(this.g, this.fauna.birds, now);
+    drawBirds(this.g, this.fauna.birds, now, (gx, gy) => this.toScreen(gx, gy), this.tw / BASE_TW);
     this.drawLighting(s, now);
     if (season === 3) this.drawSnow(dt);
     this.drawMood(s);
@@ -394,14 +394,10 @@ export class Renderer {
     if (x > this.w || y > this.h || x + w < 0 || y + h < 0) return;
     const g = this.g;
     if (alpha < 1) g.globalAlpha = alpha;
-    const pre = this.prescaled(sp, scale);
-    if (pre === sp.img) g.drawImage(pre, x, y, w, h);
-    else {
-      // Pixel-aligned and unscaled: the cheapest possible draw.
-      const c = pre as HTMLCanvasElement;
-      const d = this.dpr;
-      g.drawImage(c, Math.round(x * d) / d, Math.round(y * d) / d, c.width / d, c.height / d);
-    }
+    // Always drawn at the exact size and place for this zoom (the pre-shrunk copy is within 3%
+    // of it), so buildings stay planted on their tiles while zooming instead of shifting a little
+    // each time the zoom crosses one of the pre-shrunk sizes.
+    g.drawImage(this.prescaled(sp, scale), x, y, w, h);
     if (alpha < 1) g.globalAlpha = 1;
   }
 

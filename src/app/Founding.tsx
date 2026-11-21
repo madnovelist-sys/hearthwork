@@ -1,4 +1,5 @@
 // Founding a settlement: pick a site, a name, your goals and the sliders.
+import { listVillages, takeVillage, type VillageInfo } from '../game/save';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { Renderer } from '../render/renderer';
 import { foundSettlement, DEFAULT_GOALS, DEFAULT_SETTINGS } from '../sim/sim';
@@ -72,7 +73,30 @@ export function Founding() {
           <div style={{ marginTop: 16 }}><button class="btn primary start" type="submit">Light the first fire</button></div>
           <p class="hint">You can change goals and both sliders later in Settings.</p>
         </form>
+        <ReturnTo />
       </aside>
+    </div>
+  );
+}
+
+/** Villages put away when a new one was started: go back to one instead. */
+function ReturnTo() {
+  const [villages, setVillages] = useState<VillageInfo[]>([]);
+  useEffect(() => { listVillages().then(setVillages); }, []);
+  if (!villages.length) return null;
+  const go = async (key: string) => {
+    const s = await takeVillage(key);
+    if (s) store.setState(s);
+  };
+  return (
+    <div style={{ marginTop: 18 }}>
+      <label>Or go back to one of your villages</label>
+      {villages.map((v) => (
+        <div class="party" key={v.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ flex: 1 }}><b>{v.name}</b> <span class="sub">Year {v.year} · {v.people} people</span></div>
+          <button class="btn small" type="button" onClick={() => go(v.key)}>Go there</button>
+        </div>
+      ))}
     </div>
   );
 }

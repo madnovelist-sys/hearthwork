@@ -149,12 +149,6 @@ function burn(s: GameState, b: Building, hasWell: boolean) {
   }
 }
 
-/** Put out every fire at once (an answered petition). */
-export function quenchFires(s: GameState) {
-  for (const b of s.buildings) if (b.burning !== undefined) b.burning = undefined;
-  log(s, 'fire', `Rain came out of a clear sky and put the fire out. People stood in it, laughing and soaked.`, [], 5);
-}
-
 /** Once a season: burned shells are cleared away to make room. */
 export function clearRuins(s: GameState) {
   for (const b of s.buildings) {

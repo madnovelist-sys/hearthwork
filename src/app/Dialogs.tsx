@@ -1,5 +1,6 @@
 // The end-of-session ritual: log your words, then read what happened while
 // you worked. And the question asked after the app was closed mid-session.
+import { CALL_COST } from '../sim/callers';
 import { useState } from 'preact/hooks';
 import { store } from '../game/store';
 import { entriesSince } from '../sim/chronicle';
@@ -22,8 +23,8 @@ export function SessionEnd() {
   };
   const done = () => {
     if (!saved && words) saveWords();
-    const waiting = s.arrivals.length > 0;
-    store.setUi({ ended: null, panel: waiting ? 'arrivals' : 'chronicle' });
+    const canCall = (s.sparks ?? 0) >= CALL_COST || s.arrivals.length > 0;
+    store.setUi({ ended: null, panel: canCall ? 'arrivals' : 'chronicle' });
   };
   return (
     <div class="scrim">
@@ -56,8 +57,8 @@ export function SessionEnd() {
           </>
         )}
         <div class="row-btns">
-          {s.arrivals.length > 0 && <span class="hint" style={{ alignSelf: 'center', marginRight: 'auto' }}>Travelers are waiting at the gate.</span>}
-          <button class="btn primary" onClick={done}>{s.arrivals.length ? 'Meet the travelers' : 'Read the Chronicle'}</button>
+          {(s.sparks ?? 0) >= CALL_COST && <span class="hint" style={{ alignSelf: 'center', marginRight: 'auto' }}>You have {s.sparks} Sparks: enough to call someone.</span>}
+          <button class="btn primary" onClick={done}>{(s.sparks ?? 0) >= CALL_COST ? 'Call someone' : 'Read the Chronicle'}</button>
         </div>
       </div>
     </div>

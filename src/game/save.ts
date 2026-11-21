@@ -4,6 +4,7 @@ import { DAYS_PER_YEAR } from '../sim/types';
 import type { GameState } from '../sim/types';
 import { SAVE_VERSION } from '../sim/sim';
 import { ensureForest } from '../sim/forest';
+import { saveTextFile } from './files';
 
 const DB_NAME = 'hearthwork';
 const STORE = 'saves';
@@ -96,12 +97,12 @@ function migrate(s: GameState): GameState {
   s.lateReturns ??= [];
   s.pending ??= [];
   s.arrivals ??= [];
+  s.sparks ??= 0;
   s.goals.track ??= 'time';
   s.settings.awayMinutes ??= 15;
   ensureForest(s.map);
   s.laws ??= [];
   s.faiths ??= [];
-  s.petitions ??= [];
   s.fortunes ??= [];
   s.pets ??= [];
   s.wild ??= { deer: -1 };
@@ -109,7 +110,6 @@ function migrate(s: GameState): GameState {
   s.nextId.pet ??= 0;
   s.nextId.item ??= 0;
   s.nextId.faith ??= 0;
-  s.nextId.petition ??= 0;
   s.nextId.fortune ??= 0;
   s.settings.notify ??= false;
   s.settings.dayNight ??= 'clock';
@@ -120,20 +120,70 @@ function migrate(s: GameState): GameState {
   s.lore ??= { points: Math.min(300, Math.floor(s.day / DAYS_PER_YEAR) * 6), known: [] };
   s.guilds ??= [];
   s.nextId.guild ??= 0;
+  // Petitions and the Old Stone are gone: the hearth is the one gathering place.
+  delete (s as { petitions?: unknown }).petitions;
+  for (const b of s.buildings) {
+    if (b.kind !== 'stone' || b.removed) continue;
+    b.removed = true;
+    for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) {
+      const i = y * s.map.w + x;
+      if (s.map.occ[i] === b.id + 1) s.map.occ[i] = 0;
+    }
+  }
   return s;
 }
 
-export function exportGame(s: GameState): void {
-  const blob = new Blob([JSON.stringify(s)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+/** Save the whole village to a file of the player's choosing. Resolves true if saved. */
+export async function saveVillageToFile(s: GameState): Promise<boolean> {
   const stamp = new Date().toISOString().slice(0, 10);
-  a.href = url;
-  a.download = `hearthwork-${s.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${stamp}.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  const name = `${s.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-year-${Math.floor(s.day / DAYS_PER_YEAR) + 1}-${stamp}.json`;
+  return saveTextFile(name, JSON.stringify(s), { label: 'Hearthwork village', ext: 'json', mime: 'application/json' });
+}
+
+// ---------------------------------------------------------------------------
+// Other villages: starting a new one keeps the old, to come back to any time.
+
+export interface VillageInfo { key: string; name: string; year: number; people: number; savedAt: number }
+const villageKey = (s: GameState) => String(s.seed);
+
+/** Put a village away (it can be picked up again from Settings or the founding screen). */
+export async function archiveVillage(s: GameState): Promise<void> {
+  const key = villageKey(s);
+  const info: VillageInfo = {
+    key, name: s.name, year: Math.floor(s.day / DAYS_PER_YEAR) + 1,
+    people: s.people.filter((p) => p.alive && !p.left && p.away === undefined).length, savedAt: Date.now(),
+  };
+  const json = JSON.stringify(s);
+  await withStore('readwrite', (st) => st.put(json, `village:${key}`));
+  await withStore('readwrite', (st) => st.put(JSON.stringify(info), `villageinfo:${key}`));
+}
+
+export async function listVillages(): Promise<VillageInfo[]> {
+  try {
+    const keys = (await withStore<IDBValidKey[]>('readonly', (st) => st.getAllKeys())).map(String).filter((k) => k.startsWith('villageinfo:'));
+    const out: VillageInfo[] = [];
+    for (const k of keys) {
+      const raw = await withStore<string | undefined>('readonly', (st) => st.get(k));
+      if (raw) out.push(JSON.parse(raw));
+    }
+    return out.sort((a, b) => b.savedAt - a.savedAt);
+  } catch {
+    return [];
+  }
+}
+
+/** Take a village back out (it becomes the current one, so it's no longer kept separately). */
+export async function takeVillage(key: string): Promise<GameState | null> {
+  const json = await withStore<string | undefined>('readonly', (st) => st.get(`village:${key}`));
+  if (!json) return null;
+  const s = parseSave(json);
+  await forgetVillage(key);
+  return s;
+}
+
+export async function forgetVillage(key: string): Promise<void> {
+  await withStore('readwrite', (st) => st.delete(`village:${key}`));
+  await withStore('readwrite', (st) => st.delete(`villageinfo:${key}`));
 }
 
 export async function importGame(file: File): Promise<GameState> {

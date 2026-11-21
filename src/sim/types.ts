@@ -87,10 +87,13 @@ export interface Person {
   memories: number[];
   /** Faith id, if they hold one. */
   faith?: number;
+  /** Someone called with Sparks carries a story that comes back in its own time. */
+  hook?: { id: string; due: number };
 }
 
 export type BuildingKind =
-  | 'hearth' | 'stone' | 'tent' | 'leanto' | 'townhouse' | 'alehouse' | 'healer' | 'scribes' | 'temple' | 'guildhall' | 'bridge' | 'hut' | 'house' | 'bighouse' | 'hall'
+  | 'hearth' | 'stone' | 'tent' | 'leanto' | 'townhouse' | 'alehouse' | 'healer' | 'scribes' | 'temple' | 'guildhall' | 'bridge'
+  | 'stones' | 'grove' | 'spring' | 'barrow' | 'cairn' | 'bigtree' | 'hut' | 'house' | 'bighouse' | 'hall'
   | 'granary' | 'kiln' | 'furnace' | 'shrine' | 'well' | 'dock' | 'stall'
   | 'field' | 'graveyard' | 'pen';
 
@@ -127,8 +130,11 @@ export interface Building {
   culled?: number;
   /** The era it was built (or last rebuilt) in, which sets how it looks. */
   era?: Era;
-  /** A temple's faith, or a guildhall's guild. */
+  /** A temple's faith (or a sacred place's), or a guildhall's guild. */
   faith?: number;
+  /** A sacred place: how holy it has become (0–100), and who found it. */
+  sacred?: number;
+  foundBy?: number;
   guild?: number;
 }
 
@@ -184,7 +190,16 @@ export interface PersonDraft {
   parentsIdx?: number[];
 }
 
-export interface Party { id: number; story: string; people: PersonDraft[]; /** Pilgrims keep their faith. */ faith?: number }
+export interface Party {
+  id: number;
+  story: string;
+  people: PersonDraft[];
+  /** Pilgrims keep their faith. */
+  faith?: number;
+  /** Someone called with Sparks: which story they carry, and its title. */
+  call?: string;
+  title?: string;
+}
 
 export type PendingAct =
   | { kind: 'party'; party: Party; patron?: boolean }
@@ -201,11 +216,9 @@ export type LawId = 'share-harvest' | 'open-gates' | 'fever-huts' | 'feast-days'
 export interface Law { id: LawId; since: number; by: number; patron?: boolean }
 export interface Leader { person: number; since: number }
 
-export type TenetId = 'hearth' | 'ancestors' | 'river' | 'peace' | 'feasting' | 'austerity' | 'comet' | 'relics';
+export type TenetId = 'hearth' | 'ancestors' | 'river' | 'peace' | 'feasting' | 'austerity' | 'comet' | 'relics' | 'land';
 export interface Faith { id: number; name: string; founder: number; founded: number; tenets: TenetId[]; season: number; parent?: number; gone?: boolean }
 
-export type PetitionKind = 'heal' | 'return' | 'child' | 'harvest' | 'plague' | 'fire';
-export interface Petition { id: number; day: number; from: number; kind: PetitionKind; target?: number; text: string; cost: number; expires: number }
 
 export interface Plague { name: string; since: number; lastCase: number; cases: number; deaths: number }
 
@@ -375,13 +388,17 @@ export interface GameState {
   playerNamedYears: Record<number, boolean>;
   stores: { food: number; wood: number; goods: number };
   favor: number;
-  /** Groups of three parties waiting at the gate, one group per Spark. */
+  /** Sparks earned and not yet spent: spend them to call someone. */
+  sparks: number;
+  /** The three people who could be called, until one is. */
+  calling?: Party[];
+  /** Older saves: groups of travelers that used to wait at the gate after each Spark. */
   arrivals: Party[][];
   pending: PendingAct[];
   goals: Goals;
   settings: Settings;
   focus: Focus;
-  nextId: { person: number; building: number; entry: number; quest: number; grave: number; party: number; faith: number; petition: number; fortune: number; pet: number; item: number; guild: number };
+  nextId: { person: number; building: number; entry: number; quest: number; grave: number; party: number; faith: number; fortune: number; pet: number; item: number; guild: number };
   flags: {
     hungerSince?: number;
     coldSince?: number;
@@ -412,6 +429,8 @@ export interface GameState {
     ceremony?: { kind: 'age' | 'charter'; day: number };
     /** Omens seen recently (days), for the Age of Omens. */
     omenDays?: number[];
+    /** Stories already called (each is told once, until they've all been told). */
+    called?: string[];
     /** Buildings burned in the current run of fires, for the Age of Ash. */
     lastBurn?: number;
     burnedRun?: number;
@@ -422,7 +441,6 @@ export interface GameState {
   leader?: Leader;
   laws: Law[];
   faiths: Faith[];
-  petitions: Petition[];
   plague?: Plague;
   fortunes: FortuneOffer[];
   pets: Pet[];

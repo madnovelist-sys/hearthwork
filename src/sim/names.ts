@@ -64,7 +64,7 @@ export function settlementName(r: RngState): string {
   return head + tail;
 }
 
-const QUEST_ADJ = ['Grey', 'Iron', 'Whispering', 'Salt', 'Ash', 'Red', 'Silent', 'Bitter', 'Hollow', 'Long', 'Drowned', 'Golden'];
+const QUEST_ADJ = ['Grey', 'Flint', 'Whispering', 'Salt', 'Ash', 'Red', 'Silent', 'Bitter', 'Hollow', 'Long', 'Drowned', 'Golden'];
 
 export function questPlace(r: RngState, kind: QuestKind): string {
   const p = settlementName(r);

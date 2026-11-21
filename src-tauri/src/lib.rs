@@ -4,7 +4,8 @@
 // - a menu-bar clock with Start/Stop, which keeps ticking while the window is hidden,
 // - closing the window hides it (the city keeps its clock in the menu bar),
 // - how long since the last keyboard or mouse input, so a forgotten session can pause,
-// - system notifications.
+// - system notifications,
+// - saving a village to a file you choose, and opening one again.
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -143,12 +144,33 @@ fn setup_tray(app: &mut tauri::App) -> tauri::Result<()> {
     Ok(())
 }
 
+/// Only save files the game makes: villages and chronicles.
+fn allowed_file(path: &str, exts: &[&str]) -> Result<(), String> {
+    let ext = std::path::Path::new(path).extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase();
+    if exts.contains(&ext.as_str()) { Ok(()) } else { Err(format!("Hearthwork only saves {} files.", exts.join(", "))) }
+}
+
+/// Write a village (or the Chronicle) to the file the player chose in the save dialog.
+#[tauri::command]
+fn write_text_file(path: String, contents: String) -> Result<(), String> {
+    allowed_file(&path, &["json", "md", "txt"])?;
+    std::fs::write(&path, contents).map_err(|e| e.to_string())
+}
+
+/// Read a village file the player chose in the open dialog.
+#[tauri::command]
+fn read_text_file(path: String) -> Result<String, String> {
+    allowed_file(&path, &["json"])?;
+    std::fs::read_to_string(&path).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(Mutex::new(Timer::default()))
-        .invoke_handler(tauri::generate_handler![set_timer, idle_seconds])
+        .invoke_handler(tauri::generate_handler![set_timer, idle_seconds, write_text_file, read_text_file])
         .setup(|app| {
             #[cfg(desktop)]
             setup_tray(app)?;

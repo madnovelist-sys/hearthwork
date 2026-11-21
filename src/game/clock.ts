@@ -1,8 +1,7 @@
 // The focus clock: the city only lives while a session is running.
 // Time is counted from timestamps, so it stays right even when the app is
 // minimized or the browser throttles timers; the simulation catches up.
-import { applyDawn, settleUnchosen } from '../sim/acts';
-import { makeArrivalOptions } from '../sim/arrivals';
+import { applyDawn } from '../sim/acts';
 import { offerFortune } from '../sim/fortunes';
 import { stepDay } from '../sim/sim';
 import { FOCUS_MS_PER_DAY, type FocusDay, type GameState, type SessionRecord } from '../sim/types';
@@ -10,7 +9,6 @@ import { FOCUS_MS_PER_DAY, type FocusDay, type GameState, type SessionRecord } f
 /** A gap this long between ticks means the computer slept or the app was closed. */
 export const GAP_LIMIT_MS = 90 * 60_000;
 /** At most this many waiting arrival groups; older ones settle on their own. */
-const MAX_WAITING_GROUPS = 3;
 
 export interface ClockEvents {
   spark?(kind: 'time' | 'words'): void;
@@ -125,13 +123,11 @@ export function logWords(s: GameState, words: number, now: number, events: Clock
 }
 
 function spark(s: GameState, now: number, kind: 'time' | 'words', events: ClockEvents) {
+  // A Spark is kept, to spend on calling someone, and brings a little Favor too.
   s.favor += 1;
+  s.sparks = (s.sparks ?? 0) + 1;
   if (s.focus.running) { s.focus.running.sparks++; s.focus.running.favor++; }
   focusDay(s, now).sparks++;
-  s.arrivals.push(makeArrivalOptions(s));
-  // While the sun is up, a group that has waited too long settles on its own.
-  if (s.focus.running) settleUnchosen(s, MAX_WAITING_GROUPS);
-  else if (s.arrivals.length > MAX_WAITING_GROUPS) s.arrivals.shift();
   events.spark?.(kind);
 }
 

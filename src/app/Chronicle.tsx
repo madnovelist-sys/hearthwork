@@ -1,4 +1,5 @@
 // The Chronicle: the city's history, year by year, newest first.
+import { saveTextFile } from '../game/files';
 import { useState } from 'preact/hooks';
 import { store } from '../game/store';
 import { DAYS_PER_YEAR, SEASONS, type Entry } from '../sim/types';
@@ -72,13 +73,6 @@ export function exportChronicle() {
     });
     lines.push(`- *${SEASONS[seasonIndex(e.day)]}.* ${text}`);
   }
-  const blob = new Blob([lines.join('\n') + '\n'], { type: 'text/markdown' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `chronicle-of-${s.name.toLowerCase()}.md`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  void saveTextFile(`chronicle-of-${s.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.md`, lines.join('\n') + '\n', { label: 'Markdown', ext: 'md', mime: 'text/markdown' })
+    .catch((e) => store.toast(`Couldn't save the Chronicle: ${(e as Error).message ?? e}`));
 }

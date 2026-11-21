@@ -6,6 +6,7 @@ import { creditTime, GAP_LIMIT_MS, localDate, logWords, startSession, stopSessio
 import { loadGame, saveGame } from './save';
 import { notify } from './desktop';
 import { stopTimeToday } from './sky';
+import { CALL_COST } from '../sim/callers';
 
 export type Panel = 'chronicle' | 'people' | 'society' | 'ages' | 'acts' | 'arrivals' | 'settings' | 'art';
 export type Selection = { kind: 'person'; id: number } | { kind: 'building'; id: number } | null;
@@ -46,8 +47,9 @@ class Store {
 
   readonly events: ClockEvents = {
     spark: (kind) => {
-      this.toast(kind === 'time' ? 'A Spark! Travelers are on the road.' : 'Your words became a Spark. Travelers are on the road.', 'gold');
-      this.ping('A Spark', `Travelers are on the road to ${this.state?.name ?? 'your settlement'}.`);
+      const n = this.state?.sparks ?? 0;
+      this.toast(`${kind === 'time' ? 'A Spark!' : 'Your words became a Spark.'} You have ${n} to spend.`, 'gold');
+      this.ping('A Spark', `You have ${n} Spark${n === 1 ? '' : 's'}. Spend ${CALL_COST} to call someone to ${this.state?.name ?? 'your settlement'}.`);
     },
     dailyGoal: () => {
       this.toast('Daily goal reached: +5 Favor. The fire burns bright tonight.', 'gold');

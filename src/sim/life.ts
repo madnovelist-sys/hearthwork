@@ -6,6 +6,7 @@ import { DREAM_LABEL, childOf, nameChild } from './people';
 import { hasLaw, lawMood } from './society';
 import { boost } from './ages';
 import { townMood } from './town';
+import { placesMood } from './places';
 import { orphanPets } from './animals';
 import { itemsOf, passHeirlooms, weddingKeepsake } from './items';
 import { addBuilding, findSite, moveIn } from './planner';
@@ -254,7 +255,7 @@ export function lifeDay(s: GameState) {
     if (p.spouse !== undefined) base += 8;
     if (hungry) base -= 20;
     base += lawMood(s, p);
-    base += townMood(s, p);
+    base += townMood(s, p) + placesMood(s, p);
     if (itemsOf(s, p.id).length) base += 3; // something of their family's to hold onto
     if (p.sick || p.injured) base -= 10;
     base += Math.min(10, (s.stores.goods / Math.max(1, people.length)) * 2);

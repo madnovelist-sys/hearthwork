@@ -6,6 +6,7 @@ import { ageOf, yearOf } from '../sim/world';
 import { PersonLink } from './format';
 import { ArmsShield } from './Arms';
 import { describeArms } from '../sim/town';
+import { sitesOf } from '../sim/places';
 
 const cap = (t: string) => t[0].toUpperCase() + t.slice(1);
 
@@ -87,6 +88,17 @@ export function SocietyPanel() {
         <h4>Animals</h4>
         <p>{herd ? `${herd} goats and sheep in the pens.` : 'No herds yet.'} {dogs ? `${dogs} ${dogs === 1 ? 'dog' : 'dogs'}` : ''}{dogs && cats ? ' and ' : ''}{cats ? `${cats} ${cats === 1 ? 'cat' : 'cats'}` : ''}{dogs || cats ? ' live with families.' : ''} {s.wild.deer > 0 ? `About ${s.wild.deer} deer in the woods nearby.` : 'No deer have been seen nearby in a long while.'}</p>
       </div>
+      {sitesOf(s).length > 0 && (
+        <div class="group">
+          <h4>Sacred places</h4>
+          {sitesOf(s).map((b) => (
+            <div class="party" key={b.id} style={{ cursor: 'pointer' }} onClick={() => store.setUi({ selection: { kind: 'building', id: b.id } })}>
+              <b>{cap(b.name ?? BUILDING_LABEL[b.kind])}</b> <span class="sub">{BUILDING_LABEL[b.kind].toLowerCase()}, found Year {yearOf(b.founded)}</span>
+              <div class="sub">{(b.sacred ?? 0) >= 70 ? 'A holy place' : (b.sacred ?? 0) >= 35 ? 'People leave offerings here' : 'Not much visited yet'}{b.faith !== undefined && s.faiths[b.faith] ? `, kept by ${s.faiths[b.faith].name}` : ''}.</div>
+            </div>
+          ))}
+        </div>
+      )}
       {s.guilds.some((g) => !g.gone) && (
         <div class="group">
           <h4>Guilds</h4>

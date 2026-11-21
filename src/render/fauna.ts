@@ -21,7 +21,8 @@ export interface Animal {
   visible: boolean;
 }
 
-interface Bird { x: number; y: number; vx: number; flap: number }
+/** A bird over the world: grid position, height above the ground (px at zoom 1), velocity in tiles a second. */
+interface Bird { x: number; y: number; z: number; vx: number; vy: number; flap: number; until: number }
 
 export class Fauna {
   list = new Map<string, Animal>();
@@ -31,7 +32,7 @@ export class Fauna {
   private waterTiles: number[] = [];
   private scanned = -9999;
 
-  update(s: GameState, walkers: Walkers, now: number, dtMs: number, night: number, viewW: number, viewH: number) {
+  update(s: GameState, walkers: Walkers, now: number, dtMs: number, night: number, viewW: number, viewH: number, toGrid: (sx: number, sy: number) => { x: number; y: number }) {
     const dt = Math.min(dtMs, 100) / 1000;
     if (now - this.scanned > 10_000) this.scan(s, now);
     const seen = new Set<string>();
@@ -122,18 +123,35 @@ export class Fauna {
     }
     for (const k of [...this.list.keys()]) if (!seen.has(k)) this.list.delete(k);
 
-    // Now and then a flock of birds crosses the sky by day.
+    // Now and then a flock of birds flies over by day. It sets off from just outside what you're
+    // looking at, but it flies over the land: pan away and you leave it behind.
     if (night < 0.3 && now > this.nextFlock && this.birds.length < 8) {
       this.nextFlock = now + 40_000 + (hashString(`flock${Math.floor(now / 1000)}`) % 50_000);
-      const y = 60 + (hashString(`fy${now}`) % Math.max(1, Math.floor(viewH * 0.5)));
+      const sy = 60 + (hashString(`fy${now}`) % Math.max(1, Math.floor(viewH * 0.5)));
       const dir = hashString(`fd${now}`) % 2 ? 1 : -1;
+      const z = 70 + (hashString(`fz${now}`) % 50);
+      const from = toGrid(dir > 0 ? -60 : viewW + 60, sy + z);
+      const to = toGrid(dir > 0 ? viewW + 60 : -60, sy + z + (hashString(`fe${now}`) % 120) - 60);
+      const secs = (viewW + 120) / 46;
+      const vx = (to.x - from.x) / secs;
+      const vy = (to.y - from.y) / secs;
+      const len = Math.hypot(vx, vy) || 1;
+      // A loose V: followers trail behind and to either side of the leader.
       for (let i = 0; i < 7; i++) {
-        const row = Math.ceil(i / 2) * (i % 2 ? 1 : -1);
-        this.birds.push({ x: (dir > 0 ? -40 : viewW + 40) - Math.abs(row) * 12 * dir, y: y + row * 9, vx: 46 * dir, flap: i });
+        const row = Math.ceil(i / 2);
+        const side = i % 2 ? 1 : -1;
+        const back = row * 0.35;
+        const across = row * 0.3 * side;
+        this.birds.push({
+          x: from.x - (vx / len) * back - (vy / len) * across,
+          y: from.y - (vy / len) * back + (vx / len) * across,
+          z, vx, vy, flap: i, until: now + secs * 1000 + 20_000,
+        });
       }
     }
-    for (const b of this.birds) b.x += b.vx * dt;
-    this.birds = this.birds.filter((b) => b.x > -120 && b.x < viewW + 120);
+    for (const b of this.birds) { b.x += b.vx * dt; b.y += b.vy * dt; }
+    const margin = 20;
+    this.birds = this.birds.filter((b) => now < b.until && b.x > -margin && b.y > -margin && b.x < s.map.w + margin && b.y < s.map.h + margin);
   }
 
   private get(key: string, kind: AnimalKind, x: number, y: number, variant: number): Animal {
@@ -249,15 +267,19 @@ export function drawAnimal(g: CanvasRenderingContext2D, a: Animal, x: number, y:
   }
 }
 
-export function drawBirds(g: CanvasRenderingContext2D, birds: Bird[], now: number) {
+export function drawBirds(g: CanvasRenderingContext2D, birds: Bird[], now: number, toScreen: (gx: number, gy: number) => { x: number; y: number }, zoom: number) {
+  const k = Math.max(0.6, Math.min(1.5, zoom));
   g.strokeStyle = 'rgba(59,47,42,0.75)';
-  g.lineWidth = 1.4;
+  g.lineWidth = 1.4 * k;
   for (const b of birds) {
-    const w = Math.sin(now / 140 + b.flap) * 3;
+    const p = toScreen(b.x, b.y);
+    const x = p.x;
+    const y = p.y - b.z * zoom;
+    const w = Math.sin(now / 140 + b.flap) * 3 * k;
     g.beginPath();
-    g.moveTo(b.x - 5, b.y - w);
-    g.quadraticCurveTo(b.x - 2, b.y - 3, b.x, b.y);
-    g.quadraticCurveTo(b.x + 2, b.y - 3, b.x + 5, b.y - w);
+    g.moveTo(x - 5 * k, y - w);
+    g.quadraticCurveTo(x - 2 * k, y - 3 * k, x, y);
+    g.quadraticCurveTo(x + 2 * k, y - 3 * k, x + 5 * k, y - w);
     g.stroke();
   }
 }

@@ -7,7 +7,9 @@ import { deerYear, herdsSeason, petsYear } from './animals';
 import { itemsYear } from './items';
 import { clearRuins, fireDay, plagueDay, plagueSeason } from './calamity';
 import { applyHarvestBoost } from './fortunes';
-import { petitionsDay } from './petitions';
+import { placesYear } from './places';
+import { arrivalsSeason } from './arrivals';
+import { hooksYear } from './callers';
 import { businessYear, faithYear, plantFaithSeed, societySeason } from './society';
 import type { TenetId } from './types';
 import { generateMap, growMap } from './mapgen';
@@ -57,17 +59,17 @@ export function foundSettlement(opts: FoundingOptions): GameState {
     playerNamedYears: {},
     stores: { food: 260, wood: 40, goods: 0 },
     favor: 2,
+    sparks: 0,
     arrivals: [],
     pending: [],
     goals: { ...(opts.goals ?? DEFAULT_GOALS) },
     settings: { ...(opts.settings ?? DEFAULT_SETTINGS) },
     focus: { running: null, carryMs: 0, sparkMs: 0, sparkWords: 0, totalMs: 0, days: {}, sessions: [] },
-    nextId: { person: 0, building: 0, entry: 0, quest: 0, grave: 0, party: 0, faith: 0, petition: 0, fortune: 0, pet: 0, item: 0, guild: 0 },
+    nextId: { person: 0, building: 0, entry: 0, quest: 0, grave: 0, party: 0, faith: 0, fortune: 0, pet: 0, item: 0, guild: 0 },
     flags: { relics: 0, knowledge: 0 },
     lateReturns: [],
     laws: [],
     faiths: [],
-    petitions: [],
     fortunes: [],
     pets: [],
     wild: { deer: -1 },
@@ -76,7 +78,6 @@ export function foundSettlement(opts: FoundingOptions): GameState {
   const r = s.rng;
 
   addBuilding(s, 'hearth', hearth.x, hearth.y, { built: true });
-  addBuilding(s, 'stone', hearth.x + 1, hearth.y - 1, { built: true });
 
   // The founders: two families and a couple of loners.
   const familyA = familyName(r);
@@ -130,7 +131,6 @@ export function stepDay(s: GameState) {
   plannerDay(s);
   plagueDay(s);
   fireDay(s);
-  petitionsDay(s);
   momentsDay(s);
   loreDay(s);
   townDay(s);
@@ -145,6 +145,8 @@ export function stepDay(s: GameState) {
     businessYear(s);
     agesYear(s);
     townYear(s);
+    placesYear(s);
+    hooksYear(s);
     nameYear(s, yearOf(s.day - 1));
   }
 }
@@ -155,6 +157,7 @@ function onSeason(s: GameState) {
   questsSeason(s);
   societySeason(s);
   herdsSeason(s);
+  arrivalsSeason(s);
   plagueSeason(s);
   clearRuins(s);
   if (seasonIndex(s.day) === 0) omens(s);
@@ -173,7 +176,7 @@ function omens(s: GameState) {
   if (!chance(r, 0.12 + w * 0.06)) return;
   const options: [string, string, TenetId][] = [
     [`Lights were seen over the marsh at night, drifting against the wind.`, 'The Year of the Marsh Lights', 'river'],
-    [`The Old Stone hummed for a whole night. Dogs would not go near it.`, 'The Year the Stone Hummed', 'hearth'],
+    [`The stones of the hearth hummed for a whole night. Dogs would not go near the fire.`, 'The Year the Hearth Hummed', 'hearth'],
     [`A comet hung over ${s.name} for nine nights, green at the edges.`, 'The Year of the Comet', 'comet'],
   ];
   if (w >= 2) options.push(
@@ -202,7 +205,7 @@ export function checkStage(s: GameState) {
   const pop = population(s);
   if (s.stage === 'settlement' && pop >= 50) {
     s.stage = 'village';
-    log(s, 'stage', `${s.name} had grown into a village. The elders marked the day by planting an oak beside the fire, and a charter was sung instead of written: everyone who lived here, and everyone who would.`, [], 9, 'The Year of the Charter');
+    log(s, 'stage', `${s.name} had grown into a village. The elders marked the day by planting an oak beside the fire, and a charter was sung: everyone who lived here, and everyone who would.`, [], 9, 'The Year of the Charter');
   } else if (s.stage === 'village' && pop >= 250) {
     s.stage = 'town';
     grantCharter(s);
