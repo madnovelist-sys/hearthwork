@@ -65,7 +65,8 @@ export function passHeirlooms(s: GameState, dead: Person) {
       item.owner = undefined;
       item.buried = true;
       item.history.push({ day: s.day, person: dead.id, how: 'buried' });
-      log(s, 'season', `${P(dead.id)} was buried with ${item.name}.`, [dead.id], 3);
+      const how: Record<string, string> = { burial: 'was buried with', cremation: 'went onto the pyre with', sky: 'was laid out under the sky with', tomb: 'was laid in the tomb with', river: 'went down the river with' };
+      log(s, 'season', `${P(dead.id)} ${how[s.traditions?.dead?.custom ?? 'burial']} ${item.name}.`, [dead.id], 3);
       continue;
     }
     const heir = heirOf(s, dead);

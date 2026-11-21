@@ -154,6 +154,12 @@ export class Fauna {
     this.birds = this.birds.filter((b) => now < b.until && b.x > -margin && b.y > -margin && b.x < s.map.w + margin && b.y < s.map.h + margin);
   }
 
+  /** After the window was hidden: let the animals wander on a few steps, and old flocks fly off. */
+  catchUp(s: GameState, walkers: Walkers, now: number, night: number, viewW: number, viewH: number, toGrid: (sx: number, sy: number) => { x: number; y: number }) {
+    this.birds = this.birds.filter((b) => now < b.until);
+    for (let i = 0; i < 8; i++) this.update(s, walkers, now + i * 1000, 1000, night, viewW, viewH, toGrid);
+  }
+
   private get(key: string, kind: AnimalKind, x: number, y: number, variant: number): Animal {
     let a = this.list.get(key);
     if (!a || a.kind !== kind) {

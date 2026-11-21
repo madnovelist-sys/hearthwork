@@ -14,6 +14,10 @@ import { inspire } from '../src/sim/acts';
 import { addBuilding, findSite, settlementRegion } from '../src/sim/planner';
 import { describeArms, grantCharter, planBridge, planWalls, progressWalls } from '../src/sim/town';
 import { tileCost } from '../src/sim/path';
+import { fieldsAsleep, firewoodPerPerson, indoorShare } from '../src/sim/weather';
+import { agreesTo, fillCouncil } from '../src/sim/traditions';
+import { isNotable, shown } from '../src/sim/notable';
+import { tellTale } from '../src/sim/tales';
 import { TERRAIN } from '../src/sim/types';
 
 /** A settlement left to grow: people come on their own, and every year someone is called with Sparks. */
@@ -220,16 +224,17 @@ describe('village life', () => {
 
   it('plague spreads, then burns itself out', () => {
     const s = run(44, 12);
+    for (const p of s.people) p.hook = undefined; // no called healer to end it early
     startPlague(s);
-    for (let d = 0; d < 40; d++) stepDay(s);
+    for (let d = 0; d < 150 && (s.plague?.cases ?? 0) < 2; d++) stepDay(s);
     expect(s.plague?.cases ?? 0).toBeGreaterThan(1);
     for (let d = 0; d < 4 * 360 && s.plague; d++) stepDay(s);
     expect(s.plague).toBeUndefined();
   });
 
   it('fire burns a home out and its family gets a tent', () => {
-    const s = run(45, 6);
-    const home = s.buildings.find((b) => b.built && !b.removed && (b.kind === 'hut' || b.kind === 'house') && s.people.some((p) => p.alive && p.home === b.id))!;
+    const s = run(45, 10);
+    const home = s.buildings.find((b) => b.built && !b.removed && ['hut', 'house', 'bighouse'].includes(b.kind) && s.people.some((p) => p.alive && p.home === b.id))!;
     const family = s.people.filter((p) => p.alive && p.home === home.id);
     ignite(s, home, true);
     for (let d = 0; d < 8; d++) stepDay(s);
@@ -550,5 +555,91 @@ describe('arrivals, calling and sacred places', () => {
     expect(back.buildings[stone.id].removed).toBe(true);
     expect(back.map.occ[stone.y * back.map.w + stone.x]).toBe(0);
     expect(back.sparks).toBe(0);
+  });
+});
+
+describe('weather, traditions, the Chronicle and tales', () => {
+  it('temperature follows the seasons; snow lies only when it is cold; the cold burns more wood', () => {
+    const s = foundSettlement({ seed: 91, name: 'Coldwater' });
+    const temps: number[][] = [[], [], [], []];
+    let snowInSummer = 0, frozen = 0;
+    for (let d = 0; d < 3 * DAYS_PER_YEAR; d++) {
+      stepDay(s);
+      const season = Math.floor(((s.day - 1) % DAYS_PER_YEAR) / 90);
+      temps[season].push(s.weather!.temp);
+      if (season === 1 && s.weather!.snow > 0.4) snowInSummer++;
+      if (s.weather!.ice) frozen++;
+    }
+    const mean = (a: number[]) => a.reduce((x, y) => x + y, 0) / a.length;
+    expect(mean(temps[1])).toBeGreaterThan(mean(temps[0]));
+    expect(mean(temps[3])).toBeLessThan(mean(temps[2]));
+    expect(mean(temps[3])).toBeLessThan(3);
+    expect(snowInSummer).toBe(0);
+    expect(frozen).toBeGreaterThan(0);
+    s.weather!.temp = -8;
+    const cold = firewoodPerPerson(s);
+    s.weather!.temp = 20;
+    expect(cold).toBeGreaterThan(firewoodPerPerson(s) * 4);
+  });
+
+  it('nobody farms in winter: farmers hunt instead, and people keep indoors in the cold', () => {
+    const s = run(92, 3);
+    s.weather!.temp = -5;
+    s.day = 3 * DAYS_PER_YEAR + 300; // deep winter
+    expect(fieldsAsleep(s)).toBe(true);
+    expect(indoorShare(s)).toBeGreaterThan(0.5);
+    s.weather!.temp = 22;
+    s.weather!.sky = 'clear';
+    expect(indoorShare(s)).toBe(0);
+  });
+
+  it('the first death decides how the village treats its dead, and the place for it', () => {
+    const customs = new Set<string>();
+    for (const seed of [93, 94, 95, 96, 97, 98]) {
+      const s = run(seed, 6);
+      const p = s.people.find((x) => x.alive && x.away === undefined)!;
+      if (!s.traditions.dead) killPerson(s, p, 'old age', 'test');
+      const custom = s.traditions.dead!.custom;
+      customs.add(custom);
+      const kinds: Record<string, string> = { burial: 'graveyard', cremation: 'pyre', sky: 'skyplatform', tomb: 'tomb', river: 'landing' };
+      expect(s.buildings.some((b) => b.kind === kinds[custom] && !b.removed)).toBe(true);
+    }
+    expect(customs.size).toBeGreaterThan(1);
+  });
+
+  it('a village decides how to govern itself; a council or assembly must agree to laws', () => {
+    const s = run(99, 14);
+    expect(s.stage).not.toBe('settlement');
+    expect(s.traditions.rule).toBeDefined();
+    s.traditions.rule = { form: 'council', since: s.day };
+    fillCouncil(s);
+    expect(s.council!.length).toBeGreaterThanOrEqual(1);
+    expect(agreesTo(s, () => -1)).toBe(false);
+    expect(agreesTo(s, () => 1)).toBe(true);
+  });
+
+  it('as a place grows, the Chronicle keeps to notable people and bigger events, and the player can choose', () => {
+    const s = run(100, 4);
+    const nobody = s.people.find((p) => p.alive && !p.followed && !isNotable(s, p.id))!;
+    const small = { id: 1, day: s.day, kind: 'courtship' as const, text: 'x', people: [nobody.id], weight: 1 };
+    expect(shown(s, small)).toBe(true); // a settlement: everything
+    s.stage = 'town';
+    expect(shown(s, small)).toBe(false);
+    nobody.followed = true;
+    expect(shown(s, small)).toBe(true); // unless you follow them
+    expect(shown(s, small, { focus: 'auto', hide: ['love'] })).toBe(false);
+    expect(shown(s, small, { focus: 'everyone', hide: [] })).toBe(true);
+  });
+
+  it('tales remember: a quarrel leaves a grudge with its reason, and later ones call back to it', () => {
+    const s = run(101, 8);
+    const from = s.chronicle.length;
+    for (let i = 0; i < 300; i++) { tellTale(s); if (i % 3 === 0) s.day++; }
+    const grudges = Object.values(s.bonds ?? {}).filter((b) => b.v < -10 && b.why);
+    expect(grudges.length).toBeGreaterThan(0);
+    const texts = s.chronicle.slice(from).filter((e) => e.kind === 'season').map((e) => e.text);
+    expect(texts.length).toBeGreaterThan(50);
+    expect(new Set(texts).size).toBe(texts.length); // no tale told word for word twice
+    expect(texts.some((t) => / again/.test(t) || /since the business with/.test(t))).toBe(true);
   });
 });

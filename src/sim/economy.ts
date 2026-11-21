@@ -2,23 +2,23 @@
 // building, pots and bronze for comfort. And who does which job.
 import { log, P } from './chronicle';
 import { pick, range } from './rng';
-import type { GameState, JobId, Person } from './types';
+import { DAYS_PER_YEAR, type GameState, type JobId, type Person } from './types';
 import { chopWood, forestMonth } from './forest';
 import { herdYield } from './animals';
 import { ageOf, isBlessed, present, seasonIndex, tone } from './world';
 import { hasLaw } from './society';
 import { boost } from './ages';
 import { guildRate } from './town';
+import { fieldsAsleep, firewoodPerPerson, temperature } from './weather';
 
 // Daily food per worker, by season: spring, summer, autumn, winter.
 const FOOD_RATE: Partial<Record<JobId, number[]>> = {
-  farmer: [0.9, 1.5, 5.4, 0],
-  gatherer: [1.2, 1.5, 1.4, 0.4],
-  fisher: [1.4, 1.6, 1.4, 0.7],
+  farmer: [1.2, 1.5, 5.4, 0], // spring: sowing, and foraging wild greens through the hungry gap
+  gatherer: [1.2, 1.5, 1.4, 0.8], // winter: hunting, the mainstay of the cold months
+  fisher: [1.4, 1.6, 1.4, 0.9],
 };
 
-/** Firewood burned per person per day, by season. */
-const FIREWOOD = [0.01, 0.003, 0.01, 0.03];
+/** Firewood burned per person per day: see firewoodPerPerson (it follows the temperature). */
 
 export function consumption(s: GameState, p: Person): number {
   const a = ageOf(s, p);
@@ -58,16 +58,21 @@ export function economyDay(s: GameState) {
   let need = 0;
   const pop = people.length;
   const feast = hasLaw(s, 'feast-days') ? 1.03 : 1;
+  // Nobody farms in winter: farmers hunt and gather with everyone else until spring.
+  const asleep = fieldsAsleep(s);
+  const frozen = !!s.weather?.ice;
   for (const p of people) {
     need += consumption(s, p) * feast;
     const rate = workRate(s, p);
     if (!rate) continue;
-    const foodRate = FOOD_RATE[p.job];
+    const job = p.job === 'farmer' && asleep ? 'gatherer' : p.job;
+    const foodRate = FOOD_RATE[job];
     if (foodRate) {
       let f = foodRate[season] * rate * knowledge;
-      if (p.job === 'farmer' && season === 2) f *= s.flags.harvest ?? 1;
-      if (p.job === 'farmer' && !worked.has(p.id)) f *= 0.6;
-      if (p.job === 'fisher' && hasDock) f *= 1.2;
+      if (job === 'farmer' && season === 2) f *= (s.flags.harvest ?? 1) * (1 - (s.flags.harvestHurt ?? 0));
+      if (job === 'farmer' && !worked.has(p.id)) f *= 0.6;
+      if (job === 'fisher' && hasDock) f *= 1.2;
+      if (job === 'fisher' && frozen) f *= 0.6; // fishing through holes in the ice
       food += f;
     } else if (p.job === 'woodcutter') {
       // Wood comes from real trees: the nearest grown ones, farther as the woods thin.
@@ -82,6 +87,8 @@ export function economyDay(s: GameState) {
     } else if (p.job === 'none' && ageOf(s, p) >= 16) {
       food += 0.5 * rate; // forage a little
     }
+    // When the stores run low, older children go out gathering too.
+    if (p.job === 'child' && s.stores.food < need * 30 && ageOf(s, p) >= 10) food += 0.35;
     // In the first days everyone gathers some firewood.
     if (pop < 12 && ageOf(s, p) >= 14) wood += 0.25;
   }
@@ -97,11 +104,11 @@ export function economyDay(s: GameState) {
   s.stores.food *= hasGranary ? 0.9993 : 0.998;
 
   // Keeping warm. Running out of firewood in winter is miserable.
-  const burn = FIREWOOD[season] * pop;
+  const burn = firewoodPerPerson(s) * pop;
   if (s.stores.wood >= burn) s.stores.wood -= burn;
   else {
     s.stores.wood = 0;
-    if (season === 3) {
+    if (temperature(s) < 3) {
       if (s.flags.coldSince === undefined) {
         s.flags.coldSince = s.day;
         log(s, 'hunger', `The firewood ran out in the depth of winter. Families slept huddled together around the last embers.`, [], 4, 'The Cold Year');
@@ -109,13 +116,14 @@ export function economyDay(s: GameState) {
       for (const p of people) { p.health = Math.max(20, p.health - 0.25); p.mood -= 0.5; }
     }
   }
-  if (season !== 3) s.flags.coldSince = undefined;
+  if (temperature(s) >= 3) s.flags.coldSince = undefined;
   s.stores.goods *= hasLaw(s, 'tithe') ? 0.997 : 0.9995;
 
   if (s.stores.food >= need) {
     s.stores.food -= need;
     if (s.flags.hungerSince !== undefined && s.stores.food > need * 20) {
       s.flags.hungerSince = undefined;
+      s.flags.hungerEnded = s.day;
       log(s, 'hunger', `The hunger in ${s.name} finally eased.`, [], 2);
     }
   } else {
@@ -135,7 +143,11 @@ function starve(s: GameState, people: Person[], shortfall: number) {
       balanced: `Hunger came to ${s.name}. The stores were empty, and the children cried at night.`,
       grim: `The stores ran out. In ${s.name}, people boiled bark and leather and watched each other's ribs.`,
     };
-    log(s, 'hunger', lines[tone(s)], [], 6, 'The Hungry Year');
+    // Hunger that comes straight back is the same hard time, not a new one.
+    const since = s.day - (s.flags.hungerEnded ?? -9999);
+    if (since < 180) log(s, 'hunger', `The food ran out again in ${s.name}, before anyone had got their strength back.`, [], 4);
+    else if (since < 3 * DAYS_PER_YEAR) log(s, 'hunger', `Hunger came back to ${s.name}${since < DAYS_PER_YEAR * 1.5 ? ', barely a year after the last' : ''}. People who had sworn it would never happen again tightened their belts without a word.`, [], 6, 'The Hungry Year');
+    else log(s, 'hunger', lines[tone(s)], [], 6, 'The Hungry Year');
   }
   const floor = { gentle: 40, balanced: 15, grim: 0 }[tone(s)];
   for (const p of people) {
@@ -149,7 +161,11 @@ function starve(s: GameState, people: Person[], shortfall: number) {
 /** At the turn of each season: harvest news, lean-winter warnings. */
 export function economySeason(s: GameState) {
   const season = seasonIndex(s.day);
-  if (season === 2) s.flags.harvest = range(s.rng, 0.55, 1.35);
+  if (season === 2) {
+    // The harvest: luck, and the summer it had. A long drought takes its share.
+    const dry = s.weather?.dry ?? 0;
+    s.flags.harvest = range(s.rng, 0.6, 1.3) * (dry > 25 ? Math.max(0.6, 1 - (dry - 25) * 0.012) : 1);
+  }
   const people = present(s);
   const need = people.reduce((n, p) => n + consumption(s, p), 0);
   if (s.flags.hungerSince !== undefined && s.day - s.flags.hungerSince >= 60) emigrate(s);
@@ -244,6 +260,8 @@ export function assignJobs(s: GameState) {
 
 /** After a long hunger, the unhappiest families give up and move away. */
 function emigrate(s: GameState) {
+  // A handful of people who came this far together see a bad winter through together.
+  if (present(s).length < 20) return;
   const byHome = new Map<number, Person[]>();
   for (const p of present(s)) {
     if (p.home === undefined || p.preparing) continue;

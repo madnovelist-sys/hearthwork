@@ -217,7 +217,7 @@ function placeMoment(s: GameState, b: Building) {
     stones: [`${P(p.id)} spent a whole night inside ${name}, and would never say what ${p.sex === 'f' ? 'she' : 'he'} saw.`, `${P(p.id)} counted ${name} twice and got a different number each time.`],
     grove: [`${P(p.id)} went to ${name} to be alone with a grief, and came back lighter.`, `Every spring, the young people of ${s.name} went to ${name} to hang new ribbons on the oldest tree.`],
     spring: [`${P(p.id)} dropped a bronze pin into ${name} and made a wish. ${tone(s) === 'grim' ? 'It did not come true.' : 'Nobody ever learned whether it came true.'}`],
-    barrow: [`${P(p.id)} left the first flowers of spring on ${name}, for the old dead nobody remembers.`, `Some of the old people of ${s.name} asked to be buried near ${name}, so they would not be alone.`],
+    barrow: [`${P(p.id)} left the first flowers of spring on ${name}, for the old dead nobody remembers.`, `Some of the old people of ${s.name} asked to be laid to rest near ${name}, so they would not be alone.`],
     cairn: [`${P(p.id)} carried a stone up to ${name}, as everyone does now before a long journey.`],
     bigtree: [`${P(p.id)} carved two names into the bark of ${name}. The tree has a great many names on it now.`],
   };

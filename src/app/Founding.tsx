@@ -1,5 +1,5 @@
 // Founding a settlement: pick a site, a name, your goals and the sliders.
-import { listVillages, takeVillage, type VillageInfo } from '../game/save';
+import { defaultUnits, listVillages, takeVillage, type VillageInfo } from '../game/save';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { Renderer } from '../render/renderer';
 import { foundSettlement, DEFAULT_GOALS, DEFAULT_SETTINGS } from '../sim/sim';
@@ -37,7 +37,7 @@ export function Founding() {
 
   const begin = (e: Event) => {
     e.preventDefault();
-    const s = foundSettlement({ seed, name: name.trim() || 'Hearthwork', goals, settings: { ...DEFAULT_SETTINGS, darkness, weirdness } });
+    const s = foundSettlement({ seed, name: name.trim() || 'Hearthwork', goals, settings: { ...DEFAULT_SETTINGS, darkness, weirdness, units: defaultUnits() } });
     store.setState(s);
   };
 

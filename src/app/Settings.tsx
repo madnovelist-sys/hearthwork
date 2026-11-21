@@ -68,6 +68,12 @@ export function SettingsPanel() {
       </label>
       <p class="hint">A running session stops at that time, and the time before it counts. Starting again later that evening is up to you.</p>
 
+      <h4 style={{ margin: '16px 0 4px' }}>Temperatures</h4>
+      <div class="traits" role="radiogroup">
+        <button type="button" class={`chip${(s.settings.units ?? 'c') === 'c' ? ' on' : ''}`} onClick={() => { s.settings.units = 'c'; store.changed(); }}>Celsius</button>
+        <button type="button" class={`chip${s.settings.units === 'f' ? ' on' : ''}`} onClick={() => { s.settings.units = 'f'; store.changed(); }}>Fahrenheit</button>
+      </div>
+
       <h4 style={{ margin: '16px 0 4px' }}>Day and night</h4>
       <div class="traits" role="radiogroup">
         <button type="button" class={`chip${s.settings.dayNight !== 'city' ? ' on' : ''}`} onClick={() => { s.settings.dayNight = 'clock'; store.changed(); }}>Follow my clock</button>

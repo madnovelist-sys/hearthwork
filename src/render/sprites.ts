@@ -52,9 +52,13 @@ export const ART_KEY: Partial<Record<BuildingKind, string>> = {
   barrow: 'lmk_barrow_any_2x2',
   cairn: 'lmk_cairn_any_1x1',
   bigtree: 'lmk_great-tree_any_1x1',
+  pyre: 'lmk_pyre-ground_bronze_2x2',
+  skyplatform: 'lmk_sky-platform_bronze_2x2',
+  tomb: 'lmk_tomb_bronze_2x2',
+  landing: 'lmk_river-landing_bronze_1x1',
 };
 
-export const TREE_KEY = ['', 'nat_broadleaf_any_1x1', 'nat_pine_any_1x1', 'nat_fruit_any_1x1', 'nat_bush_any_1x1', 'nat_rock_any_1x1', 'nat_stump_any_1x1'];
+export const TREE_KEY = ['', 'nat_broadleaf_any_1x1', 'nat_pine_any_1x1', 'nat_fruit-tree_any_1x1', 'nat_bush_any_1x1', 'nat_rock_any_1x1', 'nat_stump_any_1x1'];
 
 // ---------------------------------------------------------------------------
 // Real art
@@ -370,6 +374,72 @@ function placeholderBuilding(kind: BuildingKind, variant: number): Sprite {
       const roof = [C.thatch, shade(C.thatch, 0.06), shade(C.thatch, -0.04)][v];
       const apex = pyramidRoof(c, inset - 0.08, h - 4, 44, roof);
       return c.sprite([d, w1, w2], v === 2 ? [{ x: apex.x + 10, y: apex.y + 14 }] : []);
+    }
+    case 'pyre': {
+      // A ring of blackened stones around a bed of ash and charred logs, a stack of wood waiting.
+      const c = new Canvas(2, 2, 60);
+      const g = c.g;
+      const ctr = c.pt(1, 1);
+      g.fillStyle = 'rgba(62,58,79,0.2)'; g.beginPath(); g.ellipse(ctr.x, ctr.y, 92, 40, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#6B625C'; g.beginPath(); g.ellipse(ctr.x, ctr.y - 4, 62, 26, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#3A3330'; g.beginPath(); g.ellipse(ctr.x, ctr.y - 6, 40, 16, 0, 0, Math.PI * 2); g.fill();
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        g.fillStyle = shade(C.stone, (i % 3) * 0.05 - 0.15);
+        g.beginPath(); g.ellipse(ctr.x + Math.cos(a) * 64, ctr.y + Math.sin(a) * 27 - 6, 10, 7, 0, 0, Math.PI * 2); g.fill();
+      }
+      g.strokeStyle = '#2A221E'; g.lineWidth = 5;
+      for (const [dx, dy] of [[-18, 0], [6, -4], [-4, 6]]) { g.beginPath(); g.moveTo(ctr.x + dx - 16, ctr.y + dy - 8); g.lineTo(ctr.x + dx + 16, ctr.y + dy - 4); g.stroke(); }
+      const w = c.pt(1.75, 0.35);
+      for (let i = 0; i < 4; i++) { g.fillStyle = shade(C.timber, (i % 2) * 0.1); g.fillRect(w.x - 22, w.y - 8 - i * 7, 44, 6); }
+      return c.sprite();
+    }
+    case 'skyplatform': {
+      // A high platform of poles on the hill, open to the sky.
+      const c = new Canvas(2, 2, 190);
+      const g = c.g;
+      g.strokeStyle = shade(C.timber, -0.1); g.lineWidth = 5;
+      const legs = [[0.5, 1.5], [1.5, 1.5], [1.5, 0.5], [0.5, 0.5]];
+      for (const [x, y] of legs) { const a = c.pt(x, y), b = c.pt(x, y, 120); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
+      c.poly([c.pt(0.4, 1.6, 120), c.pt(1.6, 1.6, 120), c.pt(1.6, 0.4, 120), c.pt(0.4, 0.4, 120)], shade(C.timber, 0.15), edge(C.timber));
+      g.strokeStyle = C.timber; g.lineWidth = 2;
+      for (const [x, y] of legs) { const a = c.pt(x, y, 120), b = c.pt(x, y, 145); g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke(); }
+      // a wrapped shape on top, and a bird
+      const top = c.pt(1, 1, 128);
+      g.fillStyle = '#C8B89A'; g.beginPath(); g.ellipse(top.x, top.y, 24, 8, -0.4, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#3B2F2A'; g.lineWidth = 1.6;
+      g.beginPath(); g.moveTo(top.x + 20, top.y - 34); g.quadraticCurveTo(top.x + 26, top.y - 40, top.x + 31, top.y - 34); g.quadraticCurveTo(top.x + 36, top.y - 40, top.x + 42, top.y - 34); g.stroke();
+      return c.sprite();
+    }
+    case 'tomb': {
+      // A chamber of great stones under a grassy mound, with a lintel over the door.
+      const c = new Canvas(2, 2, 100);
+      const g = c.g;
+      const ctr = c.pt(1, 1);
+      g.fillStyle = 'rgba(62,58,79,0.22)'; g.beginPath(); g.ellipse(ctr.x + 4, ctr.y + 4, 90, 38, 0, 0, Math.PI * 2); g.fill();
+      const grad = g.createLinearGradient(0, ctr.y - 60, 0, ctr.y + 20);
+      grad.addColorStop(0, '#A3B874'); grad.addColorStop(1, '#6E8A48');
+      g.fillStyle = grad;
+      g.beginPath(); g.ellipse(ctr.x, ctr.y - 8, 80, 52, 0, Math.PI, 0); g.ellipse(ctr.x, ctr.y - 8, 80, 22, 0, 0, Math.PI); g.fill();
+      const d = c.pt(1.2, 1.9);
+      c.poly([{ x: d.x - 26, y: d.y }, { x: d.x - 26, y: d.y - 40 }, { x: d.x + 26, y: d.y - 40 }, { x: d.x + 26, y: d.y }], shade(C.stone, 0.05), edge(C.stone));
+      g.fillStyle = '#2E2620'; g.fillRect(d.x - 14, d.y - 32, 28, 32);
+      c.poly([{ x: d.x - 34, y: d.y - 38 }, { x: d.x + 34, y: d.y - 38 }, { x: d.x + 34, y: d.y - 48 }, { x: d.x - 34, y: d.y - 48 }], shade(C.stone, -0.05), edge(C.stone));
+      return c.sprite();
+    }
+    case 'landing': {
+      // Flat stones stepping down into the water, where the rafts are pushed off.
+      const c = new Canvas(1, 1, 40);
+      const g = c.g;
+      for (let i = 0; i < 4; i++) {
+        const p = c.pt(0.5 - i * 0.05, 0.75 - i * 0.18, 8 - i * 2);
+        g.fillStyle = shade(C.stone, 0.08 - i * 0.05);
+        g.beginPath(); g.ellipse(p.x, p.y, 30 - i * 3, 12, -0.45, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = edge(C.stone); g.lineWidth = 1; g.stroke();
+      }
+      const f = c.pt(0.3, 0.3, 6);
+      g.fillStyle = '#E3C16F'; g.beginPath(); g.arc(f.x, f.y - 4, 3, 0, Math.PI * 2); g.fill();
+      return c.sprite();
     }
     case 'stones': {
       // A ring of weathered standing stones, some leaning, one fallen.

@@ -5,6 +5,8 @@ import { killPerson } from './life';
 import { addBuilding, findSite, removeBuilding } from './planner';
 import { hasLaw, plantFaithSeed } from './society';
 import { beginSideAge } from './ages';
+import { temperature } from './weather';
+import { afterPlague } from './traditions';
 import { chance, int, pick, range } from './rng';
 import type { Building, GameState } from './types';
 import { ageOf, darkFactor, isDwelling, present, residents, seasonIndex, tone } from './world';
@@ -71,6 +73,7 @@ export function endPlague(s: GameState, answered: boolean) {
     ? `The fever broke all at once, in every house on the same night, as if someone had decided it was enough. ${toll}`
     : `${cap(pl.name)} burned itself out. ${toll}`, [], pl.deaths >= 5 ? 6 : 4);
   plantFaithSeed(s, answered ? 'hearth' : 'ancestors');
+  afterPlague(s, pl.deaths);
   // A plague that took many lives gives its name to the times, if the world is grim enough.
   if (pl.deaths >= Math.max(8, present(s).length * 0.1)) {
     beginSideAge(s, 'plague', `Nobody who lived through ${pl.name} ever quite forgot it. People began to call it the Age of Plague.`);
@@ -89,8 +92,11 @@ export function fireDay(s: GameState) {
     if (b.burning !== undefined) { burn(s, b, hasWell); continue; }
     if (!flammable(b)) continue;
     let p = 0.000005;
-    if (season === 1) p *= 2; // dry summers
-    if (season === 3) p *= 1.5; // fires lit all winter
+    const w = s.weather;
+    if (season === 1) p *= 1.4 + Math.min(3, (w?.dry ?? 0) / 15); // dry summers, worse in a drought
+    if (temperature(s) < 3) p *= 1.5; // fires lit all day in the cold
+    if (w?.sky === 'rain' || w?.sky === 'snow') p *= 0.4;
+    if (w?.sky === 'storm') p *= 2.5; // lightning
     if (b.kind === 'kiln' || b.kind === 'furnace') p *= 3;
     if (chance(s.rng, p)) ignite(s, b, true);
   }
@@ -113,6 +119,8 @@ function burn(s: GameState, b: Building, hasWell: boolean) {
     const near = o.x <= b.x + b.w && o.x + o.w >= b.x && o.y <= b.y + b.h && o.y + o.h >= b.y;
     if (near && chance(s.rng, hasWell ? 0.035 : 0.09)) ignite(s, o, false);
   }
+  // Rain helps put it out.
+  if ((s.weather?.sky === 'rain' || s.weather?.sky === 'storm' || s.weather?.sky === 'snow') && b.burning !== undefined) b.burning -= 1;
   if (s.day < (b.burning ?? 0)) return;
   // Burned out.
   b.burning = undefined;

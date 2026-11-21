@@ -6,6 +6,7 @@ export const C = {
   summerGrass: '#7FA65A',
   autumnGrass: '#C19A4B',
   snow: '#E8EEF2',
+  winterGrass: '#9DA383',
   dirt: '#A67C52',
   soil: '#6E4F33',
   shallow: '#7DB8C4',
@@ -34,7 +35,8 @@ export const C = {
   hide: '#B79A74',
 } as const;
 
-export const GRASS_BY_SEASON = [C.springGrass, C.summerGrass, C.autumnGrass, C.snow];
+/** Grass through the year. Snow is laid over it when (and only when) snow is actually lying. */
+export const GRASS_BY_SEASON = [C.springGrass, C.summerGrass, C.autumnGrass, C.winterGrass];
 
 export const SKIN = ['#F1D3B8', '#E0B08C', '#C68E62', '#A26B43', '#7A4B2C', '#563321'];
 export const HAIR = ['#2B1F18', '#4A3020', '#7A5230', '#B08040', '#D8C090', '#6A2E1E'];

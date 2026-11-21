@@ -5,6 +5,7 @@ import { openBusiness } from './society';
 import { startHerd } from './animals';
 import { boost, ERAS } from './ages';
 import { bridgeFinished, progressWalls, townWant } from './town';
+import { fieldsAsleep } from './weather';
 import { isBuildable } from './mapgen';
 import { buildCostGrid, findPath, reachable } from './path';
 import { rand, shuffle, int } from './rng';
@@ -17,6 +18,7 @@ export const FOOTPRINT: Record<BuildingKind, [number, number]> = {
   field: [2, 2], graveyard: [3, 3], pen: [2, 2],
   townhouse: [1, 1], alehouse: [2, 2], healer: [1, 1], scribes: [2, 2], temple: [3, 3], guildhall: [2, 2], bridge: [1, 1],
   stones: [2, 2], grove: [2, 2], spring: [1, 1], barrow: [2, 2], cairn: [1, 1], bigtree: [1, 1],
+  pyre: [2, 2], skyplatform: [2, 2], tomb: [2, 2], landing: [1, 1],
 };
 
 export const BUILD_WORK: Record<BuildingKind, number> = {
@@ -24,6 +26,7 @@ export const BUILD_WORK: Record<BuildingKind, number> = {
   furnace: 40, shrine: 40, well: 20, dock: 25, stall: 12, field: 6, graveyard: 0, pen: 14,
   townhouse: 70, alehouse: 60, healer: 30, scribes: 70, temple: 200, guildhall: 90, bridge: 25,
   stones: 0, grove: 0, spring: 0, barrow: 0, cairn: 0, bigtree: 0,
+  pyre: 0, skyplatform: 0, tomb: 0, landing: 0,
 };
 
 /** Wood used per unit of building work. Fields and graveyards need none. */
@@ -40,6 +43,7 @@ export const BUILDING_LABEL: Record<BuildingKind, string> = {
   townhouse: 'Two-storey house', alehouse: 'Alehouse', healer: "Healer's hut", scribes: 'House of scribes',
   temple: 'Temple', guildhall: 'Guildhall', bridge: 'Bridge',
   stones: 'Standing stones', grove: 'Grove', spring: 'Spring', barrow: 'Barrow', cairn: 'Cairn', bigtree: 'Great tree',
+  pyre: 'Pyre ground', skyplatform: 'Sky platform', tomb: 'Family tomb', landing: 'River landing',
 };
 
 const regionCache = new WeakMap<object, Uint8Array>();
@@ -105,8 +109,8 @@ type SiteKind = 'dwelling' | 'civic' | 'field' | 'graveyard' | 'dock';
 function siteKind(kind: BuildingKind): SiteKind {
   if (isDwelling(kind)) return 'dwelling';
   if (kind === 'field') return 'field';
-  if (kind === 'graveyard') return 'graveyard';
-  if (kind === 'dock') return 'dock';
+  if (kind === 'graveyard' || kind === 'pyre' || kind === 'skyplatform' || kind === 'tomb') return 'graveyard';
+  if (kind === 'dock' || kind === 'landing') return 'dock';
   return 'civic';
 }
 
@@ -565,12 +569,14 @@ function wearDay(s: GameState) {
   const step = Math.max(1, Math.ceil(walkers.length / MAX));
   const offset = (s.day / WEAR_EVERY) % step;
   const sites = new Map<BuildingKind, Building | undefined>();
+  const asleep = fieldsAsleep(s);
   for (let k = offset; k < walkers.length; k += step) {
     const p = walkers[k];
     const home = s.buildings[p.home!];
     if (!home || home.removed) continue;
     const door = doorOf(home);
-    const site = workSite(s, p, sites);
+    // Nobody walks out to the fields in winter.
+    const site = p.job === 'farmer' && asleep ? null : workSite(s, p, sites);
     const to = site ?? plaza;
     const path = cachedPath(s, costs, door, to);
     if (!path) continue;

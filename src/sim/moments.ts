@@ -1,10 +1,11 @@
 // Small moments: the everyday texture of life between the big events.
 // Quarrels, friendships, children's games, stories at the fire. They're
 // minor entries in the Chronicle, but they make the place feel lived in.
-import { F, log, P } from './chronicle';
+import { log, P } from './chronicle';
 import { chance, pick } from './rng';
 import type { GameState, Person } from './types';
-import { hasLaw } from './society';
+import { tellTale } from './tales';
+import { leaderTitle } from './society';
 import { ageOf, hasTrait, possessive, present, pronoun, seasonIndex } from './world';
 
 type Moment = (s: GameState, people: Person[]) => { text: string; who: Person[]; weight?: number } | null;
@@ -44,17 +45,6 @@ const MOMENTS: Moment[] = [
     ]), who: [p] };
   },
   (s, ps) => {
-    if (hasLaw(s, 'no-blades') && chance(s.rng, 0.6)) return null;
-    const pair = two(s, withTrait(adults(s, ps), 'stubborn', 'greedy', 'cruel', 'cunning'));
-    if (!pair) return null;
-    const [a, b] = pair;
-    return { text: pick(s.rng, [
-      `${P(a.id)} and ${P(b.id)} had a shouting match over a fence line. It was settled with a handshake, eventually.`,
-      `${P(a.id)} accused ${P(b.id)} of stealing a cooking pot. The pot turned up in ${F(a.id)}'s own house.`,
-      `${P(a.id)} and ${P(b.id)} stopped speaking after an argument about whose goat ate whose beans.`,
-    ]), who: [a, b] };
-  },
-  (s, ps) => {
     const pair = two(s, adults(s, ps));
     if (!pair) return null;
     const [a, b] = pair;
@@ -72,7 +62,7 @@ const MOMENTS: Moment[] = [
     return { text: pick(s.rng, [
       `${P(pair[0].id)} and ${P(pair[1].id)} built a dam across the stream and flooded the path.`,
       `${P(pair[0].id)} dared ${P(pair[1].id)} to walk to the edge of the dark woods at night. ${cap(pronoun(pair[1]))} did, and ran all the way home.`,
-      `The children played at founding a village of their own, with ${P(pair[0].id)} as chief.`,
+      `The children played at founding a village of their own, with ${P(pair[0].id)} as ${leaderTitle(s).toLowerCase()}.`,
     ]), who: pair };
   },
   (s, ps) => {
@@ -134,6 +124,8 @@ export function momentsDay(s: GameState) {
   const people = present(s);
   if (people.length < 3) return;
   if (!chance(s.rng, Math.min(0.45, 0.14 + people.length / 220))) return;
+  // Most small things are told fresh, from who's involved and what's going on.
+  if (chance(s.rng, 0.7) && tellTale(s)) return;
   // Don't repeat any of the last few kinds of moment.
   const recent = (s.flags.recentMoments ??= []);
   const choices = MOMENTS.map((_, i) => i).filter((i) => !recent.includes(i));

@@ -82,6 +82,12 @@ export async function deleteSave(): Promise<void> {
   try { localStorage.removeItem('hearthwork:current'); } catch { /* ignore */ }
 }
 
+/** Fahrenheit where people use it, Celsius elsewhere. */
+export function defaultUnits(): 'c' | 'f' {
+  const lang = typeof navigator !== 'undefined' ? navigator.language : '';
+  return /^en-(US|LR|MM)$/i.test(lang) || /-US$/.test(lang) ? 'f' : 'c';
+}
+
 export function parseSave(json: string): GameState {
   const data = JSON.parse(json) as GameState;
   if (!data || typeof data !== 'object' || !Array.isArray(data.people) || !data.map) {
@@ -98,6 +104,13 @@ function migrate(s: GameState): GameState {
   s.pending ??= [];
   s.arrivals ??= [];
   s.sparks ??= 0;
+  s.settings.units ??= defaultUnits();
+  // Traditions: an older village already buries its dead, and (if it's a village) has a chief.
+  if (!s.traditions) {
+    s.traditions = { history: [] };
+    if (s.graves.length || s.buildings.some((b) => b.kind === 'graveyard')) s.traditions.dead = { custom: 'burial', since: 0 };
+    if (s.stage !== 'settlement') s.traditions.rule = { form: 'chief', since: 0 };
+  }
   s.goals.track ??= 'time';
   s.settings.awayMinutes ??= 15;
   ensureForest(s.map);

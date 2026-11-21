@@ -93,7 +93,8 @@ export interface Person {
 
 export type BuildingKind =
   | 'hearth' | 'stone' | 'tent' | 'leanto' | 'townhouse' | 'alehouse' | 'healer' | 'scribes' | 'temple' | 'guildhall' | 'bridge'
-  | 'stones' | 'grove' | 'spring' | 'barrow' | 'cairn' | 'bigtree' | 'hut' | 'house' | 'bighouse' | 'hall'
+  | 'stones' | 'grove' | 'spring' | 'barrow' | 'cairn' | 'bigtree'
+  | 'pyre' | 'skyplatform' | 'tomb' | 'landing' | 'hut' | 'house' | 'bighouse' | 'hall'
   | 'granary' | 'kiln' | 'furnace' | 'shrine' | 'well' | 'dock' | 'stall'
   | 'field' | 'graveyard' | 'pen';
 
@@ -132,6 +133,10 @@ export interface Building {
   era?: Era;
   /** A temple's faith (or a sacred place's), or a guildhall's guild. */
   faith?: number;
+  /** A place of the dead without graves (a pyre, a sky platform, a tomb, a landing): who was sent on from here. */
+  dead?: number[];
+  /** A pyre's last fire (day), for its smoke. */
+  lastFire?: number;
   /** A sacred place: how holy it has become (0–100), and who found it. */
   sacred?: number;
   foundBy?: number;
@@ -261,7 +266,35 @@ export interface MapData {
   wallsUp?: boolean;
 }
 
+export type Sky = 'clear' | 'cloudy' | 'rain' | 'storm' | 'snow' | 'fog';
+
+export interface Weather {
+  /** Today's temperature, °C (a daily mean). */
+  temp: number;
+  /** How far today is from the usual for the time of year. */
+  anomaly: number;
+  sky: Sky;
+  /** Snow lying on the ground, roughly in hand-spans. */
+  snow: number;
+  /** The river is frozen over. */
+  ice: boolean;
+  /** Days without rain in the growing season. */
+  dry: number;
+  /** A cold snap or heat wave: how much colder or warmer, until when. */
+  spell?: { delta: number; until: number };
+  /** This site's climate: hill country is colder, the lowlands milder. */
+  offset: number;
+  /** Recent temperatures, for the river freezing. */
+  recent: number[];
+}
+
 export type Stage = 'settlement' | 'village' | 'town' | 'city' | 'metropolis';
+
+export interface Traditions {
+  dead?: { custom: 'burial' | 'cremation' | 'sky' | 'tomb' | 'river'; since: number };
+  rule?: { form: 'eldest' | 'chief' | 'council' | 'assembly' | 'guilds'; since: number };
+  history: { day: number; kind: 'dead' | 'rule'; from: string; to: string }[];
+}
 
 export interface AgeNow {
   name: string;
@@ -314,6 +347,17 @@ export interface Settings {
   dayNight: 'clock' | 'city';
   /** End a running session automatically at this local time ("18:00"), or never. */
   stopAt: string | null;
+  /** Temperatures in Celsius or Fahrenheit. */
+  units?: 'c' | 'f';
+  /** What the Chronicle shows (see chronicleView). */
+  chronicle?: ChronicleSettings;
+}
+
+export interface ChronicleSettings {
+  /** 'auto' narrows to notable people and events as the settlement grows. */
+  focus: 'auto' | 'everyone' | 'notable' | 'followed';
+  /** Kinds of entry to leave out. */
+  hide: string[];
 }
 
 export interface Goals {
@@ -376,6 +420,14 @@ export interface GameState {
   guilds: Guild[];
   /** The coat of arms, granted with the town charter. */
   arms?: Arms;
+  /** Today's weather. */
+  weather?: Weather;
+  /** How the village honors its dead and governs itself, and how that has changed. */
+  traditions: Traditions;
+  /** Council members, under a council or the guilds. */
+  council?: number[];
+  /** What pairs of people are to each other: -100 (bitter enemies) to 100 (dearest friends), and why. */
+  bonds?: Record<string, { v: number; why?: string; day: number; n: number }>;
   day: number;
   map: MapData;
   hearth: { x: number; y: number };
@@ -401,6 +453,8 @@ export interface GameState {
   nextId: { person: number; building: number; entry: number; quest: number; grave: number; party: number; faith: number; fortune: number; pet: number; item: number; guild: number };
   flags: {
     hungerSince?: number;
+    /** The day the last hunger eased. */
+    hungerEnded?: number;
     coldSince?: number;
     /** This year's harvest quality, 0.55–1.35. */
     harvest?: number;
@@ -429,6 +483,15 @@ export interface GameState {
     ceremony?: { kind: 'age' | 'charter'; day: number };
     /** Omens seen recently (days), for the Age of Omens. */
     omenDays?: number[];
+    /** The season a cold snap or heat wave was last told of. */
+    spellSeason?: number;
+    /** A late frost hurt this year's crops (by this share), once a year. */
+    frostThisYear?: boolean;
+    harvestHurt?: number;
+    /** Lines used lately in tales, so they aren't repeated. */
+    recentLines?: string[];
+    /** Shapes of small Chronicle entries lately, with their day, so the same thing isn't told twice in a year. */
+    recentShapes?: [string, number][];
     /** Stories already called (each is told once, until they've all been told). */
     called?: string[];
     /** Buildings burned in the current run of fires, for the Age of Ash. */

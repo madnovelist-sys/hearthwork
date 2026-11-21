@@ -2,6 +2,7 @@
 import type { EntryKind, GameState, Entry } from './types';
 import { DAYS_PER_YEAR } from './types';
 import { yearOf } from './world';
+import { worthRecording } from './notable';
 
 export function log(
   s: GameState,
@@ -12,12 +13,32 @@ export function log(
   yearName?: string,
 ): Entry {
   const entry: Entry = { id: s.nextId.entry++, day: s.day, kind, text, people, weight, yearName };
+  // In a big place, the small doings of people the story isn't following go unrecorded.
+  if (!worthRecording(s, people, weight)) return entry;
+  // Small things told the same way as something lately aren't told again.
+  if (weight <= 2 && repeats(s, text)) return entry;
   s.chronicle.push(entry);
   for (const pid of people) {
     const p = s.people[pid];
     if (p) p.memories.push(entry.id);
   }
   return entry;
+}
+
+/** The shape of a sentence without its names, to notice the same small thing told twice. */
+function shape(text: string): string {
+  return text.replace(/\{[pf]:\d+\}/g, '#').replace(/\b[A-Z][a-z]+(?:\s[A-Z][a-z]+)*/g, '#').slice(0, 80);
+}
+
+function repeats(s: GameState, text: string): boolean {
+  const recent = (s.flags.recentShapes ??= []);
+  const sh = shape(text);
+  const cutoff = s.day - DAYS_PER_YEAR;
+  while (recent.length && recent[0][1] < cutoff) recent.shift();
+  if (recent.some(([x]) => x === sh)) return true;
+  recent.push([sh, s.day]);
+  if (recent.length > 300) recent.shift();
+  return false;
 }
 
 /** Tokens the UI turns into clickable names. */

@@ -6,6 +6,7 @@ import { hashString } from '../sim/rng';
 import { C, CLOTHES, GRASS_BY_SEASON, HAIR, SKIN, mix, shade } from './palette';
 import { buildingSprite, graveSprite, hasBuildingArt, scaffoldSprite, treeSprite, type Sprite } from './sprites';
 import { Walkers } from './walkers';
+import { fieldsAsleep, indoorShare, snowOnGround } from '../sim/weather';
 import { Fauna, drawAnimal, drawBirds } from './fauna';
 import type { Selection } from '../game/store';
 
@@ -99,8 +100,14 @@ export class Renderer {
   /** skyNight: how dark the sky is (0 day … 1 night), from the time of day. */
   frame(s: GameState, now: number, running: boolean, selection: Selection, skyNight = 0) {
     // Clamp: timestamps can jump (sleep, wake, a reset clock); never run time backwards.
-    const realDt = this.last ? Math.max(0, Math.min(250, now - this.last)) : 16;
+    const gap = this.last ? now - this.last : 0;
+    const realDt = this.last ? Math.max(0, Math.min(250, gap)) : 16;
     this.last = now;
+    // The window was hidden (no frames drawn, so nobody moved): the city carried on without us.
+    if (running && gap > 3000) {
+      this.walkers.scatter(s, now, this.night);
+      this.fauna.catchUp(s, this.walkers, now, this.night, this.w, this.h, (sx, sy) => this.toGrid(sx, sy));
+    }
     if (this.mapW && s.map.w !== this.mapW) {
       // The map widened around the old one: everything moved by the same amount.
       const d = (s.map.w - this.mapW) / 2;
@@ -116,6 +123,9 @@ export class Renderer {
     const anim = this.frozenAt ?? now; // animation time stops while paused
     this.night += (skyNight - this.night) * Math.min(1, realDt / 900);
     if (Math.abs(this.night - skyNight) < 0.002) this.night = skyNight;
+    this.walkers.indoor = indoorShare(s);
+    this.walkers.fieldsAsleep = fieldsAsleep(s);
+    this.walkers.frozen = !!s.weather?.ice;
     if (running) {
       this.walkers.update(s, now, dt, this.night);
       this.fauna.update(s, this.walkers, now, dt, this.night, this.w, this.h, (sx, sy) => this.toGrid(sx, sy));
@@ -135,9 +145,12 @@ export class Renderer {
     const season = seasonIndex(s.day);
     // Seasons fade in over their first week or so (the very first spring starts green).
     const blend = s.day < 90 ? 1 : Math.min(1, seasonProgress(s.day) / 0.09);
-    const grass = mix(GRASS_BY_SEASON[(season + 3) % 4], GRASS_BY_SEASON[season], Math.round(blend * 8) / 8);
-    // Snow lingers into early spring and arrives partway into winter.
-    const winter = (season === 3 && blend > 0.5) || (season === 0 && blend < 0.5 && s.day >= 90);
+    // Snow covers the ground when it has actually snowed (and not otherwise); trees follow the season.
+    const snowy = snowOnGround(s);
+    const cover = Math.min(1, (s.weather?.snow ?? (season === 3 ? 2 : 0)) / 2);
+    const bare = mix(GRASS_BY_SEASON[(season + 3) % 4], GRASS_BY_SEASON[season], Math.round(blend * 8) / 8);
+    const grass = snowy ? mix(bare, C.snow, Math.round((0.55 + cover * 0.45) * 8) / 8) : bare;
+    const winter = snowy;
     const treeSeason = blend < 0.5 && s.day >= 90 ? (season + 3) % 4 : season;
 
     this.drawBase(s, grass);
@@ -149,7 +162,7 @@ export class Renderer {
     this.updateSmoke(s, now, dt, running);
     drawBirds(this.g, this.fauna.birds, now, (gx, gy) => this.toScreen(gx, gy), this.tw / BASE_TW);
     this.drawLighting(s, now);
-    if (season === 3) this.drawSnow(dt);
+    this.drawWeather(s, dt, anim);
     this.drawMood(s);
     // While you rest, time stands still and the colors soften (drawn here rather than with a
     // CSS filter on the canvas, which some web views draw badly).
@@ -229,6 +242,7 @@ export class Renderer {
     const shallow = winter ? mix(C.shallow, '#DCEAF0', 0.35) : C.shallow;
     const trail = winter ? mix(C.dirt, C.snow, 0.45) : C.dirt;
     const plaza = mix(C.stone, C.sand, 0.45);
+    const ice = !!s.weather?.ice;
     for (let y = r.y0; y <= r.y1; y++) {
       for (let x = r.x0; x <= r.x1; x++) {
         const i = y * map.w + x;
@@ -236,7 +250,8 @@ export class Renderer {
         const n = ((x * 73856093) ^ (y * 19349663)) >>> 0;
         const vary = ((n % 3) - 1) * 0.035;
         let col: string;
-        if (t === TERRAIN.DEEP) col = C.deep;
+        if (ice && (t === TERRAIN.DEEP || t === TERRAIN.WATER || t === TERRAIN.BRIDGE)) col = t === TERRAIN.DEEP ? '#BFD3DE' : '#D6E4EC';
+        else if (t === TERRAIN.DEEP) col = C.deep;
         else if (t === TERRAIN.WATER || t === TERRAIN.BRIDGE) col = shallow;
         else if (t === TERRAIN.PLAZA) col = shade(winter ? mix(plaza, C.snow, 0.4) : plaza, ((n >> 3) % 3 - 1) * 0.05);
         else if (t === TERRAIN.SAND) col = shade(sand, vary);
@@ -300,20 +315,21 @@ export class Renderer {
   private drawFields(s: GameState, season: number, blend: number) {
     const g = this.g;
     const crop = ['#8DBE5A', '#B7B24A', '#D9B24A', ''][season];
+    const snowy = snowOnGround(s);
     for (const b of s.buildings) {
       if (b.kind !== 'field' || b.removed) continue;
       const pts = [this.toScreen(b.x, b.y), this.toScreen(b.x + b.w, b.y), this.toScreen(b.x + b.w, b.y + b.h), this.toScreen(b.x, b.y + b.h)];
       if (pts.every((p) => p.x < -200 || p.x > this.w + 200 || p.y < -200 || p.y > this.h + 200)) continue;
       g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y))); g.closePath();
-      g.fillStyle = season === 3 && blend > 0.5 ? mix(C.soil, C.snow, 0.55) : b.built ? C.soil : mix(C.soil, C.summerGrass, 0.4);
+      g.fillStyle = snowy ? mix(C.soil, C.snow, 0.55) : b.built ? C.soil : mix(C.soil, C.summerGrass, 0.4);
       g.fill();
       g.strokeStyle = shade(C.timber, -0.1); g.lineWidth = Math.max(1, this.tw / 40); g.stroke();
       if (!b.built || season === 3) continue;
-      // Crop rows
+      // Crop rows (an early or late snow leaves only pale stubble showing through)
       const rows = 6;
-      const height = season === 0 ? 0.05 : season === 1 ? 0.12 : season === 2 && blend < 0.7 ? 0.14 : 0.04;
-      g.strokeStyle = crop;
-      g.lineWidth = Math.max(1.2, this.tw * (season === 0 ? 0.04 : 0.08));
+      const height = snowy ? 0.02 : season === 0 ? 0.05 : season === 1 ? 0.12 : season === 2 && blend < 0.7 ? 0.14 : 0.04;
+      g.strokeStyle = snowy ? mix(crop, C.snow, 0.6) : crop;
+      g.lineWidth = Math.max(1.2, this.tw * (season === 0 || snowy ? 0.04 : 0.08));
       g.lineCap = 'round';
       g.beginPath();
       for (let i = 0; i < rows; i++) {
@@ -716,6 +732,12 @@ export class Renderer {
         const oy = (sy - d.sprite.ay) / d.sprite.tilePx * BASE_TW * (d.fit ?? 1);
         this.puffs.push({ x: d.gx, y: d.gy, z: 0, age: 0, life: 2600 + Math.random() * 1600, drift: ox, size: oy });
       }
+      // A pyre burns for a day or two after a funeral.
+      for (const b of s.buildings) {
+        if (b.kind === 'pyre' && !b.removed && b.lastFire !== undefined && s.day - b.lastFire <= 1 && this.puffs.length < 270) {
+          this.puffs.push({ x: b.x + 1, y: b.y + 1, z: 0, age: 0, life: 3600, drift: 0, size: -14 });
+        }
+      }
       // The hearth always smokes a little, from the top of its flames.
       if (this.puffs.length < 280) {
         const h = this.drawn.find((d) => d.kind === 'sprite' && d.b?.kind === 'hearth');
@@ -786,6 +808,51 @@ export class Renderer {
     g.fillStyle = grad;
     g.fillRect(c.x - r, c.y - r, r * 2, r * 2);
     g.globalCompositeOperation = 'source-over';
+  }
+
+  /** Rain, snow, fog, grey skies and lightning, from the day's weather. */
+  private drawWeather(s: GameState, dt: number, now: number) {
+    const sky = s.weather?.sky;
+    const g = this.g;
+    if (sky === 'cloudy' || sky === 'rain' || sky === 'storm' || sky === 'snow' || sky === 'fog') {
+      g.globalCompositeOperation = 'multiply';
+      g.fillStyle = sky === 'storm' ? 'rgba(150,155,170,0.5)' : sky === 'cloudy' ? 'rgba(215,218,226,0.45)' : 'rgba(190,195,205,0.45)';
+      g.fillRect(0, 0, this.w, this.h);
+      g.globalCompositeOperation = 'source-over';
+    }
+    if (sky === 'snow') this.drawSnow(dt);
+    if (sky === 'rain' || sky === 'storm') this.drawRain(dt, sky === 'storm');
+    if (sky === 'fog') {
+      const grad = g.createLinearGradient(0, 0, 0, this.h);
+      grad.addColorStop(0, 'rgba(235,236,238,0.55)');
+      grad.addColorStop(1, 'rgba(235,236,238,0.25)');
+      g.fillStyle = grad;
+      g.fillRect(0, 0, this.w, this.h);
+    }
+    // Now and then, lightning.
+    if (sky === 'storm' && dt > 0 && Math.sin(now / 1300) > 0.995) {
+      g.fillStyle = 'rgba(255,255,255,0.35)';
+      g.fillRect(0, 0, this.w, this.h);
+    }
+  }
+
+  private drops: { x: number; y: number; speed: number }[] = [];
+  private drawRain(dt: number, heavy: boolean) {
+    const g = this.g;
+    const n = heavy ? 260 : 150;
+    while (this.drops.length < n) this.drops.push({ x: Math.random() * this.w, y: Math.random() * this.h, speed: 420 + Math.random() * 260 });
+    if (this.drops.length > n) this.drops.length = n;
+    g.strokeStyle = 'rgba(200,214,230,0.45)';
+    g.lineWidth = 1;
+    g.beginPath();
+    for (const d of this.drops) {
+      d.y += (d.speed * dt) / 1000;
+      d.x -= (d.speed * dt) / 1000 * 0.18;
+      if (d.y > this.h) { d.y = -10; d.x = Math.random() * (this.w + 60); }
+      g.moveTo(d.x, d.y);
+      g.lineTo(d.x + 2.5, d.y - 12);
+    }
+    g.stroke();
   }
 
   private drawSnow(dt: number) {

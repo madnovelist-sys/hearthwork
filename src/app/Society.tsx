@@ -7,6 +7,9 @@ import { PersonLink } from './format';
 import { ArmsShield } from './Arms';
 import { describeArms } from '../sim/town';
 import { sitesOf } from '../sim/places';
+import { CUSTOM_LABEL, RULE_LABEL, councilOf, ruleForm } from '../sim/traditions';
+
+const RULE_NAME: Record<string, string> = { eldest: 'an eldest', chief: 'a chief', council: 'a council of elders', assembly: 'an assembly', guilds: 'the guilds' };
 
 const cap = (t: string) => t[0].toUpperCase() + t.slice(1);
 
@@ -42,10 +45,25 @@ export function SocietyPanel() {
         </div>
       )}
       <div class="group">
-        <h4>{s.stage === 'settlement' ? 'Who people listen to' : 'The chief'}</h4>
+        <h4>How {s.name} is governed</h4>
+        <p class="sub" style={{ margin: '0 0 6px' }}>{RULE_LABEL[ruleForm(s)]}{s.traditions.rule ? ` Since Year ${yearOf(s.traditions.rule.since)}.` : ''}</p>
         {leader ? (
           <p><PersonLink p={leader} />, {ageOf(s, leader)}, {leaderTitle(s).toLowerCase()} since Year {yearOf(s.leader!.since)}.</p>
         ) : <p class="note">No one yet. Someone will step forward.</p>}
+        {councilOf(s).length > 0 && (
+          <p class="sub">The council: {councilOf(s).map((p, i) => <span key={p.id}>{i ? ', ' : ''}<PersonLink p={p} /></span>)}.</p>
+        )}
+      </div>
+      <div class="group">
+        <h4>The dead</h4>
+        <p class="sub" style={{ margin: 0 }}>
+          {s.traditions.dead
+            ? `The people of ${s.name} ${CUSTOM_LABEL[s.traditions.dead.custom]}${s.traditions.dead.since > 0 ? `, since Year ${yearOf(s.traditions.dead.since)}` : ''}.`
+            : `Nobody has died in ${s.name} yet. When someone does, the village will find its own way to honor them.`}
+        </p>
+        {s.traditions.history.length > 0 && (
+          <p class="sub">{s.traditions.history.slice().reverse().map((h) => `Year ${yearOf(h.day)}: ${h.kind === 'dead' ? `no longer did they ${CUSTOM_LABEL[h.from as never]}; they began to ${CUSTOM_LABEL[h.to as never]}` : `from ${RULE_NAME[h.from] ?? h.from} to ${RULE_NAME[h.to] ?? h.to}`}.`).join(' ')}</p>
+        )}
       </div>
       <div class="group">
         <h4>Laws</h4>

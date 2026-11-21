@@ -8,6 +8,7 @@ import { population, seasonName, yearOf } from '../sim/world';
 import { hms } from './format';
 import { ArmsShield } from './Arms';
 import { CALL_COST } from '../sim/callers';
+import { SKY_LABEL, formatTemp, temperature } from '../sim/weather';
 
 const STAGE: Record<string, string> = { settlement: 'Settlement', village: 'Village', town: 'Town', city: 'City', metropolis: 'Metropolis' };
 
@@ -79,6 +80,7 @@ export function Hud() {
         </div>
       </div>
       <div class="stats">
+        <div class="stat" title={`The weather in ${s.name} today`}><b>{formatTemp(temperature(s), s.settings.units ?? 'c')}</b><span>{SKY_LABEL[s.weather?.sky ?? 'clear']}</span></div>
         <div class="stat favor" title="Favor: spend it on Acts"><b>✦ {s.favor}</b><span>Favor</span></div>
         <div class="stat spark" title={`Sparks: spend ${CALL_COST} to call someone to ${s.name}`}><b>✧ {s.sparks ?? 0}</b><span>Sparks</span></div>
         <div class="stat"><b>{population(s)}</b><span>People</span></div>

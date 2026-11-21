@@ -7,9 +7,11 @@ import { hasLaw, lawMood } from './society';
 import { boost } from './ages';
 import { townMood } from './town';
 import { placesMood } from './places';
+import { temperature } from './weather';
+import { layToRest, smallRites } from './traditions';
 import { orphanPets } from './animals';
 import { itemsOf, passHeirlooms, weddingKeepsake } from './items';
-import { addBuilding, findSite, moveIn } from './planner';
+import { moveIn } from './planner';
 import { chance, int, pick, rand } from './rng';
 import { DAYS_PER_YEAR, type GameState, type Person } from './types';
 import {
@@ -63,19 +65,8 @@ export function killPerson(s: GameState, p: Person, cause: string, text: string,
 }
 
 function bury(s: GameState, p: Person) {
-  if (p.away !== undefined) return; // died far from home: no grave here
-  let yard = s.flags.graveyard !== undefined ? s.buildings[s.flags.graveyard] : undefined;
-  if (!yard || yard.removed) {
-    const site = findSite(s, 'graveyard');
-    if (!site) return;
-    yard = addBuilding(s, 'graveyard', site.x, site.y, { built: true });
-    s.flags.graveyard = yard.id;
-  }
-  // Graves fill the burial ground in rows; a full ground spills into a new one later.
-  const n = s.graves.filter((g) => g.x >= yard!.x && g.x < yard!.x + 3 && g.y >= yard!.y && g.y < yard!.y + 3).length;
-  const slot = n % 16;
-  s.graves.push({ id: s.nextId.grave++, x: yard.x + (slot % 4) * 0.72 + 0.25, y: yard.y + Math.floor(slot / 4) * 0.72 + 0.25, person: p.id, day: s.day });
-  if (n >= 15) s.flags.graveyard = undefined;
+  if (p.away !== undefined) return; // died far from home: laid to rest there
+  layToRest(s, p);
 }
 
 function rehomeOrphans(s: GameState, dead: Person) {
@@ -116,6 +107,17 @@ function rehomeOrphans(s: GameState, dead: Person) {
   }
 }
 
+/** How the dead are seen off, after "came to see her …". */
+const SEEN_OFF: Record<string, string> = { burial: 'buried', cremation: 'onto the pyre', sky: 'carried up to the platform', tomb: 'laid in the tomb', river: 'set out on the river' };
+/** Who grieves a child: everyone, in a small place; the family, in a big one. */
+const GRIEF: Record<GameState['stage'], string> = {
+  settlement: 'The whole settlement grieved.',
+  village: 'The whole village grieved.',
+  town: 'The street went quiet for days.',
+  city: 'Neighbours left food at the family’s door for weeks.',
+  metropolis: 'Neighbours left food at the family’s door for weeks.',
+};
+
 function deathText(s: GameState, p: Person, cause: 'old' | 'illness' | 'injury' | 'childbirth' | 'infant' | 'hunger'): string {
   const t = tone(s);
   const age = ageOf(s, p);
@@ -124,7 +126,7 @@ function deathText(s: GameState, p: Person, cause: 'old' | 'illness' | 'injury' 
     case 'old':
       return pick(s.rng, [
         `${name} died in ${possessive(p)} sleep at ${age}, after a long life.`,
-        `${name} passed away at ${age}. Half the settlement came to see ${objectPronoun(p)} buried.`,
+        `${name} passed away at ${age}. ${s.stage === 'settlement' || s.stage === 'village' ? `Half the ${s.stage} came to see ${objectPronoun(p)} ${SEEN_OFF[s.traditions.dead?.custom ?? 'burial']}.` : `The whole street came out to see ${objectPronoun(p)} ${SEEN_OFF[s.traditions.dead?.custom ?? 'burial']}.`}`,
         `Old ${name} died quietly at ${age}, by the fire, in the middle of a story.`,
       ]);
     case 'illness':
@@ -141,8 +143,8 @@ function deathText(s: GameState, p: Person, cause: 'old' | 'illness' | 'injury' 
         : `${name} died in childbirth at ${age}.`;
     case 'infant':
       return t === 'grim'
-        ? `Little ${name} did not live to see ${possessive(p)} next season. A tiny grave was dug at the edge of the burial ground.`
-        : `${name}, only ${age < 1 ? 'a baby' : age === 1 ? 'a year old' : `${age} years old`}, fell ill and died. The whole settlement grieved.`;
+        ? `Little ${name} did not live to see ${possessive(p)} next season. ${smallRites(s, objectPronoun(p))}`
+        : `${name}, only ${age < 1 ? 'a baby' : age === 1 ? 'a year old' : `${age} years old`}, fell ill and died. ${GRIEF[s.stage]}`;
     case 'hunger':
       return `${name} starved during the hunger. ${pronoun(p)[0].toUpperCase() + pronoun(p).slice(1)} was ${age}.`;
   }
@@ -159,7 +161,6 @@ function annualMortality(s: GameState, age: number): number {
 // Daily life
 
 export function lifeDay(s: GameState) {
-  const season = seasonIndex(s.day);
   const hungry = s.flags.hungerSince !== undefined;
   const hasHealer = present(s).some((p) => p.job === 'healer' && !p.sick);
   // What's been learned about sickness, and healers' huts to nurse people in.
@@ -213,7 +214,8 @@ export function lifeDay(s: GameState) {
         p.health = Math.max(5, p.health - p.sick.severity * 0.6);
       }
     } else {
-      let ill = 0.0005 * (season === 3 ? 1.8 : 1) * (hungry ? 2 : 1) * (age < 5 || age >= 60 ? 1.6 : 1);
+      const temp = temperature(s);
+      let ill = 0.0005 * (temp < 5 ? 1.5 + (5 - temp) * 0.04 : 1) * (hungry ? 2 : 1) * (age < 5 || age >= 60 ? 1.6 : 1);
       if (hasTrait(p, 'frail')) ill *= 1.6;
       if (hasTrait(p, 'strong')) ill *= 0.7;
       if (blessed) ill *= 0.5;

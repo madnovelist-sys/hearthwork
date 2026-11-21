@@ -198,6 +198,15 @@ export function BuildingCard({ id }: { id: number }) {
       )}
       {worker && <section><h4>Worked by</h4><PersonLink p={worker} /></section>}
       {b.kind === 'pen' && <section><h4>Animals</h4>{b.herd ? `${b.herd} goats and sheep.` : 'Empty, for now.'}</section>}
+      {b.dead && b.dead.length > 0 && (
+        <section>
+          <h4>{b.kind === 'pyre' ? 'Burned here' : b.kind === 'skyplatform' ? 'Given to the sky here' : b.kind === 'landing' ? 'Given to the river here' : 'Laid to rest here'}</h4>
+          {b.dead.slice(-16).reverse().map((id) => {
+            const p = s.people[id];
+            return p ? <div key={id}><PersonLink p={p} /> <span class="sub">Year {yearOf(p.died ?? 0)}</span></div> : null;
+          })}
+        </section>
+      )}
       {graves.length > 0 && (
         <section>
           <h4>Buried here</h4>

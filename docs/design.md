@@ -90,6 +90,30 @@ Planned: Matchmake, Inspire, Call a Festival, Commission, Avert Calamity, Found 
 - **Family houses**: big families (six or more under one roof) build a 2×2 family house.
 - **Family tree** view for anyone.
 
+### Weather and the seasons
+
+- **Every day has a temperature** (about 21 °C at midsummer, -2 °C at midwinter, a little different for every site) and weather: clear, cloudy, rain, summer storms, fog, or snow when it's freezing. Warm spells, cold snaps and heat waves come and go.
+- **Snow lies** only when it has actually snowed, and melts when it warms; a mild winter can be bare and brown. **The river freezes** after a cold week (fishing goes on through holes in the ice, at a little over half the catch).
+- **Firewood** follows the cold. **Sickness** is likelier in the cold. **Dry spells** in summer cut the harvest and make fires likelier; a **late frost** can blacken the young barley; rain helps put fires out; storms bring lightning.
+- **Nobody farms in winter**: farmers hunt and gather with everyone else, which is what carries a village through the cold months. In spring they forage wild greens through the hungry gap, and older children help gather when the stores run low.
+- **People keep indoors** the colder or wetter it is: children, elders and anyone without work outside mostly stay in; those whose work is outdoors still go. The top bar shows the day's temperature (Celsius or Fahrenheit, in Settings) and weather; the map shows rain, snow, fog, grey skies, lightning and the frozen river.
+
+### Traditions
+
+- **How the dead are honored** is decided at the first death, by the land and the people: burial in a burial ground, burning on a pyre ground, sky burial on a platform for the birds, family tombs, or giving the dead to the river from a landing. A faith most people hold can change it in time (fire-keepers burn their dead, river-folk give them to the river), and after a plague, villages often keep burning their dead.
+- **How the village governs itself** is decided when it becomes a village: a chief; a council of elders with a chief elder (laws need the council's agreement); an assembly of every household with a speaker (laws need the assembly's); or, in a town with strong guilds, the guild masters. Forms change under strain: an assembly grows too big, a chief grows unpopular, an ambitious leader outgrows a council. Leaders who die are replaced at once.
+
+### A Chronicle that keeps its focus
+
+- **Notable people**: leaders and council members, guild masters, discoverers, faith founders, the people you called, the best known, everyone you follow and their families.
+- **Auto focus** narrows as the place grows: everything in a settlement; in a village, all but the smallest things; in a town and a city, the notable people and the bigger events. Or choose Notable people, Only who I follow, or Everyone, and turn whole kinds of entry on or off.
+- In a town or bigger, the minor goings-on of people the story isn't following aren't written down at all, and the same small thing is never told twice in a year.
+
+### Tales
+
+- Everyday scenes are built from parts, chosen by the people involved (traits, work, family, faith, possessions, history with each other) and by the village (season, weather, hunger, recent laws, how it's governed, what it has discovered, its sacred places, its real history).
+- **People remember**: a quarrel leaves a grudge with its reason (the boundary stones, the ox, the holy day), later quarrels come back to it, and old enemies can make it up in a hard winter. Elders tell children about real events and people from the Chronicle.
+
 ### Arrivals and sacred places
 
 - **People come on their own** a few times a year: more when the village is fed, housed, healthy and happy, fewer or none in hard times (a young settlement draws people even through a lean year). They come for what's here: work at the kiln or the furnace, fish from the dock, pasture, building work, the market, the healers. Open Gates brings more.

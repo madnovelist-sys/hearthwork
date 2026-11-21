@@ -36,8 +36,9 @@ Any number of variants (`v01`, `v02`, …) of anything are used at random. State
 | Market stall | `bld_stall_bronze_1x1` |
 | Burial ground (3×3) | `bld_burial_bronze_3x3` |
 | The Hearth (in `landmarks/`) | `lmk_hearth_bronze_1x1` |
+| Places of the dead, by the village's custom (in `landmarks/`): a pyre ground (2×2), a sky platform (2×2), a family tomb (2×2), a river landing | `lmk_pyre-ground_bronze_2x2`, `lmk_sky-platform_bronze_2x2`, `lmk_tomb_bronze_2x2`, `lmk_river-landing_bronze_1x1` |
 | Sacred places found near the village (in `landmarks/`): standing stones (2×2), a sacred grove (2×2), a spring, a barrow (2×2), a cairn, a great old tree | `lmk_standing-stones_any_2x2`, `lmk_sacred-grove_any_2x2`, `lmk_spring_any_1x1`, `lmk_barrow_any_2x2`, `lmk_cairn_any_1x1`, `lmk_great-tree_any_1x1` |
-| Trees, rocks and stumps | `nat_broadleaf_any_1x1`, `nat_pine_any_1x1`, `nat_fruit_any_1x1`, `nat_bush_any_1x1`, `nat_rock_any_1x1`, `nat_stump_any_1x1` |
+| Trees, rocks and stumps | `nat_broadleaf_any_1x1`, `nat_pine_any_1x1`, `nat_fruit-tree_any_1x1`, `nat_bush_any_1x1`, `nat_rock_any_1x1`, `nat_stump_any_1x1` |
 | Animal pen (2×2) | `bld_pen_bronze_2x2` |
 | Two-storey house (towns) | `bld_townhouse_bronze_1x1` |
 | Alehouse (2×2) | `bld_alehouse_bronze_2x2` |
@@ -51,6 +52,10 @@ The town wall (palisade, later stone) and bridges are drawn by the game for now,
 ## Later eras
 
 Every building above can also be drawn for a later era: swap `bronze` for `iron`, `stone-timber`, `sail-dome`, `steam`, `electric` or `glass` (for example `bld_home_iron_1x1_v01.png`). Each building keeps the era it was built in, and old ones are rebuilt in the new style over the years. When a city enters an era there's no art for yet, it keeps using the most recent era that has some, so nothing ever looks out of place.
+
+## Trees
+
+Trees stand with the foot of the trunk at the middle of their tile. Each season of a tree should keep the same tree at the same size and place, so the tree doesn't jump when the season turns. Spring, autumn and winter versions fall back to the summer one (or to `v01`'s) when missing.
 
 ## Night lights and smoke
 

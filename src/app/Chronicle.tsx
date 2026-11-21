@@ -2,17 +2,32 @@
 import { saveTextFile } from '../game/files';
 import { useState } from 'preact/hooks';
 import { store } from '../game/store';
-import { DAYS_PER_YEAR, SEASONS, type Entry } from '../sim/types';
+import { DAYS_PER_YEAR, SEASONS, type ChronicleSettings, type Entry } from '../sim/types';
+import { CATEGORIES, DEFAULT_CHRONICLE, shown } from '../sim/notable';
 import { seasonIndex, yearOf } from '../sim/world';
 import { RichText } from './format';
 
+const FOCUS: { id: ChronicleSettings['focus']; label: string }[] = [
+  { id: 'auto', label: 'Auto' }, { id: 'notable', label: 'Notable people' }, { id: 'followed', label: 'Only who I follow' }, { id: 'everyone', label: 'Everyone' },
+];
+const AUTO_HINT: Record<string, string> = {
+  settlement: 'Everything that happens, while the settlement is small.',
+  village: 'Everything but the smallest things, and everything about notable people.',
+  town: 'The notable people of the town (leaders, masters, discoverers, the people you called and follow, and the best known), and its bigger events.',
+  city: 'The people who shape the city, the people you follow, and its great events.',
+  metropolis: 'Only the people who shape the city, the people you follow, and its great events.',
+};
+
 export function ChroniclePanel() {
   const s = store.state!;
-  const [major, setMajor] = useState(false);
-  const [followed, setFollowed] = useState(false);
   const [years, setYears] = useState(8);
-  const follows = new Set(s.people.filter((p) => p.followed || p.patron || p.lineage).map((p) => p.id));
-  const keep = (e: Entry) => (!major || e.weight >= 3) && (!followed || e.people.some((id) => follows.has(id)));
+  const [open, setOpen] = useState(false);
+  const settings = (s.settings.chronicle ??= { ...DEFAULT_CHRONICLE });
+  const keep = (e: Entry) => shown(s, e, settings);
+  const toggle = (id: string) => {
+    settings.hide = settings.hide.includes(id) ? settings.hide.filter((x) => x !== id) : [...settings.hide, id];
+    store.changed();
+  };
 
   const current = yearOf(s.day);
   const groups: { year: number; entries: Entry[] }[] = [];
@@ -30,10 +45,25 @@ export function ChroniclePanel() {
   return (
     <>
       <div class="filters">
-        <button class={`chip${major ? ' on' : ''}`} onClick={() => setMajor(!major)}>Major events</button>
-        <button class={`chip${followed ? ' on' : ''}`} onClick={() => setFollowed(!followed)}>People I follow</button>
+        {FOCUS.map((f) => (
+          <button key={f.id} class={`chip${settings.focus === f.id ? ' on' : ''}`} onClick={() => { settings.focus = f.id; store.changed(); }}>{f.label}</button>
+        ))}
+        <button class={`chip${open ? ' on' : ''}`} onClick={() => setOpen(!open)}>What to show…</button>
         <button class="chip" onClick={() => exportChronicle()}>Save as text</button>
       </div>
+      <p class="hint" style={{ marginTop: 0 }}>
+        {settings.focus === 'auto' ? AUTO_HINT[s.stage] : settings.focus === 'notable' ? 'The people who matter most to the story, and the bigger events.' : settings.focus === 'followed' ? 'The people you follow (and your own), plus the greatest events.' : 'Everything that was written down.'}
+        {' '}Follow anyone from their card to keep their story in view.
+      </p>
+      {open && (
+        <div class="group">
+          {CATEGORIES.map((c) => (
+            <label key={c.id} style={{ display: 'flex', gap: 8, alignItems: 'center', fontWeight: 400, margin: '2px 0' }}>
+              <input type="checkbox" checked={!settings.hide.includes(c.id)} onChange={() => toggle(c.id)} /> {c.label}
+            </label>
+          ))}
+        </div>
+      )}
       {groups.length === 0 && <p class="note">Nothing yet. The Chronicle fills as the city lives — and it only lives while you work.</p>}
       {groups.map((g) => (
         <div class="chron-year" key={g.year}>

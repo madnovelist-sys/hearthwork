@@ -209,7 +209,7 @@ export function draws(s: GameState): { perYear: number; reasons: Draw[] } {
   if (s.stage === 'settlement') well = Math.max(well, 0.7);
   else if (s.stage === 'village') well = Math.max(well, 0.35);
   // About three parties a year for a village doing fine, a few more as it grows into a town.
-  const perYear = (2.2 + Math.sqrt(pop) * 0.06) * well * (hasLaw(s, 'open-gates') ? 1.5 : 1);
+  const perYear = (1.8 + Math.sqrt(pop) * 0.05) * well * (hasLaw(s, 'open-gates') ? 1.5 : 1);
   return { perYear, reasons };
 }
 
@@ -223,7 +223,7 @@ export function arrivalsSeason(s: GameState) {
       const party = makeParty(s);
       // Those who came for the work have the trade for it.
       if (reason.job) for (const d of party.people) if (d.age >= 16 && chance(s.rng, 0.75)) d.skill = reason.job;
-      party.story = `${party.story} ${party.people.length > 1 ? 'They' : party.people[0].first} had heard ${reason.why}.`;
+      party.story = `${party.story} Word had reached ${party.people.length > 1 ? 'them' : party.people[0].first} that ${reason.why}.`;
       settleParty(s, party);
     }
     expected -= 1;

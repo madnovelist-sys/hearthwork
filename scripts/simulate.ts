@@ -38,6 +38,7 @@ for (let day = 0; day < hours * DAYS_PER_YEAR; day++) {
 }
 console.log('\nAges:', s.ages.map((a) => `Y${Math.floor(a.from / DAYS_PER_YEAR) + 1} ${a.name}`).join(' → '));
 console.log('Discoveries:', s.lore.known.map((k) => `Y${Math.floor(k.day / DAYS_PER_YEAR) + 1} ${k.id}`).join(', '));
+console.log('Traditions:', JSON.stringify(s.traditions), 'council', (s.council ?? []).length, 'leader', s.leader && s.people[s.leader.person].first);
 console.log('Guilds:', s.guilds.map((g) => g.name).join(', '), '| walls', s.walls ? `${s.walls.kind} r${s.walls.r.toFixed(1)} built ${s.walls.built}` : 'none');
 const kindsBuilt: Record<string, number> = {};
 for (const b of s.buildings) if (!b.removed) kindsBuilt[b.kind] = (kindsBuilt[b.kind] ?? 0) + 1;

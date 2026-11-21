@@ -48,7 +48,15 @@ export function petsYear(s: GameState) {
     if (age > (pet.kind === 'dog' ? 10 : 13) && chance(s.rng, 0.25 + (age - 10) * 0.08)) {
       pet.alive = false;
       pet.died = s.day;
-      if (owner?.alive) log(s, 'season', `${pet.name}, ${P(owner.id)}'s old ${pet.kind}, died in ${pet.kind === 'dog' ? 'his' : 'her'} sleep by the fire.`, [owner.id], 2);
+      if (owner?.alive) {
+        const its = pet.kind === 'dog' ? 'his' : 'her';
+        log(s, 'season', pick(s.rng, [
+          `${pet.name}, ${P(owner.id)}'s old ${pet.kind}, died in ${its} sleep by the fire.`,
+          `${pet.name}, ${P(owner.id)}'s old ${pet.kind}, went off into the woods one evening, as old animals do, and didn't come back.`,
+          `${pet.name}, ${P(owner.id)}'s ${pet.kind}, died with ${its} head on ${P(owner.id)}'s knee.`,
+          `${P(owner.id)} buried ${pet.name}, ${owner.sex === 'f' ? 'her' : 'his'} old ${pet.kind}, under the tree ${pet.kind === 'dog' ? 'he' : 'she'} always slept beneath.`,
+        ]), [owner.id], 2);
+      }
     }
   }
   // New pets: families with children, kind or lonely people.

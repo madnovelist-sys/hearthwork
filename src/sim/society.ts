@@ -1,5 +1,6 @@
 // Society: who speaks for the settlement, the laws they make, the faiths
 // that grow among the people, and the businesses with names over the door.
+import { agreesTo, councilOf, fillCouncil, leaderTitleFor, ruleForm } from './traditions';
 import { F, log, P } from './chronicle';
 import { chance, int, pick, rand, weighted } from './rng';
 import type { Faith, GameState, Law, LawId, Person, TenetId, TraitId } from './types';
@@ -73,7 +74,15 @@ export function repealLaw(s: GameState, id: LawId, opts: { patron?: boolean } = 
 // Leadership
 
 export function leaderTitle(s: GameState): string {
-  return s.stage === 'settlement' ? 'Eldest' : 'Chief';
+  return leaderTitleFor(s);
+}
+
+/** Someone always speaks for the settlement: a leader who dies or leaves is replaced at once. */
+export function ensureLeader(s: GameState) {
+  const cur = s.leader ? s.people[s.leader.person] : undefined;
+  if (cur && cur.alive && !cur.left && cur.away === undefined) return;
+  if (!s.leader && present(s).length < 3) return;
+  chooseLeader(s, cur);
 }
 
 function leaderScore(s: GameState, p: Person): number {
@@ -90,6 +99,13 @@ function leaderScore(s: GameState, p: Person): number {
 }
 
 function candidates(s: GameState): Person[] {
+  const form = ruleForm(s);
+  // Under a council (or the guilds), the leader comes from among its members.
+  if (form === 'council' || form === 'guilds') {
+    fillCouncil(s);
+    const members = councilOf(s).filter((p) => p.away === undefined && !p.preparing);
+    if (members.length) return members;
+  }
   return present(s).filter((p) => { const a = ageOf(s, p); return a >= 22 && a <= 78 && !p.preparing; });
 }
 
@@ -98,8 +114,10 @@ export function societySeason(s: GameState) {
   const cur = s.leader ? s.people[s.leader.person] : undefined;
   if (!cur || !cur.alive || cur.away !== undefined || cur.left) {
     chooseLeader(s, cur);
-  } else if (s.stage !== 'settlement' && s.day - s.leader!.since > 360 * 3) {
+  } else if (ruleForm(s) === 'chief' && s.day - s.leader!.since > 360 * 3) {
     challenge(s, cur);
+  } else if (ruleForm(s) === 'assembly' && s.day - s.leader!.since > 360 * 7) {
+    chooseLeader(s, cur); // the assembly chooses its speaker again every few years
   }
   govern(s);
   holyDays(s);
@@ -157,6 +175,11 @@ function govern(s: GameState) {
   if (!options.length) return;
   const pickId = weighted(s.rng, options);
   if (opinion(leader, pickId) < 0) return;
+  // A council or an assembly has to agree.
+  if (!agreesTo(s, (p) => opinion(p, pickId))) {
+    if (chance(s.rng, 0.3)) log(s, 'law', `${P(leader.id)} wanted ${LAW[pickId].name}, but the ${ruleForm(s) === 'assembly' ? 'assembly' : 'council'} would not agree to it.`, [leader.id], 3);
+    return;
+  }
   enactLaw(s, pickId);
 }
 

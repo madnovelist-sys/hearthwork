@@ -1,6 +1,7 @@
 // The end-of-session ritual: log your words, then read what happened while
 // you worked. And the question asked after the app was closed mid-session.
 import { CALL_COST } from '../sim/callers';
+import { shown } from '../sim/notable';
 import { useState } from 'preact/hooks';
 import { store } from '../game/store';
 import { entriesSince } from '../sim/chronicle';
@@ -13,7 +14,7 @@ export function SessionEnd() {
   const [words, setWords] = useState('');
   const [saved, setSaved] = useState(false);
   const entries = entriesSince(s, rec.firstEntry);
-  const highlights = [...entries].sort((a, b) => b.weight - a.weight || a.id - b.id).slice(0, 7).sort((a, b) => a.id - b.id);
+  const highlights = entries.filter((e) => shown(s, e)).sort((a, b) => b.weight - a.weight || a.id - b.id).slice(0, 7).sort((a, b) => a.id - b.id);
   const count = (k: string) => entries.filter((e) => e.kind === k).length;
   const years = (rec.toDay - rec.fromDay) / DAYS_PER_YEAR;
   const saveWords = () => {

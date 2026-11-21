@@ -9,8 +9,11 @@ import { clearRuins, fireDay, plagueDay, plagueSeason } from './calamity';
 import { applyHarvestBoost } from './fortunes';
 import { placesYear } from './places';
 import { arrivalsSeason } from './arrivals';
+import { weatherDay } from './weather';
+import { chooseRule, traditionsYear } from './traditions';
+import { bondsYear } from './tales';
 import { hooksYear } from './callers';
-import { businessYear, faithYear, plantFaithSeed, societySeason } from './society';
+import { businessYear, ensureLeader, faithYear, plantFaithSeed, societySeason } from './society';
 import type { TenetId } from './types';
 import { generateMap, growMap } from './mapgen';
 import { agesYear, beginSideAge, loreDay } from './ages';
@@ -26,7 +29,7 @@ import { population, seasonIndex, yearOf } from './world';
 export const SAVE_VERSION = 1;
 
 export const DEFAULT_GOALS: Goals = { track: 'time', dailyMinutes: 60, dailyWords: 1000, sparkMinutes: 20, sparkWords: 250 };
-export const DEFAULT_SETTINGS: Settings = { darkness: 50, weirdness: 1, awayMinutes: 15, notify: false, dayNight: 'clock', stopAt: null };
+export const DEFAULT_SETTINGS: Settings = { darkness: 50, weirdness: 1, awayMinutes: 15, notify: false, dayNight: 'clock', stopAt: null, units: 'c' };
 
 export interface FoundingOptions {
   seed: number;
@@ -47,6 +50,7 @@ export function foundSettlement(opts: FoundingOptions): GameState {
     ages: [{ name: 'The Age of Bronze', era: 'bronze', from: 0 }],
     lore: { points: 0, known: [] },
     guilds: [],
+    traditions: { history: [] },
     day: 0,
     map,
     hearth,
@@ -125,6 +129,7 @@ export function foundSettlement(opts: FoundingOptions): GameState {
 export function stepDay(s: GameState) {
   const d = s.day;
   if (d % DAYS_PER_SEASON === 0 && d > 0) onSeason(s);
+  weatherDay(s);
   economyDay(s);
   lifeDay(s);
   questsDay(s);
@@ -135,6 +140,7 @@ export function stepDay(s: GameState) {
   loreDay(s);
   townDay(s);
   if (d % 30 === 0) assignJobs(s);
+  ensureLeader(s);
   checkStage(s);
   s.day += 1;
   if (s.day % DAYS_PER_YEAR === 0) {
@@ -147,6 +153,8 @@ export function stepDay(s: GameState) {
     townYear(s);
     placesYear(s);
     hooksYear(s);
+    traditionsYear(s);
+    bondsYear(s);
     nameYear(s, yearOf(s.day - 1));
   }
 }
@@ -206,6 +214,7 @@ export function checkStage(s: GameState) {
   if (s.stage === 'settlement' && pop >= 50) {
     s.stage = 'village';
     log(s, 'stage', `${s.name} had grown into a village. The elders marked the day by planting an oak beside the fire, and a charter was sung: everyone who lived here, and everyone who would.`, [], 9, 'The Year of the Charter');
+    chooseRule(s, `A village needs a way to decide things, and ${s.name} argued about it all winter.`);
   } else if (s.stage === 'village' && pop >= 250) {
     s.stage = 'town';
     grantCharter(s);

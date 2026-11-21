@@ -297,6 +297,216 @@
           57.8
         ]
       ]
+    },
+    "nat_broadleaf_any_1x1_v01": {
+      "file": "nature/nat_broadleaf_any_1x1_v01.png",
+      "tilePx": 209,
+      "anchor": [
+        116,
+        265
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_broadleaf_any_1x1_v01_autumn": {
+      "file": "nature/nat_broadleaf_any_1x1_v01_autumn.png",
+      "tilePx": 256,
+      "anchor": [
+        146.5,
+        330
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_broadleaf_any_1x1_v01_spring": {
+      "file": "nature/nat_broadleaf_any_1x1_v01_spring.png",
+      "tilePx": 256,
+      "anchor": [
+        148.2,
+        331
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_broadleaf_any_1x1_v01_winter": {
+      "file": "nature/nat_broadleaf_any_1x1_v01_winter.png",
+      "tilePx": 256,
+      "anchor": [
+        134,
+        312.6
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_broadleaf_any_1x1_v02": {
+      "file": "nature/nat_broadleaf_any_1x1_v02.png",
+      "tilePx": 256,
+      "anchor": [
+        108.8,
+        332.6
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_broadleaf_any_1x1_v02_autumn": {
+      "file": "nature/nat_broadleaf_any_1x1_v02_autumn.png",
+      "tilePx": 256,
+      "anchor": [
+        99.6,
+        333.5
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_broadleaf_any_1x1_v02_spring": {
+      "file": "nature/nat_broadleaf_any_1x1_v02_spring.png",
+      "tilePx": 256,
+      "anchor": [
+        108.8,
+        332.6
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_fruit-tree_any_1x1_v01": {
+      "file": "nature/nat_fruit-tree_any_1x1_v01.png",
+      "tilePx": 256,
+      "anchor": [
+        120.1,
+        296
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_fruit-tree_any_1x1_v01_autumn": {
+      "file": "nature/nat_fruit-tree_any_1x1_v01_autumn.png",
+      "tilePx": 256,
+      "anchor": [
+        120.1,
+        296
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_fruit-tree_any_1x1_v01_spring": {
+      "file": "nature/nat_fruit-tree_any_1x1_v01_spring.png",
+      "tilePx": 256,
+      "anchor": [
+        120.1,
+        296
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_fruit-tree_any_1x1_v01_winter": {
+      "file": "nature/nat_fruit-tree_any_1x1_v01_winter.png",
+      "tilePx": 256,
+      "anchor": [
+        121,
+        290.1
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_pine_any_1x1_v01": {
+      "file": "nature/nat_pine_any_1x1_v01.png",
+      "tilePx": 256,
+      "anchor": [
+        124,
+        392
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_pine_any_1x1_v01_winter": {
+      "file": "nature/nat_pine_any_1x1_v01_winter.png",
+      "tilePx": 256,
+      "anchor": [
+        129.8,
+        393.7
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_pine_any_1x1_v02": {
+      "file": "nature/nat_pine_any_1x1_v02.png",
+      "tilePx": 256,
+      "anchor": [
+        127.9,
+        412.3
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_pine_any_1x1_v02_winter": {
+      "file": "nature/nat_pine_any_1x1_v02_winter.png",
+      "tilePx": 256,
+      "anchor": [
+        122.9,
+        407.3
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
     }
   }
 }
