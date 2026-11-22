@@ -1036,40 +1036,141 @@
       "64": "people/64/child_walk.png",
       "96": "people/96/child_walk.png"
     },
+    "crafter-man": {
+      "32": "people/32/crafter-man_walk.png",
+      "64": "people/64/crafter-man_walk.png",
+      "96": "people/96/crafter-man_walk.png"
+    },
     "crafter": {
       "32": "people/32/crafter_walk.png",
       "64": "people/64/crafter_walk.png",
       "96": "people/96/crafter_walk.png"
+    },
+    "elder-woman": {
+      "32": "people/32/elder-woman_walk.png",
+      "64": "people/64/elder-woman_walk.png",
+      "96": "people/96/elder-woman_walk.png"
     },
     "elder": {
       "32": "people/32/elder_walk.png",
       "64": "people/64/elder_walk.png",
       "96": "people/96/elder_walk.png"
     },
+    "farmer-woman": {
+      "32": "people/32/farmer-woman_walk.png",
+      "64": "people/64/farmer-woman_walk.png",
+      "96": "people/96/farmer-woman_walk.png"
+    },
     "farmer": {
       "32": "people/32/farmer_walk.png",
       "64": "people/64/farmer_walk.png",
       "96": "people/96/farmer_walk.png"
+    },
+    "girl": {
+      "32": "people/32/girl_walk.png",
+      "64": "people/64/girl_walk.png",
+      "96": "people/96/girl_walk.png"
     },
     "guard": {
       "32": "people/32/guard_walk.png",
       "64": "people/64/guard_walk.png",
       "96": "people/96/guard_walk.png"
     },
+    "leader-man": {
+      "32": "people/32/leader-man_walk.png",
+      "64": "people/64/leader-man_walk.png",
+      "96": "people/96/leader-man_walk.png"
+    },
     "leader": {
       "32": "people/32/leader_walk.png",
       "64": "people/64/leader_walk.png",
       "96": "people/96/leader_walk.png"
+    },
+    "merchant-woman": {
+      "32": "people/32/merchant-woman_walk.png",
+      "64": "people/64/merchant-woman_walk.png",
+      "96": "people/96/merchant-woman_walk.png"
     },
     "merchant": {
       "32": "people/32/merchant_walk.png",
       "64": "people/64/merchant_walk.png",
       "96": "people/96/merchant_walk.png"
     },
+    "priest-man": {
+      "32": "people/32/priest-man_walk.png",
+      "64": "people/64/priest-man_walk.png",
+      "96": "people/96/priest-man_walk.png"
+    },
     "priest": {
       "32": "people/32/priest_walk.png",
       "64": "people/64/priest_walk.png",
       "96": "people/96/priest_walk.png"
+    }
+  },
+  "animals": {
+    "cat": {
+      "ambient": {
+        "64": "animals/bronze/ani_cat_bronze_ambient_64.png",
+        "96": "animals/bronze/ani_cat_bronze_ambient_96.png"
+      },
+      "idle": {
+        "64": "animals/bronze/ani_cat_bronze_idle_64.png",
+        "96": "animals/bronze/ani_cat_bronze_idle_96.png"
+      }
+    },
+    "deer": {
+      "ambient": {
+        "64": "animals/bronze/ani_deer_bronze_ambient_64.png",
+        "96": "animals/bronze/ani_deer_bronze_ambient_96.png"
+      },
+      "idle": {
+        "64": "animals/bronze/ani_deer_bronze_idle_64.png",
+        "96": "animals/bronze/ani_deer_bronze_idle_96.png"
+      }
+    },
+    "dog": {
+      "ambient": {
+        "64": "animals/bronze/ani_dog_bronze_ambient_64.png",
+        "96": "animals/bronze/ani_dog_bronze_ambient_96.png"
+      },
+      "idle": {
+        "64": "animals/bronze/ani_dog_bronze_idle_64.png",
+        "96": "animals/bronze/ani_dog_bronze_idle_96.png"
+      }
+    },
+    "duck": {
+      "ambient": {
+        "64": "animals/bronze/ani_duck_bronze_ambient_64.png",
+        "96": "animals/bronze/ani_duck_bronze_ambient_96.png"
+      },
+      "idle": {
+        "64": "animals/bronze/ani_duck_bronze_idle_64.png",
+        "96": "animals/bronze/ani_duck_bronze_idle_96.png"
+      },
+      "swimming": {
+        "64": "animals/bronze/ani_duck_bronze_swimming_64.png",
+        "96": "animals/bronze/ani_duck_bronze_swimming_96.png"
+      }
+    },
+    "goat": {
+      "ambient": {
+        "64": "animals/bronze/ani_goat_bronze_ambient_64.png",
+        "96": "animals/bronze/ani_goat_bronze_ambient_96.png"
+      },
+      "idle": {
+        "64": "animals/bronze/ani_goat_bronze_idle_64.png",
+        "96": "animals/bronze/ani_goat_bronze_idle_96.png"
+      }
+    },
+    "sheep": {
+      "ambient": {
+        "64": "animals/bronze/ani_sheep_bronze_ambient_64.png",
+        "96": "animals/bronze/ani_sheep_bronze_ambient_96.png"
+      },
+      "idle": {
+        "64": "animals/bronze/ani_sheep_bronze_idle_64.png",
+        "96": "animals/bronze/ani_sheep_bronze_idle_96.png"
+      }
     }
   }
 }

@@ -1,0 +1,34 @@
+{
+  "id": "goat",
+  "category": "animal",
+  "era": "bronze",
+  "view": "three-quarter right-facing (one illustrated view)",
+  "sprite_96": "ani_goat_bronze_idle_96.png",
+  "sprite_64": "ani_goat_bronze_idle_64.png",
+  "ambient_96": "ani_goat_bronze_ambient_96.png",
+  "ambient_64": "ani_goat_bronze_ambient_64.png",
+  "frameSize96": [
+    96,
+    96
+  ],
+  "frameSize64": [
+    64,
+    64
+  ],
+  "ambientFrames": 4,
+  "ambientFrameDurationMs": 190,
+  "ambientRows": 1,
+  "ambientColumns": 4,
+  "anchorPx96": [
+    48,
+    88
+  ],
+  "anchorPx64": [
+    32,
+    59
+  ],
+  "animationType": "subtle procedural breathing/bobbing (not anatomical walking)",
+  "artistSource": "art/_reference/animal_goat_painted_master.png",
+  "quality": "draft; in-game edge and scale QA recommended",
+  "recommendedUse": "Idle ambient creatures and preliminary wandering; redraw four-direction gait for refined walking"
+}

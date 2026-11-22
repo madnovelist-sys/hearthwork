@@ -10,6 +10,7 @@ import { buildingSprite, graveSprite, hasBuildingArt, onArtChange, realSprite, s
 import { Walkers } from './walkers';
 import { fieldsAsleep, indoorShare, snowOnGround } from '../sim/weather';
 import { Fauna, drawAnimal, drawBirds } from './fauna';
+import { drawAnimalArt } from './animal-art';
 import { groundReady, surface, type Surface } from './ground';
 import { DECOR_KEY, Decor } from './decor';
 import type { Selection } from '../game/store';
@@ -748,7 +749,7 @@ export class Renderer {
         if (!a) continue;
         const c = this.toScreen(a.x, a.y);
         if (c.x < -20 || c.x > this.w + 20 || c.y < -30 || c.y > this.h + 20) continue;
-        drawAnimal(g, a, c.x, c.y, tw / 64, now);
+        if (!drawAnimalArt(g, a, c.x, c.y, tw / 64, now, this.dpr)) drawAnimal(g, a, c.x, c.y, tw / 64, now);
         continue;
       }
       const w = this.walkers.list.get(d.id)!;

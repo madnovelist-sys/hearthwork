@@ -1,5 +1,6 @@
-// The painted villagers (art/people): eight roles, each walking in four
-// directions, four steps to a stride, in sheets of 32, 64 and 96 px frames.
+// The painted villagers (art/people): fifteen of them (each role as a woman and
+// a man, a girl and a boy), each walking in four directions, four steps to a
+// stride, in sheets of 32, 64 and 96 px frames.
 // Skin is the person's own, not the role's: each sheet's skin (found from the
 // face, and from where on the figure skin can be) is shifted to the person's
 // tone, in the same warm painted light. Until the sheets load, or for a role
@@ -8,7 +9,14 @@ import { SKIN } from './figures';
 import type { Roles } from './figures';
 import type { Person } from '../sim/types';
 
-export type Role = 'farmer' | 'crafter' | 'merchant' | 'priest' | 'guard' | 'leader' | 'child' | 'elder';
+export type Role =
+  | 'farmer' | 'crafter' | 'merchant' | 'priest' | 'guard' | 'leader' | 'child' | 'elder'
+  | 'farmer-woman' | 'crafter-man' | 'merchant-woman' | 'priest-man' | 'leader-man' | 'girl' | 'elder-woman';
+/** Who stands in for a villager whose sheet hasn't loaded (the same role, the other sex). */
+const STAND_IN: Partial<Record<Role, Role>> = {
+  'farmer-woman': 'crafter', 'crafter-man': 'farmer', 'merchant-woman': 'merchant', 'priest-man': 'priest',
+  'leader-man': 'leader', girl: 'child', 'elder-woman': 'elder',
+};
 export type Dir = 'down' | 'left' | 'right' | 'up';
 const ROW: Record<Dir, number> = { down: 0, left: 1, right: 2, up: 3 };
 const SIZES = [32, 64, 96] as const;
@@ -31,19 +39,22 @@ export function addCitizenSheet(role: Role, size: number, img: HTMLImageElement)
 export const citizensReady = () => sheets.has('farmer:64') && sheets.has('crafter:64');
 
 /**
- * Which painted body someone wears. Standing comes first (the leader's cloak, a faith-founder's
- * hood, a stall-keeper's satchel, an elder's staff); otherwise grown women wear the crafter and
- * grown men the farmer, the only everyday woman and man on the sheet.
+ * Which painted villager someone is: their standing first (the leader's cloak, a faith-founder's
+ * hood, a stall-keeper's satchel), then their age (elders, children), then their work: potters
+ * and smiths in the crafter's apron, everyone else as a farmer. Each in a woman's or a man's
+ * version, a girl's or a boy's.
  */
 export function roleFor(p: Person, age: number, roles: Roles): Role {
-  if (age < 12) return 'child';
+  const f = p.sex === 'f';
+  if (age < 12) return f ? 'girl' : 'child';
   if (age >= 16) {
-    if (roles.leader === p.id) return 'leader';
-    if (roles.priests.has(p.id)) return 'priest';
-    if (roles.merchants.has(p.id)) return 'merchant';
+    if (roles.leader === p.id) return f ? 'leader' : 'leader-man';
+    if (roles.priests.has(p.id)) return f ? 'priest' : 'priest-man';
+    if (roles.merchants.has(p.id)) return f ? 'merchant-woman' : 'merchant';
   }
-  if (age >= 60) return 'elder';
-  return p.sex === 'f' ? 'crafter' : 'farmer';
+  if (age >= 60) return f ? 'elder-woman' : 'elder';
+  if (p.job === 'potter' || p.job === 'smith') return f ? 'crafter' : 'crafter-man';
+  return f ? 'farmer-woman' : 'farmer';
 }
 
 /** Which way someone is walking on screen, from their step across the map. */
@@ -63,6 +74,7 @@ export function drawCitizen(
   g: CanvasRenderingContext2D, x: number, y: number, height: number, dpr: number,
   role: Role, dir: Dir, frame: number, tone: number,
 ): boolean {
+  if (!SIZES.some((s) => sheets.has(`${role}:${s}`)) && STAND_IN[role]) role = STAND_IN[role]!;
   // The smallest sheet that's still sharp at this size on screen.
   const want = (height * dpr) / FIGURE;
   let size = 0;

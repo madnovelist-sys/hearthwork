@@ -90,10 +90,26 @@ In the game, **Settings → Art test scene** lets you drop in an image, see it o
 
 ## People
 
-Villagers are painted walk sheets in `people/<frame size>/<role>_walk.png` (32, 64 and 96 px frames): eight roles (`farmer`, `crafter`, `merchant`, `priest`, `guard`, `leader`, `child`, `elder`), four steps across, and down, left, right and up from the top, feet at the bottom centre. The game picks the sheet size that's sharp at the current zoom, steps every 170 ms (slower for elders), and faces people the way they walk: front or back for most steps, the side views only for walking nearly straight across.
+Villagers are painted walk sheets in `people/<frame size>/<role>_walk.png` (32, 64 and 96 px frames): four steps across, and down, left, right and up from the top, feet at the bottom centre. The game picks the sheet size that's sharp at the current zoom, steps every 170 ms (slower for elders), and faces people the way they walk: front or back for most steps, the side views only for walking nearly straight across.
 
-Who wears which: the leader, the founder of a living faith, and whoever runs a market stall wear the `leader`, `priest` and `merchant`; anyone 60 or older the `elder`; children under 12 the `child`; other grown women the `crafter` and grown men the `farmer`, the only everyday woman and man on the sheet. A woman's or a man's version of each role (a woman farmer, a man in the crafter's apron, an old woman, a girl, a man as leader or faith-founder, a woman stall-keeper) would let everyone wear their own work. The `guard` waits for the town to have a watch.
+| Who | Woman or girl | Man or boy |
+| --- | --- | --- |
+| The leader | `leader` | `leader-man` |
+| Founder of a living faith | `priest` | `priest-man` |
+| Runs a market stall | `merchant-woman` | `merchant` |
+| 60 or older | `elder-woman` | `elder` |
+| Under 12 | `girl` | `child` |
+| Potters and smiths | `crafter` | `crafter-man` |
+| Everyone else | `farmer-woman` | `farmer` |
 
-Skin is the person's own, one of the costume sheet's seven tones: the game finds each sheet's painted skin (from the face, and from where on the figure skin can be) and shifts it to the person's tone, keeping the painting's warm light. Sheets painted with very little warm-coloured clothing near the skin recolour most cleanly.
+The `guard` waits for the town to have a watch.
 
-Each person's card shows them a size bigger, facing you, with their family's mark. Until the sheets load (or for a role with no sheet), the code-drawn figures after the costume sheet stand in.
+A villager painted only once, standing and facing you (`citizens/<era>/chr_<role>_<era>_idle_v01_96.png`), is given a walk sheet by `npx vite-node scripts/make-walks.ts`: steps made by moving the painting's legs, the sides a narrowed three-quarter view, and the back borrowed from the nearest villager with one (the list is in the script). A painted back view, or a full walk sheet, can replace it any time: put it in `people/` as `<role>_walk.png`.
+
+Skin is the person's own, one of the costume sheet's seven tones: the game finds each sheet's painted skin (the face by its hue, hands and legs by their close colour) and shifts it to the person's tone, keeping the painting's warm light.
+
+Each person's card shows them a size bigger, facing you, with their family's mark. Until the sheets load, the code-drawn figures after the costume sheet stand in.
+
+## Animals
+
+`animals/<era>/ani_<kind>_<era>_<state>_<size>.png`: goats, sheep, dogs, cats, deer and ducks, each standing (`idle`), breathing (`ambient`, four frames across) and, for ducks, `swimming`, in 64 and 96 px frames with the feet at (32, 59) and (48, 88). They face right and are mirrored to face left; walking, they bob (there's no painted gait yet). Coats vary a little from animal to animal (a darker or paler dog or goat, a grey or dark cat, the odd black sheep).

@@ -6,6 +6,7 @@ import { C, mix, shade } from './palette';
 import type { BuildingKind, Era } from '../sim/types';
 import { addTexture } from './ground';
 import { addCitizenSheet, type Role } from './citizens';
+import { addAnimalArt } from './animal-art';
 
 export interface Sprite {
   img: CanvasImageSource;
@@ -80,7 +81,12 @@ export const onArtChange = (fn: () => void) => { listeners.add(fn); return () =>
 const artChanged = () => { for (const fn of listeners) fn(); };
 
 export async function loadManifest(base = './art/'): Promise<void> {
-  let manifest: { sprites: Record<string, ManifestEntry>; textures?: Record<string, string>; people?: Record<string, Record<string, string>> };
+  let manifest: {
+    sprites: Record<string, ManifestEntry>;
+    textures?: Record<string, string>;
+    people?: Record<string, Record<string, string>>;
+    animals?: Record<string, Record<string, Record<string, string>>>;
+  };
   try {
     const res = await fetch(`${base}manifest.json`);
     if (!res.ok) return;
@@ -100,7 +106,9 @@ export async function loadManifest(base = './art/'): Promise<void> {
     try { addTexture(name, await loadImage(base + file)); } catch { /* the ground stays flat colour */ }
   }), ...Object.entries(manifest.people ?? {}).flatMap(([role, sizes]) => Object.entries(sizes).map(async ([size, file]) => {
     try { addCitizenSheet(role as Role, Number(size), await loadImage(base + file)); } catch { /* drawn in code instead */ }
-  }))]);
+  })), ...Object.entries(manifest.animals ?? {}).flatMap(([kind, states]) => Object.entries(states).flatMap(([state, sizes]) => Object.entries(sizes).map(async ([size, file]) => {
+    try { addAnimalArt(kind, state, Number(size), await loadImage(base + file)); } catch { /* drawn in code instead */ }
+  })))]);
   artChanged();
 }
 

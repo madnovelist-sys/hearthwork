@@ -1,0 +1,30 @@
+{
+  "id": "merchant_woman",
+  "label": "Woman Merchant",
+  "category": "citizen",
+  "era": "bronze",
+  "view": "front-facing only",
+  "style": "rounded painterly portrait sprite",
+  "roleDescription": "Front-facing rounded painterly woman merchant with satchel and trade goods.",
+  "sprite_96": "chr_merchant-woman_bronze_idle_v01_96.png",
+  "sprite_64": "chr_merchant-woman_bronze_idle_v01_64.png",
+  "imagePx96": [
+    96,
+    96
+  ],
+  "imagePx64": [
+    64,
+    64
+  ],
+  "anchorPx96": [
+    48,
+    92
+  ],
+  "anchorPx64": [
+    32,
+    61
+  ],
+  "animation": "none; single idle/front portrait sprite only",
+  "artistSource": "art/_reference/chr_merchant-woman_bronze_idle_v01_master.png",
+  "quality": "approved style; in-game scale and placement QA recommended"
+}
