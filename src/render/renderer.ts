@@ -83,6 +83,9 @@ export class Renderer {
     onArtChange(() => { this.groundKey = ''; });
   }
 
+  /** Resting, after dark: the hearth is banked to embers. */
+  private banked = false;
+
   /** The textured ground, painted once and reused until the view moves or a day passes. */
   private groundCache: HTMLCanvasElement | null = null;
   private groundKey = '';
@@ -163,6 +166,7 @@ export class Renderer {
     const anim = this.frozenAt ?? now; // animation time stops while paused
     this.night += (skyNight - this.night) * Math.min(1, realDt / 900);
     if (Math.abs(this.night - skyNight) < 0.002) this.night = skyNight;
+    this.banked = !running && this.night >= 0.9;
     this.walkers.indoor = indoorShare(s);
     this.walkers.fieldsAsleep = fieldsAsleep(s);
     this.walkers.frozen = !!s.weather?.ice;
@@ -598,7 +602,9 @@ export class Renderer {
         for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) list.push({ depth: x + y + 1, kind: 'deck', x, y, alongX: b.w > 1 });
         continue;
       }
-      const sprite = b.built ? buildingSprite(b.kind, b.variant, winter, b.era) : scaffoldSprite(b.w, b.h, b.progress / Math.max(1, b.required));
+      // The hearth is banked to embers while the village sleeps (resting, after dark).
+      const banked = b.kind === 'hearth' && b.built && this.banked ? realSprite('lmk_hearth_bronze_1x1', b.variant, 'embers') : undefined;
+      const sprite = banked ?? (b.built ? buildingSprite(b.kind, b.variant, winter, b.era) : scaffoldSprite(b.w, b.h, b.progress / Math.max(1, b.required)));
       const depth = b.kind === 'graveyard' || b.kind === 'pen' ? b.x + b.y + 0.5 : b.x + b.w + b.y + b.h; // low enclosures sit under what's inside them
       // Art made for a different footprint (e.g. a 2×2 granary in an older city's 1×1 spot) is scaled to fit.
       const fit = sprite.tiles && sprite.tiles !== b.w ? b.w / sprite.tiles : undefined;
@@ -1038,11 +1044,11 @@ export class Renderer {
         g.fillRect(x - r, y - r, r * 2, r * 2);
       }
     }
-    // The hearth's glow.
+    // The hearth's glow (a low red one, when it's banked to embers for the night).
     const c = this.toScreen(s.hearth.x + 0.5, s.hearth.y + 0.5);
-    const r = 60 * k;
+    const r = (this.banked ? 26 : 60) * k;
     const grad = g.createRadialGradient(c.x, c.y, 0, c.x, c.y, r);
-    grad.addColorStop(0, `rgba(255,150,70,${0.45 * n})`);
+    grad.addColorStop(0, this.banked ? `rgba(255,110,50,${0.4 * n})` : `rgba(255,150,70,${0.45 * n})`);
     grad.addColorStop(1, 'rgba(255,150,70,0)');
     g.fillStyle = grad;
     g.fillRect(c.x - r, c.y - r, r * 2, r * 2);

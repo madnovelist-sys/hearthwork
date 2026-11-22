@@ -1,13 +1,17 @@
 // Scenery that isn't part of the simulation: wildflowers in the meadows, reeds
-// along the water, fallen logs and dead wood on the forest floor, and a stack
-// of logs by each woodcutter's door. It's worked out from the map once a day,
+// along the water, fallen logs and dead wood on the forest floor, logs stacked
+// where trees were felled, and by people's doors what their work needs (a
+// woodshed, a drying rack). It's worked out from the map once a day,
 // so older villages get it too, and it disappears wherever people build or wear
 // a path.
 import { TERRAIN, TREE, type GameState } from '../sim/types';
 import { isDwelling } from '../sim/world';
 
-export const DECOR = { NONE: 0, FLOWERS: 1, REEDS: 2, LOG: 3, DEADWOOD: 4, LOGPILE: 5 } as const;
-export const DECOR_KEY = ['', 'nat_wildflowers_any_1x1', 'nat_reeds_any_1x1', 'nat_fallen-log_any_1x1', 'nat_deadwood_any_1x1', 'nat_log-pile_any_1x1'];
+export const DECOR = { NONE: 0, FLOWERS: 1, REEDS: 2, LOG: 3, DEADWOOD: 4, LOGPILE: 5, WOODSHED: 6, RACK: 7 } as const;
+export const DECOR_KEY = [
+  '', 'nat_wildflowers_any_1x1', 'nat_reeds_any_1x1', 'nat_fallen-log_any_1x1', 'nat_deadwood_any_1x1', 'nat_log-pile_any_1x1',
+  'prop_woodpile-shelter_bronze_1x1', 'prop_drying-rack_bronze_1x1',
+];
 
 export interface DecorItem { x: number; y: number; kind: number; dx: number; dy: number; flip: boolean; variant: number }
 
@@ -69,17 +73,28 @@ export class Decor {
       }
     }
 
-    // A stack of firewood by each woodcutter's door, on the first free tile in front of the house.
-    const cut = new Set<number>();
-    for (const p of s.people) if (p.alive && p.job === 'woodcutter' && p.home !== undefined) cut.add(p.home);
+    // By people's doors, what their work needs: a woodshed for a woodcutter, a rack for drying
+    // fish (a fisher's) or herbs and greens (some gatherers'), on free tiles beside the house.
+    const wants = new Map<number, Set<number>>();
+    const want = (home: number, kind: number) => { let k = wants.get(home); if (!k) wants.set(home, (k = new Set())); k.add(kind); };
+    for (const p of s.people) {
+      if (!p.alive || p.home === undefined || p.away !== undefined || p.left) continue;
+      if (p.job === 'woodcutter') want(p.home, DECOR.WOODSHED);
+      else if (p.job === 'fisher' || (p.job === 'gatherer' && p.id % 2 === 0)) want(p.home, DECOR.RACK);
+    }
     for (const b of s.buildings) {
-      if (!cut.has(b.id) || b.removed || !b.built || !isDwelling(b.kind)) continue;
-      for (const [x, y] of [[b.x + b.w, b.y + b.h - 1], [b.x + b.w - 1, b.y + b.h], [b.x + b.w, b.y], [b.x, b.y + b.h]]) {
-        if (x < 0 || y < 0 || x >= w || y >= h) continue;
-        const i = y * w + x;
-        if (map.terrain[i] !== TERRAIN.GRASS || map.occ[i] || map.trees[i] !== TREE.NONE || map.walls?.[i] || map.wear[i] > 1.2) continue;
-        grid[i] = DECOR.LOGPILE;
-        break;
+      const kinds = wants.get(b.id);
+      if (!kinds || b.removed || !b.built || b.burned || !isDwelling(b.kind)) continue;
+      const spots = [[b.x + b.w, b.y + b.h - 1], [b.x + b.w - 1, b.y + b.h], [b.x + b.w, b.y], [b.x, b.y + b.h], [b.x - 1, b.y], [b.x, b.y - 1]];
+      for (const kind of kinds) {
+        for (const [x, y] of spots) {
+          if (x < 0 || y < 0 || x >= w || y >= h) continue;
+          const i = y * w + x;
+          if (map.terrain[i] !== TERRAIN.GRASS || map.occ[i] || map.trees[i] !== TREE.NONE || map.walls?.[i] || map.wear[i] > 1.2) continue;
+          if (grid[i] === DECOR.WOODSHED || grid[i] === DECOR.RACK) continue; // a neighbour's already
+          grid[i] = kind;
+          break;
+        }
       }
     }
 
@@ -90,8 +105,9 @@ export class Decor {
         const kind = grid[y * w + x];
         if (!kind) continue;
         const a = hash(x, y, seed + 7), b = hash(x, y, seed + 13);
-        // Off-centre a little, so they don't line up on the grid (less for the log piles by the doors).
-        const j = kind === DECOR.LOGPILE ? 0.08 : 0.22;
+        // Off-centre a little, so they don't line up on the grid (less for the things by the doors).
+        const byDoor = kind === DECOR.WOODSHED || kind === DECOR.RACK;
+        const j = byDoor || kind === DECOR.LOGPILE ? 0.08 : 0.22;
         items.push({ x, y, kind, dx: (a - 0.5) * 2 * j, dy: (b - 0.5) * 2 * j, flip: a > 0.5, variant: Math.floor(b * 3) });
       }
     }

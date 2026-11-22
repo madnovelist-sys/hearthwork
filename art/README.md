@@ -35,12 +35,13 @@ Any number of variants (`v01`, `v02`, …) of anything are used at random. State
 | Fishing dock | `bld_dock_bronze_1x1` |
 | Market stall | `bld_stall_bronze_1x1` |
 | Burial ground (3×3) | `bld_burial_bronze_3x3` |
-| The Hearth (in `landmarks/`) | `lmk_hearth_bronze_1x1` |
+| The Hearth (in `landmarks/`); `_embers` is the fire banked for the night, shown while you rest after dark | `lmk_hearth_bronze_1x1` |
 | Places of the dead, by the village's custom (in `landmarks/`): a pyre ground (2×2), a sky platform (2×2), a family tomb (2×2), a river landing | `lmk_pyre-ground_bronze_2x2`, `lmk_sky-platform_bronze_2x2`, `lmk_tomb_bronze_2x2`, `lmk_river-landing_bronze_1x1` |
 | Sacred places found near the village (in `landmarks/`): standing stones (2×2), a sacred grove (2×2), a spring, a barrow (2×2), a cairn, a great old tree | `lmk_standing-stones_any_2x2`, `lmk_sacred-grove_any_2x2`, `lmk_spring_any_1x1`, `lmk_barrow_any_2x2`, `lmk_cairn_any_1x1`, `lmk_great-tree_any_1x1` |
 | Trees, berry bushes, rocks and stumps | `nat_broadleaf_any_1x1`, `nat_pine_any_1x1`, `nat_fruit-tree_any_1x1`, `nat_berry-bush_any_1x1`, `nat_rock_any_1x1`, `nat_stump_any_1x1` |
 | Barley field (2×2), in each stage of its year | `nat_barley_any_2x2` (`_sprouts`, `_growing`, `_ripe`, `_harvested`, `_winter-fallow`) |
-| Scenery: wildflowers in the meadows, reeds along the water and in the marsh, fallen logs and dead wood in the forest, a log pile by each woodcutter's door | `nat_wildflowers_any_1x1`, `nat_reeds_any_1x1`, `nat_fallen-log_any_1x1`, `nat_deadwood_any_1x1`, `nat_log-pile_any_1x1` |
+| Props by people's doors (in `props/`): a woodshed by a woodcutter's home, a drying rack by a fisher's (and some gatherers') | `prop_woodpile-shelter_bronze_1x1`, `prop_drying-rack_bronze_1x1` |
+| Scenery: wildflowers in the meadows, reeds along the water and in the marsh, fallen logs and dead wood in the forest, logs stacked where trees were felled | `nat_wildflowers_any_1x1`, `nat_reeds_any_1x1`, `nat_fallen-log_any_1x1`, `nat_deadwood_any_1x1`, `nat_log-pile_any_1x1` |
 | Animal pen (2×2) | `bld_pen_bronze_2x2` |
 | Two-storey house (towns) | `bld_townhouse_bronze_1x1` |
 | Alehouse (2×2) | `bld_alehouse_bronze_2x2` |
@@ -59,7 +60,9 @@ Every building above can also be drawn for a later era: swap `bronze` for `iron`
 
 Trees stand with the foot of the trunk at the middle of their tile. Each season of a tree should keep the same tree at the same size and place, so the tree doesn't jump when the season turns. Spring, autumn and winter versions fall back to the summer one (or to `v01`'s) when missing.
 
-Small things (bushes, flowers, reeds, rocks, logs) stand the same way, at the middle of their tile, and are sized by hand in their sidecars against the people: a person is about a fifth of a tile tall, a berry bush a little taller, a stump a little shorter, wildflowers about knee height. Scenery is placed by the game, a little off-centre and sometimes mirrored, so it never lines up on the grid.
+A winter (or other) version painted on a different canvas from its summer one is lined up with it by hand in its sidecar, so it stands in the same place at the same size.
+
+Small things (bushes, flowers, reeds, rocks, logs, the props by the doors) stand the same way, at the middle of their tile, and are sized by hand in their sidecars against the people: a person is about a fifth of a tile tall, a berry bush a little taller, a stump a little shorter, wildflowers about knee height. Scenery is placed by the game, a little off-centre and sometimes mirrored, so it never lines up on the grid.
 
 A barley field is drawn as one 2×2 sprite that changes with the year: sprouts and then green barley in spring, ripening through summer, cut one field at a time in autumn, and stubble (under snow, when there is some) in winter.
 

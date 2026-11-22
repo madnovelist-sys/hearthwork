@@ -28,12 +28,40 @@
       "lights": [],
       "smoke": []
     },
+    "bld_hide-tent_bronze_1x1_v01_winter": {
+      "file": "buildings/bronze/bld_hide-tent_bronze_1x1_v01_winter.png",
+      "tilePx": 230,
+      "anchor": [
+        127,
+        241
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
     "bld_hide-tent_bronze_1x1_v02": {
       "file": "buildings/bronze/bld_hide-tent_bronze_1x1_v02.png",
       "tilePx": 256,
       "anchor": [
         147.2,
         252.3
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "bld_hide-tent_bronze_1x1_v02_winter": {
+      "file": "buildings/bronze/bld_hide-tent_bronze_1x1_v02_winter.png",
+      "tilePx": 233,
+      "anchor": [
+        127,
+        239
       ],
       "footprint": [
         1,
@@ -163,6 +191,20 @@
       "lights": [],
       "smoke": []
     },
+    "bld_lean-to_bronze_1x1_v01_winter": {
+      "file": "buildings/bronze/bld_lean-to_bronze_1x1_v01_winter.png",
+      "tilePx": 215,
+      "anchor": [
+        117,
+        228
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
     "bld_longhouse_bronze_3x3_v01": {
       "file": "buildings/bronze/bld_longhouse_bronze_3x3_v01.png",
       "tilePx": 256,
@@ -279,6 +321,20 @@
       "lights": [],
       "smoke": []
     },
+    "bld_well_bronze_1x1_v01": {
+      "file": "buildings/bronze/bld_well_bronze_1x1_v01.png",
+      "tilePx": 256,
+      "anchor": [
+        103,
+        213
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
     "lmk_hearth_bronze_1x1_v01": {
       "file": "landmarks/lmk_hearth_bronze_1x1_v01.png",
       "tilePx": 256,
@@ -295,6 +351,25 @@
         [
           134.8,
           57.8
+        ]
+      ]
+    },
+    "lmk_hearth_bronze_1x1_v01_embers": {
+      "file": "landmarks/lmk_hearth_bronze_1x1_v01_embers.png",
+      "tilePx": 226,
+      "anchor": [
+        117,
+        157
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": [
+        [
+          117,
+          87
         ]
       ]
     },
@@ -906,6 +981,34 @@
       "anchor": [
         51.4,
         129.2
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "prop_drying-rack_bronze_1x1_v01": {
+      "file": "props/prop_drying-rack_bronze_1x1_v01.png",
+      "tilePx": 256,
+      "anchor": [
+        59.4,
+        166.9
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "prop_woodpile-shelter_bronze_1x1_v01": {
+      "file": "props/prop_woodpile-shelter_bronze_1x1_v01.png",
+      "tilePx": 256,
+      "anchor": [
+        68.6,
+        186.3
       ],
       "footprint": [
         1,
