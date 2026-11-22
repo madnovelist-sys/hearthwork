@@ -86,4 +86,8 @@ Use the full-size image, not a pre-shrunk copy: sidecar points are in the full-s
 
 In the game, **Settings → Art test scene** lets you drop in an image, see it on the real grid next to other buildings (by day and night, summer and winter, and at 48 px), and use it in your city right away. Art used that way stays on that computer until the file is added here.
 
-`_reference/` holds the style anchor, the era style sheets and the footprint templates. `_retired/` keeps art for things no longer in the game (the Old Stone).
+`_reference/` holds the style anchor, the era style sheets, the footprint templates, the revised art design document, and the Bronze Age costume sheet (`ref_costumes_bronze.png`, with its notes in `ref_costumes_bronze.json`).
+
+## People
+
+Villagers aren't sprites: the game draws them in code, after the costume sheet. What someone wears follows their work and standing: the leader's red cloak and bronze brooch, the hooded indigo robe of someone who founded a faith, a stall-keeper's shawl and satchel, a potter's apron and jar, a farmer's ochre tunic and basket, an elder's cloak and staff, a child's short tunic. Skin (seven tones) and hair are their own, never set by their work. Grown-ups stand about 17 px tall at the usual zoom and walk in four steps; children are smaller and elders stoop and walk slower. Each person's card shows them a size bigger, with their family's mark. A costume sheet for a later era would let them change clothes with the times. `_retired/` keeps art for things no longer in the game (the Old Stone).

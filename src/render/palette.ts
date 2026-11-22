@@ -38,14 +38,6 @@ export const C = {
 /** Grass through the year. Snow is laid over it when (and only when) snow is actually lying. */
 export const GRASS_BY_SEASON = [C.springGrass, C.summerGrass, C.autumnGrass, C.winterGrass];
 
-export const SKIN = ['#F1D3B8', '#E0B08C', '#C68E62', '#A26B43', '#7A4B2C', '#563321'];
-export const HAIR = ['#2B1F18', '#4A3020', '#7A5230', '#B08040', '#D8C090', '#6A2E1E'];
-
-export const CLOTHES: Record<string, string> = {
-  farmer: '#9A7440', gatherer: '#7A8A4A', fisher: '#4F7A8A', woodcutter: '#6B4A33', builder: '#B0683A',
-  potter: '#B8603E', smith: '#5B6268', healer: '#E6DDCB', herder: '#8C7A5B', elder: '#7D6B8A', child: '#D9A35C', none: '#9A8F84',
-};
-
 export function hexToRgb(hex: string): [number, number, number] {
   const n = parseInt(hex.slice(1), 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];

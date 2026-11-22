@@ -121,7 +121,7 @@ export function createPerson(s: GameState, d: PersonDraft, origin: Person['origi
     health: 100,
     mood: 20,
     renown: d.patron ? 10 : 0,
-    look: { skin: int(r, 0, 5), hair: int(r, 0, 5) },
+    look: { skin: int(r, 0, 6), hair: int(r, 0, 5) }, // seven skin tones (see render/figures.ts), six hair colours
     memories: [],
   };
   s.people.push(p);

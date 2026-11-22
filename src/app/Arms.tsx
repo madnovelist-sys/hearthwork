@@ -4,7 +4,7 @@ import type { Arms } from '../sim/types';
 const SHIELD = 'M4 4 H56 V30 C56 50 42 60 30 66 C18 60 4 50 4 30 Z';
 
 /** Simple shapes for each charge, centered on (30, 32). */
-function Charge({ kind, color }: { kind: string; color: string }) {
+export function Charge({ kind, color }: { kind: string; color: string }) {
   const s = { fill: color, stroke: 'rgba(0,0,0,0.35)', 'stroke-width': 0.8 } as const;
   switch (kind) {
     case 'flame':

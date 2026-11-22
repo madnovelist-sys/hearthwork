@@ -3,7 +3,8 @@
 import { TERRAIN, TREE, type Building, type GameState } from '../sim/types';
 import { seasonIndex, seasonProgress } from '../sim/world';
 import { hashString } from '../sim/rng';
-import { C, CLOTHES, GRASS_BY_SEASON, HAIR, SKIN, mix, shade } from './palette';
+import { C, GRASS_BY_SEASON, mix, shade } from './palette';
+import { costumeOf, drawFigure, rolesOf, sizeFor } from './figures';
 import { buildingSprite, graveSprite, hasBuildingArt, onArtChange, realSprite, scaffoldSprite, treeSprite, type Sprite } from './sprites';
 import { Walkers } from './walkers';
 import { fieldsAsleep, indoorShare, snowOnGround } from '../sim/weather';
@@ -726,6 +727,7 @@ export class Renderer {
     const tw = this.tw;
     const selB = selection?.kind === 'building' ? selection.id : -1;
     const selP = selection?.kind === 'person' ? selection.id : -1;
+    const roles = rolesOf(s);
     for (const d of this.drawn) {
       if (d.kind === 'wall') { this.drawWall(s, d.x, d.y); continue; }
       if (d.kind === 'deck') { this.drawDeck(d.x, d.y, d.alongX, s.buildings[s.map.occ[d.y * s.map.w + d.x] - 1]?.id === selB); continue; }
@@ -753,31 +755,19 @@ export class Renderer {
       const c = this.toScreen(w.x, w.y);
       if (c.x < -20 || c.x > this.w + 20 || c.y < -30 || c.y > this.h + 20) continue;
       const age = Math.floor((s.day - p.born) / 360);
-      const k = tw / 64 * (age < 8 ? 0.62 : age < 16 ? 0.8 : 1);
-      const bob = w.moving ? Math.abs(Math.sin(now / 110 + d.id)) * 1.4 * k : 0;
+      // About 17 px for a grown-up at the usual zoom; children smaller.
+      const k = tw / 64 * 1.08 * sizeFor(age);
       g.globalAlpha = w.alpha;
       if (d.id === selP || d.id === this.hoverPerson) {
         g.strokeStyle = C.hearthGold; g.lineWidth = 2;
         g.beginPath(); g.ellipse(c.x, c.y, 7 * k, 3.5 * k, 0, 0, Math.PI * 2); g.stroke();
       }
-      g.fillStyle = 'rgba(62,58,79,0.3)';
-      g.beginPath(); g.ellipse(c.x, c.y, 4 * k, 2 * k, 0, 0, Math.PI * 2); g.fill();
-      // body
-      g.fillStyle = CLOTHES[p.job] ?? CLOTHES.none;
-      g.beginPath();
-      g.moveTo(c.x - 3.2 * k, c.y - 1 * k - bob);
-      g.lineTo(c.x - 2.4 * k, c.y - 9 * k - bob);
-      g.lineTo(c.x + 2.4 * k, c.y - 9 * k - bob);
-      g.lineTo(c.x + 3.2 * k, c.y - 1 * k - bob);
-      g.closePath(); g.fill();
-      // head and hair
-      g.fillStyle = SKIN[p.look.skin % SKIN.length];
-      g.beginPath(); g.arc(c.x, c.y - 11.2 * k - bob, 2.5 * k, 0, Math.PI * 2); g.fill();
-      g.fillStyle = age >= 58 ? '#B9B4AC' : HAIR[p.look.hair % HAIR.length];
-      g.beginPath(); g.arc(c.x - w.facing * 0.4 * k, c.y - 12.2 * k - bob, 2.5 * k, Math.PI * 1.05, Math.PI * 1.95); g.fill();
+      // Four steps to a stride; elders step more slowly.
+      const frame = Math.floor(now / (age >= 60 ? 190 : 135) + d.id * 0.37) % 4;
+      drawFigure(g, c.x, c.y, k, p, costumeOf(p, age, roles), { frame, facing: w.facing, moving: w.moving, age });
       if (p.patron || p.lineage) {
         g.fillStyle = C.hearthGold;
-        g.beginPath(); g.arc(c.x, c.y - 16.5 * k - bob, 1.3 * k + 0.5, 0, Math.PI * 2); g.fill();
+        g.beginPath(); g.arc(c.x, c.y - 19.5 * k, 1.3 * k + 0.5, 0, Math.PI * 2); g.fill();
       }
       g.globalAlpha = 1;
     }

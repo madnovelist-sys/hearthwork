@@ -1,0 +1,198 @@
+{
+  "project": "Hearthwork",
+  "batch": "Bronze Age character costume references / batch 10",
+  "artType": "reference_only",
+  "era": "bronze",
+  "file": "art/_reference/ref_costumes_bronze.png",
+  "sizePx": [
+    1774,
+    887
+  ],
+  "background": "plain parchment (opaque by specification)",
+  "figureCount": 8,
+  "roles": [
+    {
+      "indexLeftToRight": 1,
+      "role": "farmer",
+      "costumeReference": "Ochre tunic, rope belt, grain basket, leg wraps",
+      "walkerSilhouetteCue": "Broad everyday tunic; basket; loose sleeves",
+      "suggestedPalette": {
+        "primaryCloth": "#C88B3C",
+        "secondaryCloth": "#EED6AE"
+      },
+      "approxReferenceRegionXpx": [
+        0,
+        250
+      ]
+    },
+    {
+      "indexLeftToRight": 2,
+      "role": "crafter",
+      "costumeReference": "Cream underdress, terracotta potter apron, jar, scraper",
+      "walkerSilhouetteCue": "Apron triangle; pottery jar; rolled sleeves",
+      "suggestedPalette": {
+        "primaryCloth": "#AF563A",
+        "secondaryCloth": "#F0D7B6"
+      },
+      "approxReferenceRegionXpx": [
+        247,
+        463
+      ]
+    },
+    {
+      "indexLeftToRight": 3,
+      "role": "merchant",
+      "costumeReference": "Layered sage-green shawl, cream clothing, leather satchel",
+      "walkerSilhouetteCue": "Cross-body diagonal strap; shoulder wrap; bag",
+      "suggestedPalette": {
+        "primaryCloth": "#697142",
+        "secondaryCloth": "#D6B287"
+      },
+      "approxReferenceRegionXpx": [
+        450,
+        687
+      ]
+    },
+    {
+      "indexLeftToRight": 4,
+      "role": "priest",
+      "costumeReference": "Indigo hood and robe with spiral-geometric trim, cream",
+      "walkerSilhouetteCue": "Vertical robe; hood; broad decorative bands",
+      "suggestedPalette": {
+        "primaryCloth": "#4D566F",
+        "secondaryCloth": "#D8BFA0"
+      },
+      "approxReferenceRegionXpx": [
+        678,
+        904
+      ]
+    },
+    {
+      "indexLeftToRight": 5,
+      "role": "guard",
+      "costumeReference": "Leather shoulder armor, bronze fittings, round shield, spear",
+      "walkerSilhouetteCue": "Strong shield circle; tall spear line; armor block",
+      "suggestedPalette": {
+        "primaryCloth": "#805132",
+        "secondaryCloth": "#B58343"
+      },
+      "approxReferenceRegionXpx": [
+        880,
+        1127
+      ]
+    },
+    {
+      "indexLeftToRight": 6,
+      "role": "leader",
+      "costumeReference": "Terracotta-red cloak, cream robe, bronze jewelry",
+      "walkerSilhouetteCue": "Wide cloak panel; neck brooch; ornate belt",
+      "suggestedPalette": {
+        "primaryCloth": "#A54D38",
+        "secondaryCloth": "#D8AC69"
+      },
+      "approxReferenceRegionXpx": [
+        1110,
+        1345
+      ]
+    },
+    {
+      "indexLeftToRight": 7,
+      "role": "child",
+      "costumeReference": "Short ochre tunic, simple cord tie, sandals",
+      "walkerSilhouetteCue": "Shorter stature; simple tunic; smaller step",
+      "suggestedPalette": {
+        "primaryCloth": "#BB792E",
+        "secondaryCloth": "#E6C29A"
+      },
+      "approxReferenceRegionXpx": [
+        1338,
+        1509
+      ]
+    },
+    {
+      "indexLeftToRight": 8,
+      "role": "elder",
+      "costumeReference": "Sage/olive cloak, cream robe, walking staff",
+      "walkerSilhouetteCue": "Stooped posture; staff line; wrapped cloak",
+      "suggestedPalette": {
+        "primaryCloth": "#6E7453",
+        "secondaryCloth": "#DBC8AA"
+      },
+      "approxReferenceRegionXpx": [
+        1480,
+        1774
+      ]
+    }
+  ],
+  "walkerImplementation": {
+    "renderedBy": "Claude Code, procedurally (not by importing painted figures as sprite animations)",
+    "defaultHeightPx": [
+      16,
+      24
+    ],
+    "walkFrames": 4,
+    "frontViewReference": true,
+    "allowRoleRecolors": true,
+    "allowIndependentSkinTones": true,
+    "skinPalette": [
+      {
+        "name": "light warm",
+        "hex": "#E8C4A4"
+      },
+      {
+        "name": "light tan",
+        "hex": "#DBA879"
+      },
+      {
+        "name": "golden tan",
+        "hex": "#C78D5C"
+      },
+      {
+        "name": "medium brown",
+        "hex": "#AB704C"
+      },
+      {
+        "name": "deep warm brown",
+        "hex": "#835338"
+      },
+      {
+        "name": "dark brown",
+        "hex": "#603B2A"
+      },
+      {
+        "name": "deep brown",
+        "hex": "#432B25"
+      }
+    ],
+    "lifeStageNotes": {
+      "child": "shorter than adults",
+      "elder": "slight stoop and slower movement"
+    },
+    "shapePriorities": [
+      "clear torso colors",
+      "distinctive hat/hood or shoulder silhouette",
+      "simple props that survive at 16–24 px"
+    ],
+    "caution": "Skin-tone palette is for all roles independently; do not assign a skin tone based on job."
+  },
+  "status": "reference artwork generated; accepted game walker system not yet produced",
+  "styleNotes": {
+    "materials": [
+      "woven linen-like cloth",
+      "wool wraps",
+      "leather",
+      "bronze ornaments",
+      "clay pottery",
+      "wicker basket"
+    ],
+    "lighting": "warm upper-left",
+    "religiousDesign": "invented spiral and geometric motifs only",
+    "avoid": [
+      "letters and numbers baked into world sprites",
+      "crosses or specific real-world faith symbols",
+      "modern armor",
+      "modern fabric patterns"
+    ]
+  },
+  "artDoc": "Hearthwork Art Design Document (1).pdf, page 11 people and portraits, page 14 costume sheet, page 15 Phase 1 reference list"
+}

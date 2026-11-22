@@ -7,7 +7,8 @@ import { DREAM_LABEL, JOB_LABEL, TRAIT_LABEL } from '../sim/people';
 import { store } from '../game/store';
 import type { GameState, Person } from '../sim/types';
 import { ageOf, fullName, isBlessed, yearOf } from '../sim/world';
-import { CLOTHES } from '../render/palette';
+import { costumeOf, rolesOf } from '../render/figures';
+import { FamilyMark, Figure } from './Figure';
 import { leaderTitle } from '../sim/society';
 import { ITEM_KIND_LABEL, itemsOf } from '../sim/items';
 import { petsOf } from '../sim/animals';
@@ -32,6 +33,7 @@ export function PeoplePanel() {
     gone: s.people.filter((p) => !p.alive).reverse(),
   };
   const shown = lists[filter].filter(match).slice(0, 300);
+  const roles = rolesOf(s);
   const chip = (f: Filter, label: string) => (
     <button class={`chip${filter === f ? ' on' : ''}`} onClick={() => setFilter(f)}>{label} ({lists[f].length})</button>
   );
@@ -46,7 +48,7 @@ export function PeoplePanel() {
       </div>
       {shown.map((p) => (
         <div class="row" key={p.id} onClick={() => store.setUi({ selection: { kind: 'person', id: p.id } })}>
-          <span class="dot" style={{ background: CLOTHES[p.job] ?? CLOTHES.none }} />
+          <span class="dot" style={{ background: costumeOf(p, ageOf(s, p), roles).main }} />
           <div class="who">
             <b>{p.patron || p.lineage ? '✦ ' : ''}{fullName(p)}</b>
             <span>{status(s, p)}</span>
@@ -89,6 +91,10 @@ export function PersonCard({ id }: { id: number }) {
   return (
     <div class="card paper" role="dialog" aria-label={fullName(p)}>
       <button class="btn small ghost close" onClick={close} aria-label="Close">✕</button>
+      <div class="portrait">
+        <Figure s={s} p={p} />
+        <FamilyMark family={p.family} />
+      </div>
       <h3>{p.patron || p.lineage ? '✦ ' : ''}{fullName(p)}</h3>
       <div class="sub">
         {p.alive ? `${age < 1 ? 'Baby' : `${age}-year-old ${age < 16 ? (p.sex === 'f' ? 'girl' : 'boy') : sex.toLowerCase()}`}` : status(s, p)}
