@@ -1,4 +1,6 @@
-// The villagers, drawn in code after the Bronze Age costume sheet
+// The villagers as drawn in code, after the Bronze Age costume sheet: these stand
+// in until the painted villagers (citizens.ts) have loaded, and supply the skin
+// tones and the costume colours used elsewhere. After the costume sheet
 // (art/_reference/ref_costumes_bronze.png): what each person wears follows
 // their work and standing (the leader's red cloak, a faith-founder's hood, a
 // potter's apron and jar, an elder's cloak and staff), while skin and hair are

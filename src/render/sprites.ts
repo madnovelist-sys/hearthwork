@@ -5,6 +5,7 @@
 import { C, mix, shade } from './palette';
 import type { BuildingKind, Era } from '../sim/types';
 import { addTexture } from './ground';
+import { addCitizenSheet, type Role } from './citizens';
 
 export interface Sprite {
   img: CanvasImageSource;
@@ -79,7 +80,7 @@ export const onArtChange = (fn: () => void) => { listeners.add(fn); return () =>
 const artChanged = () => { for (const fn of listeners) fn(); };
 
 export async function loadManifest(base = './art/'): Promise<void> {
-  let manifest: { sprites: Record<string, ManifestEntry>; textures?: Record<string, string> };
+  let manifest: { sprites: Record<string, ManifestEntry>; textures?: Record<string, string>; people?: Record<string, Record<string, string>> };
   try {
     const res = await fetch(`${base}manifest.json`);
     if (!res.ok) return;
@@ -97,7 +98,9 @@ export async function loadManifest(base = './art/'): Promise<void> {
     } catch { /* missing file: keep the placeholder */ }
   }), ...Object.entries(manifest.textures ?? {}).map(async ([name, file]) => {
     try { addTexture(name, await loadImage(base + file)); } catch { /* the ground stays flat colour */ }
-  })]);
+  }), ...Object.entries(manifest.people ?? {}).flatMap(([role, sizes]) => Object.entries(sizes).map(async ([size, file]) => {
+    try { addCitizenSheet(role as Role, Number(size), await loadImage(base + file)); } catch { /* drawn in code instead */ }
+  }))]);
   artChanged();
 }
 

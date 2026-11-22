@@ -1,6 +1,7 @@
 // A person as they're drawn on the map, a size bigger, with their family's mark: for their card.
 import { useEffect, useRef } from 'preact/hooks';
 import { costumeOf, drawFigure, rolesOf, sizeFor } from '../render/figures';
+import { citizensReady, drawCitizen, roleFor } from '../render/citizens';
 import { hashString } from '../sim/rng';
 import type { GameState, Person } from '../sim/types';
 import { ageOf } from '../sim/world';
@@ -11,7 +12,8 @@ const W = 56, H = 84;
 export function Figure({ s, p }: { s: GameState; p: Person }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const age = ageOf(s, p);
-  const costume = costumeOf(p, age, rolesOf(s));
+  const roles = rolesOf(s);
+  const costume = costumeOf(p, age, roles);
   useEffect(() => {
     const cv = ref.current;
     if (!cv) return;
@@ -20,7 +22,11 @@ export function Figure({ s, p }: { s: GameState; p: Person }) {
     const g = cv.getContext('2d')!;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, W, H);
-    drawFigure(g, W / 2, H - 6, 3.9 * sizeFor(age), p, costume, { frame: 1, facing: 1, moving: false, age });
+    g.imageSmoothingEnabled = true;
+    g.imageSmoothingQuality = 'high';
+    // The painted villager, facing you, standing still; or the drawn one until the art has loaded.
+    const painted = citizensReady() && drawCitizen(g, W / 2, H - 5, 72, dpr, roleFor(p, age, roles), 'down', 1, p.look.skin);
+    if (!painted) drawFigure(g, W / 2, H - 6, 3.9 * sizeFor(age), p, costume, { frame: 1, facing: 1, moving: false, age });
   });
   return <canvas ref={ref} class="figure" style={{ width: `${W}px`, height: `${H}px` }} aria-hidden="true" />;
 }

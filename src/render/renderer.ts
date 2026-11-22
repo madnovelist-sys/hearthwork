@@ -5,6 +5,7 @@ import { seasonIndex, seasonProgress } from '../sim/world';
 import { hashString } from '../sim/rng';
 import { C, GRASS_BY_SEASON, mix, shade } from './palette';
 import { costumeOf, drawFigure, rolesOf, sizeFor } from './figures';
+import { citizensReady, drawCitizen, roleFor } from './citizens';
 import { buildingSprite, graveSprite, hasBuildingArt, onArtChange, realSprite, scaffoldSprite, treeSprite, type Sprite } from './sprites';
 import { Walkers } from './walkers';
 import { fieldsAsleep, indoorShare, snowOnGround } from '../sim/weather';
@@ -762,12 +763,24 @@ export class Renderer {
         g.strokeStyle = C.hearthGold; g.lineWidth = 2;
         g.beginPath(); g.ellipse(c.x, c.y, 7 * k, 3.5 * k, 0, 0, Math.PI * 2); g.stroke();
       }
-      // Four steps to a stride; elders step more slowly.
-      const frame = Math.floor(now / (age >= 60 ? 190 : 135) + d.id * 0.37) % 4;
-      drawFigure(g, c.x, c.y, k, p, costumeOf(p, age, roles), { frame, facing: w.facing, moving: w.moving, age });
+      // The painted villagers: a grown-up about 20 px tall at the usual zoom (the sheet's child is
+      // smaller already; little ones a bit smaller still). Four steps to a stride; elders step slower.
+      const height = tw / 64 * 20 * (age < 8 ? 0.85 : age >= 12 && age < 16 ? 0.92 : 1);
+      let painted = false;
+      if (citizensReady()) {
+        g.fillStyle = 'rgba(62,58,79,0.28)';
+        g.beginPath(); g.ellipse(c.x, c.y, 4.2 * k, 1.9 * k, 0, 0, Math.PI * 2); g.fill();
+        const frame = w.moving ? Math.floor(now / (age >= 60 ? 230 : 170) + d.id * 0.37) % 4 : 1;
+        painted = drawCitizen(g, c.x, c.y, height, this.dpr, roleFor(p, age, roles), w.dir, frame, p.look.skin);
+      }
+      if (!painted) {
+        const frame = Math.floor(now / (age >= 60 ? 190 : 135) + d.id * 0.37) % 4;
+        drawFigure(g, c.x, c.y, k, p, costumeOf(p, age, roles), { frame, facing: w.facing, moving: w.moving, age });
+      }
       if (p.patron || p.lineage) {
         g.fillStyle = C.hearthGold;
-        g.beginPath(); g.arc(c.x, c.y - 19.5 * k, 1.3 * k + 0.5, 0, Math.PI * 2); g.fill();
+        const top = painted ? height * (age < 12 ? 0.92 : 1.12) : 19.5 * k;
+        g.beginPath(); g.arc(c.x, c.y - top, 1.3 * k + 0.5, 0, Math.PI * 2); g.fill();
       }
       g.globalAlpha = 1;
     }

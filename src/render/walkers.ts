@@ -6,6 +6,7 @@ import { doorOf, workSite } from '../sim/planner';
 import { hashString } from '../sim/rng';
 import { TREE, type GameState, type Person } from '../sim/types';
 import { ageOf } from '../sim/world';
+import { dirOf, type Dir } from './citizens';
 
 export interface Walker {
   id: number;
@@ -21,6 +22,8 @@ export interface Walker {
   offY: number;
   speed: number;
   facing: number;
+  /** Which way they're walking on screen (for the painted villagers' front, back and side views). */
+  dir: Dir;
   moving: boolean;
 }
 
@@ -66,7 +69,7 @@ export class Walkers {
           id: p.id, x: door.x + 0.5, y: door.y + 0.5, path: null, seg: 0,
           waitUntil: now + (h % 4000), next: 'work', alpha: 0, inside: true,
           offX: ((h % 100) / 100 - 0.5) * 0.5, offY: (((h >> 8) % 100) / 100 - 0.5) * 0.5,
-          speed: 1.3 + ((h >> 16) % 50) / 100, facing: 1, moving: false,
+          speed: 1.3 + ((h >> 16) % 50) / 100, facing: 1, dir: 'down', moving: false,
         };
         this.list.set(p.id, w);
       }
@@ -98,6 +101,7 @@ export class Walkers {
         const step = speed * dt;
         if (d <= step) { w.x = tx; w.y = ty; w.seg++; } else { w.x += (dx / d) * step; w.y += (dy / d) * step; }
         if (Math.abs(dx - dy) > 0.01) w.facing = dx - dy > 0 ? 1 : -1;
+        w.dir = dirOf(dx, dy, w.dir);
         w.moving = true;
         w.inside = false;
         w.alpha = Math.min(1, w.alpha + dt * 3);

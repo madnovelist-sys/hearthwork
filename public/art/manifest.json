@@ -1029,5 +1029,47 @@
     "soil_plowed": "terrain/ter_soil_plowed.png",
     "water_deep": "terrain/ter_water_deep.png",
     "water_shallow": "terrain/ter_water_shallow.png"
+  },
+  "people": {
+    "child": {
+      "32": "people/32/child_walk.png",
+      "64": "people/64/child_walk.png",
+      "96": "people/96/child_walk.png"
+    },
+    "crafter": {
+      "32": "people/32/crafter_walk.png",
+      "64": "people/64/crafter_walk.png",
+      "96": "people/96/crafter_walk.png"
+    },
+    "elder": {
+      "32": "people/32/elder_walk.png",
+      "64": "people/64/elder_walk.png",
+      "96": "people/96/elder_walk.png"
+    },
+    "farmer": {
+      "32": "people/32/farmer_walk.png",
+      "64": "people/64/farmer_walk.png",
+      "96": "people/96/farmer_walk.png"
+    },
+    "guard": {
+      "32": "people/32/guard_walk.png",
+      "64": "people/64/guard_walk.png",
+      "96": "people/96/guard_walk.png"
+    },
+    "leader": {
+      "32": "people/32/leader_walk.png",
+      "64": "people/64/leader_walk.png",
+      "96": "people/96/leader_walk.png"
+    },
+    "merchant": {
+      "32": "people/32/merchant_walk.png",
+      "64": "people/64/merchant_walk.png",
+      "96": "people/96/merchant_walk.png"
+    },
+    "priest": {
+      "32": "people/32/priest_walk.png",
+      "64": "people/64/priest_walk.png",
+      "96": "people/96/priest_walk.png"
+    }
   }
 }

@@ -1,0 +1,163 @@
+{
+  "project": "Hearthwork",
+  "batch": "Painterly walking citizen sprites \u2014 replacement batch 12",
+  "source": "approved rounded painterly front-character lineup",
+  "directionOrder": [
+    "down",
+    "left",
+    "right",
+    "up"
+  ],
+  "frameCount": 4,
+  "frameDurationMs": 170,
+  "frameSizes": [
+    96,
+    64,
+    32
+  ],
+  "rows": "down,left,right,up",
+  "columns": "4 animation phases, contact A / passing / contact B / passing",
+  "anchors": {
+    "96px": [
+      48,
+      89
+    ],
+    "64px": [
+      32,
+      59
+    ],
+    "32px": [
+      16,
+      29
+    ]
+  },
+  "qualityNotes": [
+    "Front-facing assets come directly from user-approved rounded painterly design.",
+    "Back-facing assets come from a newly painted rear view of the same roles.",
+    "Left/right views are mirrored, compressed three-quarter approximations made from front artwork rather than separate profile paintings.",
+    "Animation uses coherent deformation of painted artwork (body sway, alternating leg stride, subtle arm motion), rather than independently redrawing each frame.",
+    "Best at 32\u201364px or 0.5\u00d7\u20131\u00d7 display sizes; test in the game."
+  ],
+  "roles": {
+    "farmer": {
+      "characterHeightPxAt96": 75,
+      "naturalFrameSize": [
+        96,
+        96
+      ],
+      "role": "farmer",
+      "sources": {
+        "down": "front_approved_lineup",
+        "up": "back_painted_lineup",
+        "left": "front pseudo-profile",
+        "right": "front pseudo-profile"
+      },
+      "spriteSheetPath": "sprites/64px/farmer_walk.png"
+    },
+    "crafter": {
+      "characterHeightPxAt96": 75,
+      "naturalFrameSize": [
+        96,
+        96
+      ],
+      "role": "crafter",
+      "sources": {
+        "down": "front_approved_lineup",
+        "up": "back_painted_lineup",
+        "left": "front pseudo-profile",
+        "right": "front pseudo-profile"
+      },
+      "spriteSheetPath": "sprites/64px/crafter_walk.png"
+    },
+    "merchant": {
+      "characterHeightPxAt96": 75,
+      "naturalFrameSize": [
+        96,
+        96
+      ],
+      "role": "merchant",
+      "sources": {
+        "down": "front_approved_lineup",
+        "up": "back_painted_lineup",
+        "left": "front pseudo-profile",
+        "right": "front pseudo-profile"
+      },
+      "spriteSheetPath": "sprites/64px/merchant_walk.png"
+    },
+    "priest": {
+      "characterHeightPxAt96": 75,
+      "naturalFrameSize": [
+        96,
+        96
+      ],
+      "role": "priest",
+      "sources": {
+        "down": "front_approved_lineup",
+        "up": "back_painted_lineup",
+        "left": "front pseudo-profile",
+        "right": "front pseudo-profile"
+      },
+      "spriteSheetPath": "sprites/64px/priest_walk.png"
+    },
+    "guard": {
+      "characterHeightPxAt96": 80,
+      "naturalFrameSize": [
+        96,
+        96
+      ],
+      "role": "guard",
+      "sources": {
+        "down": "front_approved_lineup",
+        "up": "back_painted_lineup",
+        "left": "front pseudo-profile",
+        "right": "front pseudo-profile"
+      },
+      "spriteSheetPath": "sprites/64px/guard_walk.png"
+    },
+    "leader": {
+      "characterHeightPxAt96": 75,
+      "naturalFrameSize": [
+        96,
+        96
+      ],
+      "role": "leader",
+      "sources": {
+        "down": "front_approved_lineup",
+        "up": "back_painted_lineup",
+        "left": "front pseudo-profile",
+        "right": "front pseudo-profile"
+      },
+      "spriteSheetPath": "sprites/64px/leader_walk.png"
+    },
+    "child": {
+      "characterHeightPxAt96": 61,
+      "naturalFrameSize": [
+        96,
+        96
+      ],
+      "role": "child",
+      "sources": {
+        "down": "front_approved_lineup",
+        "up": "back_painted_lineup",
+        "left": "front pseudo-profile",
+        "right": "front pseudo-profile"
+      },
+      "spriteSheetPath": "sprites/64px/child_walk.png"
+    },
+    "elder": {
+      "characterHeightPxAt96": 74,
+      "naturalFrameSize": [
+        96,
+        96
+      ],
+      "role": "elder",
+      "sources": {
+        "down": "front_approved_lineup",
+        "up": "back_painted_lineup",
+        "left": "front pseudo-profile",
+        "right": "front pseudo-profile"
+      },
+      "spriteSheetPath": "sprites/64px/elder_walk.png"
+    }
+  }
+}

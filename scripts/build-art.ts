@@ -1,6 +1,7 @@
 // Art pipeline: turns ChatGPT images in art/ into game-ready sprites in
 // public/art/, plus a manifest the game reads at startup. Ground textures in
-// art/terrain/ (ter_<surface>.png) are copied as they are.
+// art/terrain/ (ter_<surface>.png) and villagers' walk sheets in art/people/
+// are copied as they are.
 //
 //   npm run art                 build sprites
 //   npm run art -- --check DIR  also write images showing the footprint each
@@ -59,15 +60,34 @@ async function textures(problems: string[]): Promise<Record<string, string>> {
   return out;
 }
 
+/** Villagers (art/people/<frame size>/<role>_walk.png): walk sheets, copied as they are. */
+async function people(): Promise<Record<string, Record<string, string>>> {
+  const dir = path.join(SRC, 'people');
+  const out: Record<string, Record<string, string>> = {};
+  if (!fs.existsSync(dir)) return out;
+  for (const size of fs.readdirSync(dir).filter((d) => /^\d+$/.test(d)).sort()) {
+    fs.mkdirSync(path.join(OUT, 'people', size), { recursive: true });
+    for (const name of fs.readdirSync(path.join(dir, size)).sort()) {
+      const m = name.match(/^([a-z]+)_walk\.png$/);
+      if (!m) continue;
+      await sharp(path.join(dir, size, name)).png({ compressionLevel: 9 }).toFile(path.join(OUT, 'people', size, name));
+      (out[m[1]] ??= {})[size] = `people/${size}/${name}`;
+    }
+  }
+  console.log(`✓ people: ${Object.keys(out).join(', ')}`);
+  return out;
+}
+
 async function build() {
   if (!fs.existsSync(SRC)) { console.log('No art/ folder yet.'); return; }
-  const manifest: { sprites: Record<string, Entry>; textures?: Record<string, string> } = { sprites: {} };
+  const manifest: { sprites: Record<string, Entry>; textures?: Record<string, string>; people?: Record<string, Record<string, string>> } = { sprites: {} };
   const problems: string[] = [];
   if (CHECK) fs.mkdirSync(CHECK, { recursive: true });
   manifest.textures = await textures(problems);
+  manifest.people = await people();
   for (const file of walk(SRC).sort()) {
     const rel = path.relative(SRC, file);
-    if (rel.startsWith(`terrain${path.sep}`)) continue;
+    if (rel.startsWith(`terrain${path.sep}`) || rel.startsWith(`people${path.sep}`)) continue;
     const base = path.basename(file, '.png');
     const m = base.match(NAME);
     if (!m) { problems.push(`${rel}: name doesn't follow kind_subject_era_WxH_vNN[_state].png`); continue; }
