@@ -12,8 +12,14 @@ export interface Walker {
   id: number;
   x: number;
   y: number;
-  path: number[] | null;
+  /** Where they're walking: points anywhere on the map, not tile centres. */
+  path: { x: number; y: number }[] | null;
   seg: number;
+  /** Their velocity, in tiles a second (they turn smoothly rather than snapping). */
+  vx: number;
+  vy: number;
+  /** How far they've walked, in screen px at zoom 1: their steps follow it, so feet don't slide. */
+  stride: number;
   waitUntil: number;
   next: 'work' | 'social' | 'home';
   alpha: number;
@@ -37,6 +43,8 @@ export class Walkers {
   private treeTiles: number[] = [];
   private treesAt = 0;
 
+  private crowd = new Map<number, Walker[]>();
+
   /** How much people keep indoors (0..1, from the weather), and whether the fields lie fallow. */
   indoor = 0;
   fieldsAsleep = false;
@@ -52,6 +60,15 @@ export class Walkers {
       this.gridKey = key;
     }
     if (now - this.treesAt > 10_000) this.collectTrees(s, now);
+
+    // Who's walking where, so people can step around each other.
+    this.crowd.clear();
+    for (const w of this.list.values()) {
+      if (!w.path || w.alpha < 0.3) continue;
+      const k = Math.floor(w.x) * 4096 + Math.floor(w.y);
+      const cell = this.crowd.get(k);
+      if (cell) cell.push(w); else this.crowd.set(k, [w]);
+    }
 
     const seen = new Set<number>();
     let n = 0;
@@ -69,7 +86,7 @@ export class Walkers {
           id: p.id, x: door.x + 0.5, y: door.y + 0.5, path: null, seg: 0,
           waitUntil: now + (h % 4000), next: 'work', alpha: 0, inside: true,
           offX: ((h % 100) / 100 - 0.5) * 0.5, offY: (((h >> 8) % 100) / 100 - 0.5) * 0.5,
-          speed: 1.3 + ((h >> 16) % 50) / 100, facing: 1, dir: 'down', moving: false,
+          speed: 0.75 + ((h >> 16) % 30) / 100, facing: 1, dir: 'down', moving: false, vx: 0, vy: 0, stride: (h >> 3) % 17,
         };
         this.list.set(p.id, w);
       }
@@ -92,22 +109,15 @@ export class Walkers {
 
       w.moving = false;
       if (w.path && w.seg < w.path.length) {
-        const ti = w.path[w.seg];
-        const tx = (ti % s.map.w) + 0.5 + w.offX;
-        const ty = Math.floor(ti / s.map.w) + 0.5 + w.offY;
-        const dx = tx - w.x;
-        const dy = ty - w.y;
-        const d = Math.hypot(dx, dy);
-        const step = speed * dt;
-        if (d <= step) { w.x = tx; w.y = ty; w.seg++; } else { w.x += (dx / d) * step; w.y += (dy / d) * step; }
-        if (Math.abs(dx - dy) > 0.01) w.facing = dx - dy > 0 ? 1 : -1;
-        w.dir = dirOf(dx, dy, w.dir);
-        w.moving = true;
-        w.inside = false;
-        w.alpha = Math.min(1, w.alpha + dt * 3);
-        if (w.seg >= w.path.length) arrive();
+        if (this.walk(s, w, speed, dt)) arrive();
+        else {
+          w.moving = true;
+          w.inside = false;
+          w.alpha = Math.min(1, w.alpha + dt * 3);
+        }
         continue;
       }
+      w.vx = 0; w.vy = 0;
       if (w.inside) w.alpha = Math.max(0, w.alpha - dt * 2.5);
       else w.alpha = Math.min(1, w.alpha + dt * 3);
       if (now < w.waitUntil || stayIn) continue;
@@ -149,6 +159,7 @@ export class Walkers {
       w.path = null;
       w.seg = 0;
       w.moving = false;
+      w.vx = 0; w.vy = 0;
       if (at) {
         w.x = at.x + 0.5 + w.offX; w.y = at.y + 0.5 + w.offY;
         w.inside = false; w.alpha = 1;
@@ -173,13 +184,135 @@ export class Walkers {
     const fx = Math.floor(w.x);
     const fy = Math.floor(w.y);
     if (fx === to.x && fy === to.y) return false;
-    const path = findPath(s.map, s.buildings, fx, fy, to.x, to.y, 2500, this.grid ?? undefined);
-    if (!path || path.length < 2) return false;
-    w.path = path;
-    w.seg = 1;
+    const tiles = findPath(s.map, s.buildings, fx, fy, to.x, to.y, 2500, this.grid ?? undefined);
+    if (!tiles || tiles.length < 2) return false;
+    w.path = this.route(s, w, tiles);
+    w.seg = 0;
     w.waitUntil = now;
     w.inside = false;
     return true;
+  }
+
+  /**
+   * Turn a path of tiles into a walk: from where they stand, in straight lines at any angle,
+   * taking a shortcut wherever it's clear of buildings and water and costs no more than the way
+   * round (so worn paths and roads still draw people onto them), ending a little off the
+   * destination's centre (everyone has their own spot).
+   */
+  private route(s: GameState, w: Walker, tiles: number[]): { x: number; y: number }[] {
+    const mw = s.map.w;
+    const goal = tiles[tiles.length - 1];
+    const pts = tiles.map((ti, k) => {
+      const cx = (ti % mw) + 0.5, cy = Math.floor(ti / mw) + 0.5;
+      // Each walker keeps a little to one side of the way (where there's room).
+      const lane = k === 0 ? null : { x: cx + w.offX * 0.7, y: cy + w.offY * 0.7 };
+      return lane && this.open(s, lane.x, lane.y, goal) ? lane : { x: cx, y: cy };
+    });
+    pts[0] = { x: w.x, y: w.y };
+    // The cost of walking the tile path up to each point.
+    const cum = [0];
+    for (let k = 1; k < tiles.length; k++) {
+      const step = Math.hypot(pts[k].x - pts[k - 1].x, pts[k].y - pts[k - 1].y);
+      cum.push(cum[k - 1] + step * this.costAt(tiles[k], goal));
+    }
+    // From each corner, reach as far along the way as a straight line allows (a few points at
+    // most, which keeps it cheap when everyone sets out at once).
+    const out = [pts[0]];
+    let i = 0;
+    while (i < pts.length - 1) {
+      let j = i + 1;
+      while (j + 1 < pts.length && j + 1 - i <= 8
+        && this.clear(s, pts[i], pts[j + 1], goal)
+        && this.lineCost(s, pts[i], pts[j + 1], goal) <= (cum[j + 1] - cum[i]) * 1.06 + 0.05) j++;
+      out.push(pts[j]);
+      i = j;
+    }
+    return out.slice(1);
+  }
+
+  private costAt(ti: number, goal: number): number {
+    if (ti === goal) return 1;
+    const c = this.grid?.[ti] ?? 1;
+    return isFinite(c) ? c : 50;
+  }
+
+  /** A spot someone can stand on: open ground (or the tile they're heading for). */
+  private open(s: GameState, x: number, y: number, goal: number): boolean {
+    const tx = Math.floor(x), ty = Math.floor(y);
+    if (tx < 0 || ty < 0 || tx >= s.map.w || ty >= s.map.h) return false;
+    const i = ty * s.map.w + tx;
+    return i === goal || isFinite(this.grid?.[i] ?? 1);
+  }
+
+  /** A straight walk from a to b that keeps clear of buildings, walls and water. */
+  private clear(s: GameState, a: { x: number; y: number }, b: { x: number; y: number }, goal: number): boolean {
+    const d = Math.hypot(b.x - a.x, b.y - a.y);
+    const n = Math.ceil(d / 0.25);
+    const px = -(b.y - a.y) / (d || 1) * 0.22, py = (b.x - a.x) / (d || 1) * 0.22;
+    for (let k = 1; k <= n; k++) {
+      const x = a.x + ((b.x - a.x) * k) / n, y = a.y + ((b.y - a.y) * k) / n;
+      if (!this.open(s, x + px, y + py, goal) || !this.open(s, x - px, y - py, goal)) return false;
+    }
+    return true;
+  }
+
+  private lineCost(s: GameState, a: { x: number; y: number }, b: { x: number; y: number }, goal: number): number {
+    const d = Math.hypot(b.x - a.x, b.y - a.y);
+    const n = Math.max(1, Math.ceil(d / 0.25));
+    let sum = 0;
+    for (let k = 0; k < n; k++) {
+      const x = a.x + ((b.x - a.x) * (k + 0.5)) / n, y = a.y + ((b.y - a.y) * (k + 0.5)) / n;
+      sum += this.costAt(Math.floor(y) * s.map.w + Math.floor(x), goal);
+    }
+    return (sum * d) / n;
+  }
+
+  /**
+   * A step along the walk: steer toward the next point (turning smoothly, easing in at the end),
+   * step around anyone close by, and never onto a building or into the water. Returns true on
+   * arriving.
+   */
+  private walk(s: GameState, w: Walker, speed: number, dt: number): boolean {
+    const path = w.path!;
+    let wp = path[w.seg];
+    let dx = wp.x - w.x, dy = wp.y - w.y;
+    let d = Math.hypot(dx, dy);
+    const last = w.seg === path.length - 1;
+    // Round the corners: move on to the next point a little before reaching this one.
+    if (!last && d < 0.35) { w.seg++; wp = path[w.seg]; dx = wp.x - w.x; dy = wp.y - w.y; d = Math.hypot(dx, dy); }
+    if (w.seg === path.length - 1 && d < 0.06) { w.x = wp.x; w.y = wp.y; w.seg = path.length; w.vx = 0; w.vy = 0; return true; }
+    const goal = Math.floor(path[path.length - 1].y) * s.map.w + Math.floor(path[path.length - 1].x);
+    const ease = w.seg === path.length - 1 ? Math.min(1, 0.35 + d / 0.6) : 1;
+    let ux = (dx / d) * speed * ease, uy = (dy / d) * speed * ease;
+    // Step around people close by.
+    const cx = Math.floor(w.x), cy = Math.floor(w.y);
+    for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++) {
+      for (const o of this.crowd.get((cx + ox) * 4096 + cy + oy) ?? []) {
+        if (o === w) continue;
+        const ex = w.x - o.x, ey = w.y - o.y;
+        const e = Math.hypot(ex, ey);
+        if (e > 0.32 || e < 1e-4) continue;
+        const push = (1 - e / 0.32) * 0.7;
+        ux += (ex / e) * push; uy += (ey / e) * push;
+      }
+    }
+    const turn = Math.min(1, dt * 7);
+    w.vx += (ux - w.vx) * turn;
+    w.vy += (uy - w.vy) * turn;
+    let nx = w.x + w.vx * dt, ny = w.y + w.vy * dt;
+    if (!this.open(s, nx, ny, goal)) {
+      // Slide along whatever's in the way, or else head straight for the next point.
+      if (this.open(s, nx, w.y, goal)) ny = w.y;
+      else if (this.open(s, w.x, ny, goal)) nx = w.x;
+      else { nx = w.x + (dx / d) * speed * dt; ny = w.y + (dy / d) * speed * dt; }
+    }
+    const mx = nx - w.x, my = ny - w.y;
+    w.x = nx; w.y = ny;
+    // Steps follow the ground covered on screen (a stride is about 17 px at zoom 1).
+    w.stride += Math.hypot((mx - my) * 32, (mx + my) * 16);
+    if (Math.abs(mx - my) > 1e-4) w.facing = mx - my > 0 ? 1 : -1;
+    w.dir = dirOf(w.vx, w.vy, w.dir);
+    return false;
   }
 
   /** Whose work takes them outside whatever the weather. */

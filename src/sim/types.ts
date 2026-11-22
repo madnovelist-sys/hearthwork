@@ -56,6 +56,9 @@ export interface Person {
   dreamMet?: boolean;
   origin: Origin;
   backstory?: string;
+  /** The homeland they (or their family) came from, and the ways they keep. */
+  land?: number;
+  customs?: string[];
   /** Created by the player through the Create a Settler act. */
   patron?: boolean;
   /** Descended from a player-created settler. */
@@ -193,6 +196,8 @@ export interface PersonDraft {
   spouseOf?: number;
   /** Indexes of their parents within the same party. */
   parentsIdx?: number[];
+  land?: number;
+  customs?: string[];
 }
 
 export interface Party {
@@ -204,6 +209,19 @@ export interface Party {
   /** Someone called with Sparks: which story they carry, and its title. */
   call?: string;
   title?: string;
+  /** Where they come from. */
+  land?: number;
+}
+
+export interface Homeland { id: number; name: string; customs: string[]; dead?: 'burial' | 'cremation' | 'sky' | 'tomb' | 'river' }
+export interface Culture {
+  lands: Homeland[];
+  /** The town's own ways, and where they came from. */
+  kept: { id: string; since: number; land?: number; by?: number }[];
+  /** A way the player is encouraging (or discouraging), until a day. */
+  nudge?: { id: string; until: number; up: boolean };
+  /** The founders' homeland. */
+  home?: number;
 }
 
 export type PendingAct =
@@ -380,7 +398,6 @@ export interface SessionRecord {
   toDay: number;
   firstEntry: number;
   sparks: number;
-  favor: number;
 }
 
 export interface RunningSession {
@@ -391,7 +408,6 @@ export interface RunningSession {
   fromDay: number;
   firstEntry: number;
   sparks: number;
-  favor: number;
 }
 
 export interface Focus {
@@ -439,9 +455,12 @@ export interface GameState {
   yearNames: Record<number, string>;
   playerNamedYears: Record<number, boolean>;
   stores: { food: number; wood: number; goods: number };
-  favor: number;
-  /** Sparks earned and not yet spent: spend them to call someone. */
+  /** Favor, from before Sparks were the only currency (kept only to convert old saves). */
+  favor?: number;
+  /** Sparks earned and not yet spent: on calling someone, or on Acts. */
   sparks: number;
+  /** Where its people came from, and the ways they brought. */
+  culture?: Culture;
   /** The three people who could be called, until one is. */
   calling?: Party[];
   /** Older saves: groups of travelers that used to wait at the gate after each Spark. */

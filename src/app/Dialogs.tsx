@@ -33,8 +33,7 @@ export function SessionEnd() {
         <h2 id="end-title">The sun sets on {s.name}</h2>
         <p class="lead">You worked {minutes(rec.ms)}. {years >= 0.95 ? `${Math.round(years * 10) / 10} years` : `${Math.round(years * 4)} season${Math.round(years * 4) === 1 ? '' : 's'}`} passed in the city.</p>
         <div class="summary">
-          <div class="stat"><b>{rec.sparks}</b><span>Sparks</span></div>
-          <div class="stat favor"><b>✦ {rec.favor}</b><span>Favor earned</span></div>
+          <div class="stat spark"><b>✧ {rec.sparks}</b><span>Sparks earned</span></div>
           <div class="stat"><b>{count('birth')}</b><span>Births</span></div>
           <div class="stat"><b>{count('wedding')}</b><span>Weddings</span></div>
           <div class="stat"><b>{count('death')}</b><span>Deaths</span></div>

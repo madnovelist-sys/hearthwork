@@ -12,7 +12,8 @@ import { fieldsAsleep, indoorShare, snowOnGround } from '../sim/weather';
 import { Fauna, drawAnimal, drawBirds } from './fauna';
 import { drawAnimalArt } from './animal-art';
 import { groundReady, surface, type Surface } from './ground';
-import { DECOR_KEY, Decor } from './decor';
+import { DECOR, DECOR_KEY, Decor } from './decor';
+import { sway, windStrength } from './wind';
 import type { Selection } from '../game/store';
 
 const BASE_TW = 64; // tile width in CSS px at zoom 1
@@ -23,19 +24,29 @@ interface Puff { x: number; y: number; z: number; age: number; life: number; dri
 interface Flake { x: number; y: number; speed: number; sway: number }
 
 type Drawable =
-  | { depth: number; kind: 'sprite'; sprite: Sprite; gx: number; gy: number; b?: Building; alpha?: number; fit?: number; flip?: boolean }
+  | { depth: number; kind: 'sprite'; sprite: Sprite; gx: number; gy: number; b?: Building; alpha?: number; fit?: number; flip?: boolean; bend?: number }
   | { depth: number; kind: 'wall'; x: number; y: number }
   | { depth: number; kind: 'deck'; x: number; y: number; alongX: boolean }
   | { depth: number; kind: 'walker'; id: number }
   | { depth: number; kind: 'animal'; key: string };
 
 const BARLEY = 'nat_barley_any_2x2';
+/** Grass tufts by season: [shaded blades, lit blades]. */
+const GRASS_TUFT: [string, string][] = [['#5E8A3A', '#8DB65A'], ['#557F36', '#86AD4F'], ['#8A6E33', '#B8964A'], ['#6E7350', '#959A72']];
+
+/** How far each kind of tree or plant leans in a full gust (a shear: top shift / height). */
+const TREE_BEND: Record<number, number> = { [TREE.BROADLEAF]: 0.04, [TREE.PINE]: 0.025, [TREE.FRUIT]: 0.035, [TREE.BUSH]: 0.06 };
+const DECOR_BEND: Record<number, number> = { [DECOR.FLOWERS]: 0.09, [DECOR.REEDS]: 0.11 };
 
 /** The kinds of ground, and which is painted over which where they meet (higher over lower). */
 const KIND_OF: Record<number, string> = {
   [TERRAIN.GRASS]: 'grass', [TERRAIN.SAND]: 'sand', [TERRAIN.ROCK]: 'rock', [TERRAIN.WATER]: 'shallow',
   [TERRAIN.DEEP]: 'deep', [TERRAIN.MARSH]: 'marsh', [TERRAIN.PLAZA]: 'plaza', [TERRAIN.BRIDGE]: 'shallow',
 };
+/** How far from its centre each kind of ground reaches at its edge (half a tile is its own square). */
+const BLOB: Record<string, number> = { shallow: 0.62, deep: 0.6, sand: 0.58, rock: 0.56, marsh: 0.58 };
+/** Deep water lies within the shallows: for the shallows' edge, both are the same water. */
+const sameBody = (own: string, other: string) => other === own || (own === 'shallow' && other === 'deep');
 const RANK: Record<string, number> = { grass: 0, plaza: 0, marsh: 1, rock: 2, sand: 3, shallow: 4, deep: 5 };
 /** Each corner of a tile: its two side neighbours and the one across, as (dx, dy) pairs. */
 const CORNERS: [number, number, number, number, number, number][] = [
@@ -85,6 +96,10 @@ export class Renderer {
     this.resize();
     onArtChange(() => { this.groundKey = ''; });
   }
+
+  /** Sparks flying up from the hearth (positions in px at zoom 1 from the fire). */
+  private embers: { x: number; y: number; vx: number; vy: number; life: number; max: number }[] = [];
+  private sparkAcc = 0;
 
   /** Resting, after dark: the hearth is banked to embers. */
   private banked = false;
@@ -205,7 +220,8 @@ export class Renderer {
     if (textured) this.drawGroundCached(s, season, blend, snowy ? 0.55 + cover * 0.45 : 0, now);
     else this.drawTerrain(s, grass, winter, now);
     this.drawFields(s, season, blend, textured);
-    this.collect(s, treeSeason, winter, selection);
+    windStrength(s, realDt);
+    this.collect(s, treeSeason, winter, now);
     this.drawObjects(s, now, selection);
     this.drawHearthFire(s, now, running);
     this.updateSmoke(s, now, dt, running);
@@ -400,7 +416,71 @@ export class Renderer {
     // Only the part that's on screen.
     const d = this.dpr;
     this.g.drawImage(c, (M - dx) * d, (M - dy) * d, this.w * d, this.h * d, 0, 0, this.w, this.h);
+    this.drawWater(dx - M, dy - M, now);
     this.drawGlints(s, this.visibleRange(s), now, snow > 0 || !!s.weather?.ice);
+    this.drawGrass(s, season, now);
+  }
+
+  /** Water shapes and open grass from the last ground painting (in its coordinates). */
+  private waterShapes: { shallow: Path2D; deep: Path2D } | null = null;
+  private grassTiles: number[] = [];
+
+  /**
+   * The water moves: the same water, twice more, drifting slowly two ways over itself, so its
+   * light and ripples shift like a river's surface. (Not when it's frozen.)
+   */
+  private drawWater(ox: number, oy: number, now: number) {
+    const shapes = this.waterShapes;
+    if (!shapes) return;
+    const g = this.g;
+    const t = now / 1000;
+    const origin = { x: this.groundAt.x + Math.round(Math.max(this.w, this.h) * 0.25), y: this.groundAt.y + Math.round(Math.max(this.w, this.h) * 0.25) };
+    const k = this.tw / 64;
+    g.save();
+    g.translate(ox, oy);
+    for (const [name, path, layers] of [
+      ['water_shallow', shapes.shallow, [[9, 4, 0.45], [-6, 3, 0.3]]],
+      ['water_deep', shapes.deep, [[6, 3, 0.4], [-4, 2, 0.25]]],
+    ] as const) {
+      for (const [vx, vy, alpha] of layers) {
+        const pat = surface(g, name, this.tw, this.dpr, origin.x + vx * t * k, origin.y + vy * t * k);
+        if (!pat) continue;
+        g.globalAlpha = alpha;
+        g.fillStyle = pat;
+        g.fill(path);
+      }
+    }
+    g.restore();
+    g.globalAlpha = 1;
+  }
+
+  /** Tufts of grass on the open meadow, bending as the gusts go over (close enough to see). */
+  private drawGrass(s: GameState, season: number, now: number) {
+    const tw = this.tw;
+    if (tw < 34 || !this.grassTiles.length) return;
+    const g = this.g;
+    const { map } = s;
+    const len = tw * 0.075;
+    const dark = new Path2D(), light = new Path2D();
+    for (const i of this.grassTiles) {
+      const x = i % map.w, y = (i / map.w) | 0;
+      const n = ((x * 2654435761) ^ (y * 40503)) >>> 0;
+      const c = this.toScreen(x + 0.2 + ((n >>> 4) % 60) / 100, y + 0.2 + ((n >>> 11) % 60) / 100);
+      if (c.x < -10 || c.x > this.w + 10 || c.y < -10 || c.y > this.h + 10) continue;
+      const lean = sway(x, y, now, ((n >>> 20) % 100) / 100) * len * 0.9;
+      for (let b = -1; b <= 1; b++) {
+        const p = b === 0 ? light : dark;
+        const bx = c.x + b * len * 0.35, l = len * (b === 0 ? 1.15 : 0.85);
+        p.moveTo(bx, c.y);
+        p.quadraticCurveTo(bx + b * len * 0.15, c.y - l * 0.6, bx + b * len * 0.25 + lean, c.y - l);
+      }
+    }
+    const col = GRASS_TUFT[season];
+    g.lineWidth = Math.max(0.8, tw / 70);
+    g.lineCap = 'round';
+    g.strokeStyle = col[0]; g.stroke(dark);
+    g.strokeStyle = col[1]; g.stroke(light);
+    g.lineCap = 'butt';
   }
 
   /**
@@ -430,6 +510,33 @@ export class Renderer {
         const wet = t === TERRAIN.WATER || t === TERRAIN.DEEP || t === TERRAIN.BRIDGE;
         const own = KIND_OF[t] ?? 'grass';
         add(own, c.x, c.y);
+        // Every edge between kinds of ground sweeps in gentle curves instead of stepping: each tile
+        // on the edge of a stretch of water, sand, rock or marsh adds a broad round patch, set back
+        // toward the middle of the stretch, reaching a little (and a little more or less, as the
+        // shore wanders) past its own square.
+        const reach = BLOB[own];
+        if (reach) {
+          let ix = 0, iy = 0, edge = false;
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+            if (!dx && !dy) continue;
+            const k = kindAt(map, x + dx, y + dy);
+            if (k === undefined) continue;
+            if (sameBody(own, k)) { ix += dx; iy += dy; } else edge = true;
+          }
+          if (edge) {
+            const len = Math.hypot(ix, iy);
+            const R = len ? 1.35 : reach;
+            const wander = Math.sin(x * 0.71 + y * 0.29) * 0.06 + Math.sin(x * 0.23 - y * 0.61 + 2) * 0.06;
+            const back = len ? R - (reach + wander) : 0;
+            const gx = x + 0.5 + (len ? (ix / len) * back : 0), gy = y + 0.5 + (len ? (iy / len) * back : 0);
+            const cc = this.toScreen(gx, gy);
+            const rx = Math.SQRT2 * (tw / 2) * R;
+            let p = shapes.get(`blob:${own}`);
+            if (!p) { p = new Path2D(); shapes.set(`blob:${own}`, p); }
+            p.moveTo(cc.x + rx, cc.y);
+            p.ellipse(cc.x, cc.y, rx, rx / 2, 0, 0, Math.PI * 2);
+          }
+        }
         // Smooth the staircase where two kinds of ground meet: a corner closed in on both sides
         // (and across) by a kind painted over this one is filled with it, along the tile's diagonal.
         if (!map.occ[i] || wet) {
@@ -443,8 +550,18 @@ export class Renderer {
         if (t === TERRAIN.GRASS && map.fertility[i] > 0.6) add('rich', c.x, c.y);
         const wear = map.wear[i];
         const worn = wear > 0.7 && t !== TERRAIN.PLAZA ? Math.min(4, Math.round(wear)) : 0;
-        if (worn) add(`worn${worn}`, c.x, c.y);
-        if (snow) add(t === TERRAIN.PLAZA ? 'snowPlaza' : worn >= 2 ? 'snowWorn' : 'snow', c.x, c.y);
+        if (worn) {
+          // Paths are trodden into soft, wandering tracks, not squares: each worn tile adds a
+          // rounded patch a little off its centre, which run together along the way people go.
+          const n = ((x * 2654435761) ^ (y * 2246822519)) >>> 0;
+          const jx = (((n >>> 3) % 100) / 100 - 0.5) * 0.24 * tw, jy = (((n >>> 10) % 100) / 100 - 0.5) * 0.12 * tw;
+          const rx = hw * (0.7 + 0.07 * worn + ((n >>> 17) % 100) / 1000);
+          let p = shapes.get(`worn${worn}`);
+          if (!p) { p = new Path2D(); shapes.set(`worn${worn}`, p); }
+          p.moveTo(c.x + jx + rx, c.y + jy);
+          p.ellipse(c.x + jx, c.y + jy, rx, rx / 2, 0, 0, Math.PI * 2);
+        }
+        if (snow) add(t === TERRAIN.PLAZA ? 'snowPlaza' : 'snow', c.x, c.y);
       }
     }
     const ox = this.toScreen(0, 0);
@@ -473,15 +590,60 @@ export class Renderer {
     // Paths worn into the ground, deeper the more they're walked.
     // Land smoothing into land goes under the paths and the snow; water into land goes over them.
     fill('edge:sand', 'sand'); fill('edge:rock', 'rock'); fill('edge:marsh', 'marsh');
+    fill('blob:marsh', 'marsh'); fill('blob:rock', 'rock'); fill('blob:sand', 'sand');
     for (let k = 1; k <= 4; k++) fill(`worn${k}`, 'dirt', k / 4.6);
     // Snow lies over everything but the water; trodden paths show through it.
     if (snow) {
       fill('snow', 'grass_snow', snow);
-      fill('snowWorn', 'grass_snow', snow * 0.55);
+      for (let k = 2; k <= 4; k++) fill(`worn${k}`, 'dirt', (k / 4.6) * 0.45);
       fill('snowPlaza', 'grass_snow', 0.4);
     }
     fill('edge:shallow', ice ? 'ice_shallow' : 'water_shallow');
+    fill('blob:shallow', ice ? 'ice_shallow' : 'water_shallow');
     fill('edge:deep', ice ? 'ice_deep' : 'water_deep');
+    fill('blob:deep', ice ? 'ice_deep' : 'water_deep');
+    // Kept for the moving water, drawn over this every frame.
+    const water = (keys: string[]) => {
+      const p = new Path2D();
+      for (const k of keys) { const q = shapes.get(k); if (q) p.addPath(q); }
+      return p;
+    };
+    this.waterShapes = ice ? null : { shallow: water(['shallow', 'edge:shallow', 'blob:shallow']), deep: water(['deep', 'edge:deep', 'blob:deep']) };
+    // And the open grass, where tufts move in the wind.
+    this.grassTiles = [];
+    if (!snow && tw >= 34) {
+      for (let y = r.y0; y <= r.y1; y++) for (let x = r.x0; x <= r.x1; x++) {
+        const i = y * map.w + x;
+        if (map.terrain[i] !== TERRAIN.GRASS || map.occ[i] || map.trees[i] || map.wear[i] > 0.6 || map.walls?.[i]) continue;
+        const n = ((x * 73856093) ^ (y * 19349663)) >>> 0;
+        if (n % 3) continue;
+        this.grassTiles.push(i);
+      }
+    }
+  }
+
+  /**
+   * Where someone standing at (x, y) falls in the drawing order. A building is drawn in order of
+   * its front corner, which would put someone walking along its east or south side behind it (and
+   * looking as if they walked through the wall): anyone beside a building on those sides is drawn
+   * after it.
+   */
+  private standingDepth(s: GameState, x: number, y: number, bias: number): number {
+    let depth = x + y + bias;
+    const { map } = s;
+    const tx = Math.floor(x), ty = Math.floor(y);
+    for (const [ox, oy] of [[-1, 0], [0, -1], [-1, -1], [-2, 0], [0, -2]]) {
+      const bx = tx + ox, by = ty + oy;
+      if (bx < 0 || by < 0 || bx >= map.w || by >= map.h) continue;
+      const occ = map.occ[by * map.w + bx];
+      if (!occ) continue;
+      const b = s.buildings[occ - 1];
+      if (!b || b.removed || b.kind === 'field' || b.kind === 'bridge' || b.kind === 'graveyard' || b.kind === 'pen') continue;
+      // Only if they're beside it (east or south of it, not behind it).
+      if (x < b.x + b.w && y < b.y + b.h) continue;
+      depth = Math.max(depth, b.x + b.w + b.y + b.h + 0.05);
+    }
+    return depth;
   }
 
   /** Half a tile, cut along its diagonal: the half nearest the corner at (x + cx/2 + 0.5, y + cy/2 + 0.5). */
@@ -563,7 +725,7 @@ export class Renderer {
     }
   }
 
-  private collect(s: GameState, season: number, winter: boolean, _selection: Selection) {
+  private collect(s: GameState, season: number, winter: boolean, now: number) {
     const list: Drawable[] = [];
     const r = this.visibleRange(s);
     const { map } = s;
@@ -572,11 +734,15 @@ export class Renderer {
         const i = y * map.w + x;
         const t = map.trees[i];
         if (t === TREE.NONE) continue;
-        const v = hashString(`${x},${y}`) % 3;
+        const h = hashString(`${x},${y}`);
+        const v = h % 3;
+        // Trees stand anywhere in their patch of ground, not on a grid.
+        const ox = (((h >>> 4) % 100) / 100 - 0.5) * 0.5, oy = (((h >>> 11) % 100) / 100 - 0.5) * 0.5;
         // Saplings are drawn small and grow over the years.
         const g = map.growth?.[i] ?? 1;
         const fit = t !== TREE.STUMP && g < 1 ? 0.3 + 0.7 * g : undefined;
-        list.push({ depth: x + y + 2, kind: 'sprite', sprite: treeSprite(t, winter ? 3 : season, v), gx: x + 1, gy: y + 1, fit });
+        const bend = (TREE_BEND[t] ?? 0) * (fit ? 1.6 - fit * 0.6 : 1) * sway(x, y, now, ((h >>> 18) % 100) / 100);
+        list.push({ depth: x + y + 2 + ox + oy, kind: 'sprite', sprite: treeSprite(t, winter ? 3 : season, v), gx: x + 1 + ox, gy: y + 1 + oy, fit, bend });
       }
     }
     // Low plants, rocks and logs: the day's scenery.
@@ -586,7 +752,8 @@ export class Renderer {
       const sprite = realSprite(DECOR_KEY[d.kind], d.variant, ['spring', undefined, 'autumn', 'winter'][winter ? 3 : season]);
       if (!sprite) continue;
       const gx = d.x + 1 + d.dx, gy = d.y + 1 + d.dy;
-      list.push({ depth: gx + gy, kind: 'sprite', sprite, gx, gy, flip: d.flip });
+      const bend = (DECOR_BEND[d.kind] ?? 0) * sway(d.x, d.y, now, d.dx + 0.5);
+      list.push({ depth: gx + gy, kind: 'sprite', sprite, gx, gy, flip: d.flip, bend });
     }
     const snowy = snowOnGround(s);
     for (const b of s.buildings) {
@@ -595,7 +762,9 @@ export class Renderer {
         // Barley, at whatever stage the year has it (fields being dug are drawn with the ground).
         const sprite = b.built ? realSprite(BARLEY, 0, barleyState(s, b, snowy)) : undefined;
         if (sprite && b.x + b.w >= r.x0 && b.x <= r.x1 + 1 && b.y + b.h >= r.y0 && b.y <= r.y1 + 1) {
-          list.push({ depth: b.x + b.y + 0.5, kind: 'sprite', sprite, gx: b.x + b.w, gy: b.y + b.h, b });
+          // Standing barley ripples in the wind; stubble and bare earth don't.
+          const tall = sprite === realSprite(BARLEY, 0, 'growing') || sprite === realSprite(BARLEY, 0, 'ripe');
+          list.push({ depth: b.x + b.y + 0.5, kind: 'sprite', sprite, gx: b.x + b.w, gy: b.y + b.h, b, bend: tall ? 0.035 * sway(b.x + 1, b.y + 1, now, 0.3) : 0 });
         }
         continue;
       }
@@ -629,38 +798,39 @@ export class Renderer {
     }
     for (const w of this.walkers.list.values()) {
       if (w.alpha <= 0.02) continue;
-      list.push({ depth: w.x + w.y + 0.5, kind: 'walker', id: w.id });
+      list.push({ depth: this.standingDepth(s, w.x, w.y, 0.5), kind: 'walker', id: w.id });
     }
     for (const a of this.fauna.list.values()) {
       if (!a.visible) continue;
-      list.push({ depth: a.x + a.y + 0.45, kind: 'animal', key: a.key });
+      list.push({ depth: this.standingDepth(s, a.x, a.y, 0.45), kind: 'animal', key: a.key });
     }
     list.sort((a, b) => a.depth - b.depth);
     this.drawn = list;
   }
 
-  private drawSprite(sp: Sprite, gx: number, gy: number, alpha = 1, fit = 1, flip = false) {
+  private drawSprite(sp: Sprite, gx: number, gy: number, alpha = 1, fit = 1, flip = false, bend = 0) {
     const scale = (this.tw / sp.tilePx) * fit;
     const a = this.toScreen(gx, gy);
-    // Mirrored (for variety in plants and rocks) about the anchor.
-    const x = flip ? a.x - (sp.w - sp.ax) * scale : a.x - sp.ax * scale;
-    const y = a.y - sp.ay * scale;
     const w = sp.w * scale;
     const h = sp.h * scale;
-    if (x > this.w || y > this.h || x + w < 0 || y + h < 0) return;
+    const left = -sp.ax * scale, top = -sp.ay * scale;
+    if (a.x - w > this.w || a.y + top > this.h || a.x + w < 0 || a.y + top + h < 0) return;
     const g = this.g;
     if (alpha < 1) g.globalAlpha = alpha;
     // Always drawn at the exact size and place for this zoom (the pre-shrunk copy is within 3%
     // of it), so buildings stay planted on their tiles while zooming instead of shifting a little
-    // each time the zoom crosses one of the pre-shrunk sizes.
-    if (flip) {
+    // each time the zoom crosses one of the pre-shrunk sizes. Plants lean with the wind (sheared
+    // about their base, so their roots stay put) and some are mirrored, about their anchor.
+    const img = this.prescaled(sp, scale);
+    if (flip || bend) {
       g.save();
-      g.translate(x + w, y);
-      g.scale(-1, 1);
-      g.drawImage(this.prescaled(sp, scale), 0, 0, w, h);
+      g.translate(a.x, a.y);
+      if (bend) g.transform(1, 0, -bend, 1, 0, 0);
+      if (flip) g.scale(-1, 1);
+      g.drawImage(img, left, top, w, h);
       g.restore();
     } else {
-      g.drawImage(this.prescaled(sp, scale), x, y, w, h);
+      g.drawImage(img, a.x + left, a.y + top, w, h);
     }
     if (alpha < 1) g.globalAlpha = 1;
   }
@@ -739,7 +909,7 @@ export class Renderer {
           // A charred shell.
           this.drawSprite(this.charred(d.sprite), d.gx, d.gy, d.alpha, d.fit);
         } else {
-          this.drawSprite(d.sprite, d.gx, d.gy, d.alpha, d.fit, d.flip);
+          this.drawSprite(d.sprite, d.gx, d.gy, d.alpha, d.fit, d.flip, d.bend);
         }
         if (d.b?.burning !== undefined) this.drawFlames(d.b, now);
         continue;
@@ -771,7 +941,8 @@ export class Renderer {
       if (citizensReady()) {
         g.fillStyle = 'rgba(62,58,79,0.28)';
         g.beginPath(); g.ellipse(c.x, c.y, 4.2 * k, 1.9 * k, 0, 0, Math.PI * 2); g.fill();
-        const frame = w.moving ? Math.floor(now / (age >= 60 ? 230 : 170) + d.id * 0.37) % 4 : 1;
+        // A step for every few pixels walked, so the feet keep pace with the ground.
+        const frame = w.moving ? Math.floor(w.stride / 4.3) % 4 : 1;
         painted = drawCitizen(g, c.x, c.y, height, this.dpr, roleFor(p, age, roles), w.dir, frame, p.look.skin);
       }
       if (!painted) {
@@ -931,17 +1102,55 @@ export class Renderer {
     const c = this.toScreen(s.hearth.x + 0.5, s.hearth.y + 0.5);
     const k = this.tw / 64;
     if (hasBuildingArt('hearth')) {
-      // The painted fire is already lit; make it flicker while time runs.
-      if (!running) return;
-      const f = Math.sin(now / 110) * 0.5 + Math.sin(now / 47 + 1) * 0.3 + 0.5;
-      const r = 14 * k;
+      // Banked for the night: the embers breathe, and that's all.
+      if (this.banked) return;
+      // The painted fire burns: tongues of flame lick up over it, and sparks fly up into the air.
       const fy = c.y - 4 * k;
-      const grad = g.createRadialGradient(c.x, fy, 0, c.x, fy, r);
-      grad.addColorStop(0, `rgba(255,190,90,${0.18 + f * 0.14})`);
-      grad.addColorStop(1, 'rgba(255,190,90,0)');
       g.globalCompositeOperation = 'lighter';
+      const f = Math.sin(now / 110) * 0.5 + Math.sin(now / 47 + 1) * 0.3 + 0.5;
+      const r = 15 * k;
+      const grad = g.createRadialGradient(c.x, fy, 0, c.x, fy, r);
+      grad.addColorStop(0, `rgba(255,190,90,${0.16 + f * 0.14})`);
+      grad.addColorStop(1, 'rgba(255,190,90,0)');
       g.fillStyle = grad;
       g.fillRect(c.x - r, fy - r, r * 2, r * 2);
+      const lean = sway(s.hearth.x, s.hearth.y, now) * 1.6 * k;
+      for (let i = 0; i < 5; i++) {
+        const ph = now / (70 + i * 17) + i * 1.7;
+        const h = (6 + 5 * (Math.sin(ph) * 0.5 + 0.5) + (i === 2 ? 4 : 0)) * k;
+        const x0 = c.x + (i - 2) * 1.6 * k;
+        const wob = Math.sin(ph * 1.7) * 1.2 * k;
+        const tg = g.createLinearGradient(x0, fy + 1 * k, x0, fy - h);
+        tg.addColorStop(0, 'rgba(255,150,40,0.55)');
+        tg.addColorStop(0.5, 'rgba(255,200,80,0.45)');
+        tg.addColorStop(1, 'rgba(255,240,170,0)');
+        g.fillStyle = tg;
+        g.beginPath();
+        g.moveTo(x0 - 1.7 * k, fy + 1 * k);
+        g.quadraticCurveTo(x0 - 1.4 * k + wob * 0.5, fy - h * 0.5, x0 + wob + lean, fy - h);
+        g.quadraticCurveTo(x0 + 1.4 * k + wob * 0.5, fy - h * 0.5, x0 + 1.7 * k, fy + 1 * k);
+        g.closePath();
+        g.fill();
+      }
+      // Sparks: born at the fire, rising and drifting downwind, winking out.
+      if (running) {
+        this.sparkAcc += 1;
+        if (this.sparkAcc >= 9 && this.embers.length < 30) {
+          this.sparkAcc = 0;
+          const n = hashString(`ember${Math.floor(now)}`);
+          this.embers.push({ x: ((n % 100) / 100 - 0.5) * 5, y: -6, vx: ((n >>> 8) % 100) / 100 - 0.3, vy: -(9 + ((n >>> 16) % 100) / 12), life: 0, max: 900 + ((n >>> 4) % 900) });
+        }
+      }
+      const dt = running ? 16 : 0;
+      for (const e of this.embers) {
+        e.life += dt;
+        e.x += (e.vx + sway(s.hearth.x, s.hearth.y, now) * 2.5) * dt / 1000 * 2;
+        e.y += e.vy * dt / 1000 * 2;
+        const a = Math.max(0, 1 - e.life / e.max) * (0.6 + 0.4 * Math.sin(e.life / 60));
+        g.fillStyle = `rgba(255,${180 + ((e.life / 4) % 60)},90,${a.toFixed(3)})`;
+        g.fillRect(c.x + e.x * k - 0.6 * k, fy + e.y * k - 0.6 * k, 1.2 * k, 1.2 * k);
+      }
+      this.embers = this.embers.filter((e) => e.life < e.max);
       g.globalCompositeOperation = 'source-over';
       return;
     }

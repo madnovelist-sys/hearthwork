@@ -2,11 +2,12 @@
 // it does well; spending Sparks calls someone particular: one of three
 // travelers, each different, each carrying a story that will come back years
 // later (a sealed jar, a feud, a husband thought dead, a foundling's gift).
+import { pickLand, waysOf } from './culture';
 import { log, P } from './chronicle';
 import { familyName } from './names';
 import { draftPerson } from './people';
 import { chance, int, pick, rand, shuffle } from './rng';
-import { settleParty } from './arrivals';
+import { fromLine, settleParty } from './arrivals';
 import { makeItem } from './items';
 import { findPlace } from './places';
 import { candidates, discovery, nextCost } from './ages';
@@ -386,7 +387,9 @@ export function makeCallOptions(s: GameState): Party[] {
   if (pool.length < 3) pool = CALLERS.filter((c) => c.can?.(s) ?? true); // every story told: start again
   return shuffle(s.rng, pool.slice()).slice(0, 3).map((c) => {
     const { people, story } = c.make(s);
-    return { id: s.nextId.party++, story, people, call: c.id, title: c.title };
+    const land = pickLand(s);
+    for (const d of people) { d.land = land.id; d.customs = waysOf(s, land); }
+    return { id: s.nextId.party++, story, people, call: c.id, title: c.title, land: land.id };
   });
 }
 
@@ -417,7 +420,7 @@ export function arriveCalled(s: GameState, party: Party) {
   const created = settleParty(s, party, false, true);
   let story = party.story;
   for (const p of created) story = story.replace(new RegExp(`\\b${p.first}\\b`), `{f:${p.id}}`);
-  log(s, 'arrival', `Called by the fire: ${story}`, created.map((p) => p.id), 6);
+  log(s, 'arrival', `Called by the fire: ${story}${fromLine(s, party, created)}`, created.map((p) => p.id), 6);
   if (!c) return;
   c.arrive?.(s, created);
   const holder = created[c.holder ?? 0] ?? created[0];

@@ -3,6 +3,7 @@
 // shaped by the land, the people and their beliefs; the first contested
 // choice of leader decides the first form of rule. Both can change, rarely,
 // when a faith grows strong, a plague comes, or a crisis tests the old way.
+import { deadWayHere } from './culture';
 import { log, P } from './chronicle';
 import { chance, pick, weighted } from './rng';
 import { TERRAIN, type Building, type GameState, type Person, type TenetId } from './types';
@@ -53,12 +54,15 @@ function customWeights(s: GameState): [DeathCustom, number][] {
   const tenets = tenetsHeld(s);
   const people = present(s);
   const share = (t: string) => people.filter((p) => p.traits.includes(t as never)).length / Math.max(1, people.length);
+  // The way most of them grew up with, in the homeland they came from.
+  const home = deadWayHere(s);
+  const grew = (way: DeathCustom) => (home?.way === way ? 8 * home.share : 0);
   return [
-    ['burial', 3 + share('content') * 4 + share('homebody') * 3],
-    ['cremation', 1 + (forest / Math.max(1, n)) * 6 + (tenets.has('hearth') ? 4 : 0) + (s.plague ? 3 : 0)],
-    ['sky', 0.4 + (rock / Math.max(1, n)) * 12 + (tenets.has('comet') ? 2 : 0) + s.settings.weirdness * 0.3],
-    ['tomb', 0.8 + (tenets.has('ancestors') ? 4 : 0) + (rock / Math.max(1, n)) * 5 + (s.buildings.some((b) => b.kind === 'barrow' && !b.removed) ? 3 : 0)],
-    ['river', 0.4 + (water / Math.max(1, n)) * 8 + (tenets.has('river') ? 5 : 0)],
+    ['burial', 3 + share('content') * 4 + share('homebody') * 3 + grew('burial')],
+    ['cremation', 1 + (forest / Math.max(1, n)) * 6 + (tenets.has('hearth') ? 4 : 0) + (s.plague ? 3 : 0) + grew('cremation')],
+    ['sky', 0.4 + (rock / Math.max(1, n)) * 12 + (tenets.has('comet') ? 2 : 0) + s.settings.weirdness * 0.3 + grew('sky')],
+    ['tomb', 0.8 + (tenets.has('ancestors') ? 4 : 0) + (rock / Math.max(1, n)) * 5 + (s.buildings.some((b) => b.kind === 'barrow' && !b.removed) ? 3 : 0) + grew('tomb')],
+    ['river', 0.4 + (water / Math.max(1, n)) * 8 + (tenets.has('river') ? 5 : 0) + grew('river')],
   ];
 }
 
@@ -161,6 +165,14 @@ export function traditionsYear(s: GameState) {
         changeCustom(s, want, `${capFirst(f.name)} had grown until most of ${s.name} followed it, and its people would not ${CUSTOM_LABEL[t.dead.custom]} any longer.`);
         return;
       }
+    }
+  }
+  // Newcomers who mostly grew up with another way with the dead, and are now most of the town.
+  if (t.dead && s.day - t.dead.since > 15 * 360 && chance(s.rng, 0.05)) {
+    const home = deadWayHere(s);
+    if (home && home.share >= 0.55 && home.way !== t.dead.custom) {
+      changeCustom(s, home.way, `Most of ${s.name} had come from places where people ${CUSTOM_LABEL[home.way]}, and in time the old way of the first settlers gave way to theirs.`);
+      return;
     }
   }
   // Leadership: a village that has outgrown its old ways of deciding things.

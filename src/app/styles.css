@@ -267,3 +267,8 @@ body.panel-open .zoom { right: 444px; }
 .tree-node.patron b { color: var(--gold-ink); }
 .petition { border-left: 3px solid var(--gold); }
 .fortune { border: 1px solid #e5b062; background: #fff3dc; }
+
+.custom { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; border-top: 1px solid rgba(62, 58, 79, 0.08); }
+.custom:first-of-type { border-top: 0; }
+.custom .what { flex: 1; min-width: 0; }
+.custom .btns { display: flex; flex-direction: column; gap: 4px; }

@@ -1,5 +1,6 @@
 // Just enough economy to make stories: food through the seasons, wood for
 // building, pots and bronze for comfort. And who does which job.
+import { cultureBoost } from './culture';
 import { log, P } from './chronicle';
 import { pick, range } from './rng';
 import { DAYS_PER_YEAR, type GameState, type JobId, type Person } from './types';
@@ -44,8 +45,8 @@ export function economyDay(s: GameState) {
   const hasKiln = s.buildings.some((b) => b.kind === 'kiln' && b.built && !b.removed);
   const hasFurnace = s.buildings.some((b) => b.kind === 'furnace' && b.built && !b.removed);
   const hasGranary = s.buildings.some((b) => b.kind === 'granary' && b.built && !b.removed);
-  const knowledge = (1 + Math.min(0.3, s.flags.knowledge * 0.05)) * boost(s, 'food');
-  const craft = boost(s, 'goods');
+  const knowledge = (1 + Math.min(0.3, s.flags.knowledge * 0.05)) * boost(s, 'food') * cultureBoost(s, 'food');
+  const craft = boost(s, 'goods') * cultureBoost(s, 'goods');
   const axes = boost(s, 'wood');
   const worked = new Set<number>();
   for (const b of s.buildings) if (b.kind === 'field' && b.built && !b.removed && b.worker !== undefined) worked.add(b.worker);

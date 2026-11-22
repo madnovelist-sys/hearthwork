@@ -1,4 +1,4 @@
-// Society: who leads, the laws in force, the faiths, and the businesses.
+// Society: who leads, the town's customs, the laws in force, the faiths, and the businesses.
 import { store } from '../game/store';
 import { LAW, TENETS, followers, leaderTitle } from '../sim/society';
 import { BUILDING_LABEL } from '../sim/planner';
@@ -8,6 +8,7 @@ import { ArmsShield } from './Arms';
 import { describeArms } from '../sim/town';
 import { sitesOf } from '../sim/places';
 import { CUSTOM_LABEL, RULE_LABEL, councilOf, ruleForm } from '../sim/traditions';
+import { CustomsSection } from './Customs';
 
 const RULE_NAME: Record<string, string> = { eldest: 'an eldest', chief: 'a chief', council: 'a council of elders', assembly: 'an assembly', guilds: 'the guilds' };
 
@@ -54,6 +55,7 @@ export function SocietyPanel() {
           <p class="sub">The council: {councilOf(s).map((p, i) => <span key={p.id}>{i ? ', ' : ''}<PersonLink p={p} /></span>)}.</p>
         )}
       </div>
+      <CustomsSection s={s} />
       <div class="group">
         <h4>The dead</h4>
         <p class="sub" style={{ margin: 0 }}>

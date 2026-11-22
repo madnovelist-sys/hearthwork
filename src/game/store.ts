@@ -2,7 +2,7 @@
 // redraw. The simulation mutates the state in place; the UI re-reads it.
 import { useEffect, useState } from 'preact/hooks';
 import type { GameState, SessionRecord } from '../sim/types';
-import { creditTime, GAP_LIMIT_MS, localDate, logWords, startSession, stopSession, tick, type ClockEvents } from './clock';
+import { creditTime, GAP_LIMIT_MS, GOAL_SPARKS, localDate, logWords, startSession, stopSession, tick, type ClockEvents } from './clock';
 import { loadGame, saveGame } from './save';
 import { notify } from './desktop';
 import { stopTimeToday } from './sky';
@@ -52,8 +52,8 @@ class Store {
       this.ping('A Spark', `You have ${n} Spark${n === 1 ? '' : 's'}. Spend ${CALL_COST} to call someone to ${this.state?.name ?? 'your settlement'}.`);
     },
     dailyGoal: () => {
-      this.toast('Daily goal reached: +5 Favor. The fire burns bright tonight.', 'gold');
-      this.ping('Daily goal reached', '+5 Favor. The fire burns bright tonight.');
+      this.toast(`Daily goal reached: +${GOAL_SPARKS} Sparks. The fire burns bright tonight.`, 'gold');
+      this.ping('Daily goal reached', `+${GOAL_SPARKS} Sparks. The fire burns bright tonight.`);
     },
     gap: (ms) => { this.ui.gapMs = ms; this.ui.gapReason = 'closed'; this.notify(true); },
   };

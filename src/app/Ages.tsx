@@ -1,6 +1,7 @@
 // The ages of the city: what's been discovered, by whom, and what might come
 // next. Plus the little ceremony at the next break when a new age begins or
 // the town is granted its charter.
+import { actCost } from '../sim/acts';
 import { useState } from 'preact/hooks';
 import { store } from '../game/store';
 import { DISCOVERIES, ERA_LABEL, candidates, discovery, discoveryProgress, ideaTitle } from '../sim/ages';
@@ -46,7 +47,7 @@ export function AgesPanel() {
           </>
         )}
         <div style={{ marginTop: 10 }}>
-          <button class="btn small" onClick={() => store.setUi({ panel: 'acts', act: 'inspire' })}>Inspire someone <span class="cost">✦4</span></button>
+          <button class="btn small" onClick={() => store.setUi({ panel: 'acts', act: 'inspire' })}>Inspire someone <span class="cost">✧{actCost('inspire')}</span></button>
         </div>
       </section>
       <section>

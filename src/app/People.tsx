@@ -1,7 +1,8 @@
 // The people of the settlement: a searchable list, and a card for whoever
 // (or whatever) is selected on the map.
 import { useState } from 'preact/hooks';
-import { bless } from '../sim/acts';
+import { actCost, bless } from '../sim/acts';
+import { landOf, waysPhrase } from '../sim/culture';
 import { BUILDING_LABEL } from '../sim/planner';
 import { DREAM_LABEL, JOB_LABEL, TRAIT_LABEL } from '../sim/people';
 import { store } from '../game/store';
@@ -117,6 +118,12 @@ export function PersonCard({ id }: { id: number }) {
         {s.lore.known.filter((k) => k.by === p.id).map((k) => <span class="tag gold" key={k.id}>Discovered {discovery(k.id)?.name}</span>)}
       </div>
       {p.backstory && <p class="story">{p.backstory}</p>}
+      {(p.land !== undefined || (p.customs?.length ?? 0) > 0) && (
+        <p class="sub" style={{ margin: '4px 0 0' }}>
+          {landOf(s, p.land) ? (p.origin === 'born' ? `Family from ${landOf(s, p.land)!.name}` : `From ${landOf(s, p.land)!.name}`) : ''}
+          {p.customs?.length ? `${landOf(s, p.land) ? '. ' : ''}Keeps ${waysPhrase(p.customs)}.` : '.'}
+        </p>
+      )}
       <section>
         <h4>Dream</h4>
         <div>Wants {DREAM_LABEL[p.dream]}{p.dreamMet ? ' — and did.' : '.'}</div>
@@ -156,12 +163,12 @@ export function PersonCard({ id }: { id: number }) {
           {p.followed ? 'Following' : 'Follow'}
         </button>
         <button class="btn small" onClick={() => store.setUi({ tree: p.id })}>Family tree</button>
-        {canAct && <button class="btn small" onClick={doBless}>Bless <span class="cost">✦1</span></button>}
+        {canAct && <button class="btn small" onClick={doBless}>Bless <span class="cost">✧{actCost('bless')}</span></button>}
         {canAct && adult && !p.preparing && (
-          <button class="btn small" onClick={() => store.setUi({ panel: 'acts', act: 'quest', actTarget: p.id })}>Send on a quest <span class="cost">✦3</span></button>
+          <button class="btn small" onClick={() => store.setUi({ panel: 'acts', act: 'quest', actTarget: p.id })}>Send on a quest <span class="cost">✧{actCost('quest')}</span></button>
         )}
         {canAct && age < 1 && (
-          <button class="btn small" onClick={() => store.setUi({ panel: 'acts', act: 'name', actTarget: p.id })}>Name <span class="cost">✦1</span></button>
+          <button class="btn small" onClick={() => store.setUi({ panel: 'acts', act: 'name', actTarget: p.id })}>Name <span class="cost">✧{actCost('name')}</span></button>
         )}
       </div>
     </div>

@@ -1,4 +1,5 @@
 // The simulation's entry points: found a settlement, and advance it one day.
+import { cultureYear, foundingWays, waysPhrase } from './culture';
 import { log, nameYear, P } from './chronicle';
 import { economyDay, economySeason, assignJobs } from './economy';
 import { lifeDay } from './life';
@@ -62,8 +63,7 @@ export function foundSettlement(opts: FoundingOptions): GameState {
     yearNames: {},
     playerNamedYears: {},
     stores: { food: 260, wood: 40, goods: 0 },
-    favor: 2,
-    sparks: 0,
+    sparks: 1,
     arrivals: [],
     pending: [],
     goals: { ...(opts.goals ?? DEFAULT_GOALS) },
@@ -116,10 +116,12 @@ export function foundSettlement(opts: FoundingOptions): GameState {
   // The first year is a lucky one: the founders are under the fire's protection.
   for (const p of s.people) p.blessedUntil = DAYS_PER_YEAR;
   assignJobs(s);
+  // They bring the ways of the homeland they left.
+  const home = foundingWays(s);
   const elder = s.people.find((p) => p.origin === 'founder' && p.born < -50 * DAYS_PER_YEAR);
   log(
     s, 'founding',
-    `In the spring of the first year, eight travelers stopped beside the river and lit a fire. ${elder ? `${P(elder.id)}, the eldest, said the ground felt right.` : ''} They called the place ${s.name}.`,
+    `In the spring of the first year, eight travelers from ${home.name} stopped beside the river and lit a fire. ${elder ? `${P(elder.id)}, the eldest, said the ground felt right.` : ''} They called the place ${s.name}, and kept the ways they had brought with them: ${waysPhrase(home.customs)}.`,
     s.people.map((p) => p.id), 10, 'The Year of the First Fire',
   );
   return s;
@@ -154,6 +156,7 @@ export function stepDay(s: GameState) {
     placesYear(s);
     hooksYear(s);
     traditionsYear(s);
+    cultureYear(s);
     bondsYear(s);
     nameYear(s, yearOf(s.day - 1));
   }

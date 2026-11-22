@@ -6,11 +6,13 @@ import { createSettler, sendOnQuest, welcomeParty } from '../src/sim/acts';
 import { foundSettlement, stepDay } from '../src/sim/sim';
 import { DAYS_PER_YEAR, type GameState } from '../src/sim/types';
 import { ageOf, population } from '../src/sim/world';
-import { logWords, startSession, stopSession, tick, focusDay } from '../src/game/clock';
+import { GOAL_SPARKS, logWords, startSession, stopSession, tick, focusDay } from '../src/game/clock';
 import { parseSave } from '../src/game/save';
 import { expandMap, growMap, isWater } from '../src/sim/mapgen';
 import { DISCOVERIES, agesYear, beginSideAge, boost, discover, discovery, discoveryThreshold, drawDifficulty, loreDay } from '../src/sim/ages';
-import { inspire } from '../src/sim/acts';
+import { actCost, inspire } from '../src/sim/acts';
+import { CUSTOM_BY_ID, nudgeWay, waysHere } from '../src/sim/culture';
+import { dirOf } from '../src/render/citizens';
 import { addBuilding, findSite, settlementRegion } from '../src/sim/planner';
 import { describeArms, grantCharter, planBridge, planWalls, progressWalls } from '../src/sim/town';
 import { tileCost } from '../src/sim/path';
@@ -81,12 +83,12 @@ describe('simulation', () => {
 });
 
 describe('acts', () => {
-  it('spends Favor and brings a created settler at dawn', () => {
+  it('spends Sparks and brings a created settler at dawn', () => {
     const s = foundSettlement({ seed: 5, name: 'Y' });
-    s.favor = 3;
+    s.sparks = 3;
     const r = createSettler(s, { first: 'Wren', family: 'Ashford', sex: 'f', orientation: 'straight', age: 30, traits: ['brave', 'kind'], skill: 'healer', dream: 'remembered' });
     expect(r.ok).toBe(true);
-    expect(s.favor).toBe(0);
+    expect(s.sparks).toBe(0);
     expect(s.people.some((p) => p.first === 'Wren')).toBe(false);
     startSession(s, 1_000_000);
     const wren = s.people.find((p) => p.first === 'Wren')!;
@@ -96,7 +98,7 @@ describe('acts', () => {
 
   it('refuses acts the player cannot afford', () => {
     const s = foundSettlement({ seed: 5, name: 'Y' });
-    s.favor = 1;
+    s.sparks = 1;
     const adult = s.people.find((p) => ageOf(s, p) >= 18)!;
     expect(sendOnQuest(s, adult.id, [], 'ruins').ok).toBe(false);
   });
@@ -116,15 +118,16 @@ describe('focus clock', () => {
   it('turns an hour of work into a year, three Sparks and the daily goal', () => {
     const s = foundSettlement({ seed: 11, name: 'Z' });
     const t0 = new Date(2026, 10, 20, 9, 0).getTime();
-    const favor = s.favor;
+    const before = s.sparks;
     startSession(s, t0);
     for (let m = 1; m <= 60; m++) tick(s, t0 + m * 60_000);
     const rec = stopSession(s, t0 + 60 * 60_000)!;
     expect(s.day).toBe(DAYS_PER_YEAR);
-    expect(rec.sparks).toBe(3);
-    expect(s.favor).toBe(favor + 3 + 5);
     expect(focusDay(s, t0).goalMet).toBe(true);
-    expect(s.sparks).toBe(3); // kept, to spend on calling someone
+    // Three Sparks for the hour, three more for the daily goal: kept, to spend.
+    expect(rec.sparks).toBe(3 + GOAL_SPARKS);
+    expect(s.sparks).toBe(before + 3 + GOAL_SPARKS);
+    expect((s as { favor?: number }).favor).toBeUndefined();
   });
 
   it('does not run the city while paused', () => {
@@ -136,22 +139,24 @@ describe('focus clock', () => {
   it('when tracking words, Sparks and the daily goal come from words, not time', () => {
     const s = foundSettlement({ seed: 11, name: 'Z', goals: { track: 'words', dailyMinutes: 60, dailyWords: 1000, sparkMinutes: 20, sparkWords: 250 } });
     const t0 = new Date(2026, 10, 20, 9, 0).getTime();
+    const before = s.sparks;
     startSession(s, t0);
     for (let m = 1; m <= 60; m++) tick(s, t0 + m * 60_000);
     stopSession(s, t0 + 60 * 60_000);
     expect(s.day).toBe(DAYS_PER_YEAR); // the city still lives while the timer runs
-    expect(s.sparks).toBe(0); // but an hour of time alone brings no Sparks
+    expect(s.sparks).toBe(before); // but an hour of time alone brings no Sparks
     expect(focusDay(s, t0).goalMet).toBe(false);
     logWords(s, 1100, t0 + 61 * 60_000);
-    expect(s.sparks).toBe(4);
+    expect(s.sparks).toBe(before + 4 + GOAL_SPARKS);
     expect(s.focus.sparkWords).toBe(100);
     expect(focusDay(s, t0).goalMet).toBe(true);
   });
 
   it('when tracking time, logged words are recorded but bring no Sparks', () => {
     const s = foundSettlement({ seed: 11, name: 'Z' });
+    const before = s.sparks;
     logWords(s, 600, Date.now());
-    expect(s.sparks).toBe(0);
+    expect(s.sparks).toBe(before);
   });
 
   it('treats a very long gap as an interruption, not work', () => {
@@ -193,18 +198,18 @@ describe('village life', () => {
   it('Whisper a Law enacts and repeals, priced by the leader', () => {
     const s = run(31, 12);
     expect(s.leader).toBeDefined();
-    s.favor = 50;
+    s.sparks = 50;
     const id = 'feast-days' as const;
     const had = hasLaw(s, id);
     const cost = lawCost(s, id);
     expect(whisperLaw(s, id).ok).toBe(true);
     expect(hasLaw(s, id)).toBe(!had);
-    expect(s.favor).toBe(50 - cost);
+    expect(s.sparks).toBe(50 - cost);
   });
 
   it('Raise a Prophet founds a faith that spreads and is passed to children', () => {
     const s = run(8, 10);
-    s.favor = 10;
+    s.sparks = 10;
     const prophet = s.people.find((p) => p.alive && p.away === undefined && ageOf(s, p) >= 20 && ageOf(s, p) <= 35 && p.spouse !== undefined)
       ?? s.people.find((p) => p.alive && p.away === undefined && ageOf(s, p) >= 20 && ageOf(s, p) <= 40)!;
     expect(raiseProphet(s, prophet.id, ['hearth', 'feasting']).ok).toBe(true);
@@ -428,9 +433,9 @@ describe('towns and ages', () => {
     // Everything else in the Bronze era is already known.
     s.lore.known = DISCOVERIES.filter((d) => d.era === 0 && d.id !== 'potters-wheel').map((d) => ({ id: d.id, day: 0 }));
     s.lore.last = -999;
-    s.favor = 10;
+    s.sparks = 10;
     expect(inspire(s, potter.id).ok).toBe(true);
-    expect(s.favor).toBe(6);
+    expect(s.sparks).toBe(10 - actCost('inspire'));
     s.lore.points = discoveryThreshold(s);
     loreDay(s);
     const last = s.lore.known.at(-1)!;
@@ -468,7 +473,8 @@ describe('towns and ages', () => {
       bridge.progress = bridge.required - 0.5;
       s.stores.wood = 1e6;
       s.walls = undefined;
-      for (let i = 0; i < 30 && !bridge.built; i++) stepDay(s);
+      // (The builders may finish whatever else they have started first.)
+      for (let i = 0; i < 120 && !bridge.built; i++) stepDay(s);
       expect(bridge.built).toBe(true);
       expect(s.map.terrain[bridge.y * s.map.w + bridge.x]).toBe(TERRAIN.BRIDGE);
       expect(settlementRegion(s).reduce((a, v) => a + v, 0)).toBeGreaterThan(regionBefore);
@@ -554,7 +560,7 @@ describe('arrivals, calling and sacred places', () => {
     expect(back.petitions).toBeUndefined();
     expect(back.buildings[stone.id].removed).toBe(true);
     expect(back.map.occ[stone.y * back.map.w + stone.x]).toBe(0);
-    expect(back.sparks).toBe(0);
+    expect(back.sparks).toBe(s.sparks);
   });
 });
 
@@ -641,5 +647,60 @@ describe('weather, traditions, the Chronicle and tales', () => {
     expect(texts.length).toBeGreaterThan(50);
     expect(new Set(texts).size).toBe(texts.length); // no tale told word for word twice
     expect(texts.some((t) => / again/.test(t) || /since the business with/.test(t))).toBe(true);
+  });
+});
+
+describe('culture, and walking', () => {
+  it('founders bring their homeland\'s ways, and newcomers bring theirs', () => {
+    const s = foundSettlement({ seed: 3, name: 'Testbrook' });
+    const home = s.culture!.lands[s.culture!.home!];
+    expect(home.customs.length).toBeGreaterThanOrEqual(2);
+    expect(s.culture!.kept.map((k) => k.id).sort()).toEqual([...home.customs].sort());
+    expect(s.people.every((p) => p.land === home.id)).toBe(true);
+    const party = makeArrivalOptions(s)[0];
+    expect(party.land).toBeDefined();
+    expect(party.people.every((d) => d.land === party.land)).toBe(true);
+  });
+
+  it('ways spread, take root, and children grow up in them', () => {
+    const s = run(3, 30);
+    const c = s.culture!;
+    expect(c.lands.length).toBeGreaterThan(3);
+    // Something from a later homeland has become the town's own.
+    expect(c.kept.some((k) => k.land !== c.home)).toBe(true);
+    const kid = s.people.find((p) => p.alive && p.origin === 'born' && ageOf(s, p) >= 8);
+    expect(kid?.customs?.length).toBeGreaterThan(0);
+    // A town keeps only a few of each kind.
+    const kinds = new Map<string, number>();
+    for (const k of c.kept) { const kind = CUSTOM_BY_ID.get(k.id)!.kind; kinds.set(kind, (kinds.get(kind) ?? 0) + 1); }
+    for (const n of kinds.values()) expect(n).toBeLessThanOrEqual(2);
+  });
+
+  it('a Spark encourages a way, or discourages it', () => {
+    const s = run(17, 6);
+    const ways = waysHere(s);
+    const id = ways[ways.length - 1].id;
+    s.sparks = 1;
+    expect(nudgeWay(s, id, true).ok).toBe(true);
+    expect(s.sparks).toBe(0);
+    expect(s.culture!.nudge).toMatchObject({ id, up: true });
+    expect(nudgeWay(s, id, false).ok).toBe(false); // no Sparks left
+  });
+
+  it('older saves get a homeland and ways of their own', () => {
+    const s = run(85, 2);
+    delete s.culture;
+    for (const p of s.people) { delete p.land; delete p.customs; }
+    const back = parseSave(JSON.stringify(s));
+    expect(back.culture!.kept.length).toBeGreaterThan(0);
+    expect(back.people.every((p) => p.customs !== undefined)).toBe(true);
+  });
+
+  it('people face the way they walk: back going up the screen, front coming down', () => {
+    expect(dirOf(-1, 0, 'down')).toBe('up'); // up and to the left on screen
+    expect(dirOf(0, -1, 'down')).toBe('up'); // up and to the right
+    expect(dirOf(1, 0, 'up')).toBe('right'); // down and to the right
+    expect(dirOf(0, 1, 'up')).toBe('left'); // down and to the left
+    expect(dirOf(1, 1, 'up')).toBe('down'); // straight down the screen
   });
 });

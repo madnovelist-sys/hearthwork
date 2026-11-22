@@ -2,7 +2,7 @@
 
 A city that only lives while you work.
 
-Eight travelers light a fire by a river. Start a focus session and the sun rises on them; stop, and they sleep. Every hour you work is a year of their lives: they build homes, farm, fall in love, have children, fall ill, go on quests and come back rich, or don't come back. Small goals along the way (Sparks) bring newcomers to the gate. Reaching goals earns Favor, which you spend to bless people, create settlers of your own, or send someone out into the world.
+Eight travelers light a fire by a river. Start a focus session and the sun rises on them; stop, and they sleep. Every hour you work is a year of their lives: they build homes, farm, fall in love, have children, fall ill, go on quests and come back rich, or don't come back. Every twenty minutes or so you earn a Spark, and reaching your daily goal earns more. Spend them to call newcomers to the gate (each bringing the customs of their homeland), to bless people, create settlers of your own, send someone out into the world, or encourage the customs you'd like your town to keep.
 
 - Game design and decisions: [docs/design.md](docs/design.md)
 - Art pipeline: [art/README.md](art/README.md)
@@ -11,7 +11,7 @@ Eight travelers light a fire by a river. Start a focus session and the sun rises
 
 1. Found your settlement: name it, pick a site, choose whether to track time worked or words written, set your daily goal and Sparks, and choose the Darkness and Weirdness.
 2. Press **Start working** when you begin. Keep Hearthwork open in another window or on a second screen; it keeps time even when hidden or minimized.
-3. Press **Stop** when you take a break. If you track words, enter what you wrote. Read what happened while you worked, welcome travelers, and spend Favor on Acts.
+3. Press **Stop** when you take a break. If you track words, enter what you wrote. Read what happened while you worked, welcome travelers, and spend Sparks on Acts.
 
 Everything saves automatically every 30 seconds, with a backup from each of the last 7 days you played. **Settings → Export save file** makes a full backup you can keep anywhere.
 

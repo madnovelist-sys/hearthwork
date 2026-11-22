@@ -34,13 +34,13 @@ The art direction lives in its own document (the Art Design Document). This file
 | Tier | Default | Reward |
 | --- | --- | --- |
 | Every focus minute | — | City time moves forward |
-| Spark | every 20 minutes, or every 250 words when tracking words | 1 Spark, kept to spend (3 call someone special to the village), plus 1 Favor |
-| Daily goal | 60 minutes, or 1,000 words when tracking words | +5 Favor (later: a Fortune, one of three rare opportunities) |
+| Spark | every 20 minutes, or every 250 words when tracking words | 1 Spark, kept to spend: on Acts, on calling someone (3), or on encouraging a custom (1) |
+| Daily goal | 60 minutes, or 1,000 words when tracking words | +3 Sparks, and a Fortune (one of three rare opportunities) |
 | Weekly goal | 5 goal days in 7 | Later: a Wonder or a Golden Age |
 
-## Acts (spent with Favor)
+## Acts (spent with Sparks)
 
-Built: **Bless** (1), **Name** a year or a baby (1), **Create a Settler** (3), **Send on a Quest** (3), **Inspire** (4: someone gets an idea that won't let go; knowledge gathers faster and the next discovery likely comes from their trade), **Whisper a Law** (5, +2 for each trait that makes the leader dislike it), **Raise a Prophet** (8). Acts that bring people or send them away wait for dawn (the next session start).
+Sparks are the only currency (Favor was folded into them; an older village's Favor came over at half). Built: **Bless** (1), **Name** a year or a baby (1), **Create a Settler** (3), **Send on a Quest** (2), **Inspire** (3: someone gets an idea that won't let go; knowledge gathers faster and the next discovery likely comes from their trade), **Whisper a Law** (4, +2 for each trait that makes the leader dislike it), **Raise a Prophet** (6), and in Society, **encourage or discourage a custom** (1). Acts that bring people or send them away wait for dawn (the next session start).
 
 **Calling someone (3 Sparks)**: at any time, spend Sparks to call one of three people to the village. Each is a different story (a sealed jar, a runaway bride, a chief without a village, a foundling, a deserter, a widow whose husband may yet come home…), and each comes back years later in the Chronicle with real consequences. A story is told once, until they've all been told.
 
@@ -78,7 +78,9 @@ Planned: Matchmake, Inspire, Call a Festival, Commission, Avert Calamity, Found 
 - **Animals**: animal pens with herds of goats and sheep tended by herders (milk, cheese and wool), growing each spring, culled in hunger (never below a breeding few), raided by wolves in grim winters. Dogs and cats join families, follow their people about, grow old and die; a dog may keep vigil on its owner's grave, or pull a child from the river. Deer live in the woods in proportion to the trees, thinned by hunting. Ducks on the river, flocks of birds overhead.
 - **Heirlooms**: named things with histories: swords and torcs brought home from quests, relics, masterworks made by long-practised potters and smiths, wedding keepsakes, and the keepsakes your own settlers bring. When their keepers die they pass to the eldest child (or spouse, grandchild, sibling), are sometimes buried with them, are lost with those who die far away, and come back with those who return. With no heir left, they hang in the gathering place.
 - **Stopping time**: an optional time of day (e.g. 6:00 pm) at which a running session ends by itself.
-- **The look of the land**: the ground is painted from textures (grass that changes with the seasons, dirt paths worn where people walk, sand, rock, marsh, shallow and deep water, snow), with the edges where two kinds of ground meet smoothed into diagonals. Barley fields sprout, grow, ripen and are cut one by one through the year, then lie as stubble or under snow. Wildflowers grow in patches in the meadows, reeds along the water, fallen logs and dead wood under the trees, and logs are stacked where trees were felled. By people's doors stands what their work needs: a woodshed for a woodcutter, a drying rack for a fisher (and some gatherers). The Hearth is banked to embers while you rest after dark.
+- **The look of the land**: the ground is painted from textures (grass that changes with the seasons, sand, rock, marsh, shallow and deep water, snow). Riverbanks, shores and the edges of sand, rock and marsh sweep in gentle curves rather than following the tiles, and paths are trodden into soft, wandering tracks where people actually walk. Trees stand anywhere in their patch of ground, not on a grid. Barley fields sprout, grow, ripen and are cut one by one through the year, then lie as stubble or under snow. Wildflowers grow in patches in the meadows, reeds along the water, fallen logs and dead wood under the trees, and logs are stacked where trees were felled. By people's doors stands what their work needs: a woodshed for a woodcutter, a drying rack for a fisher (and some gatherers). The Hearth is banked to embers while you rest after dark. The painted ground is kept between frames and only repainted when the view zooms or the day turns.
+- **Wind, water and fire**: one breeze blows over the whole map, with gusts that roll across it, so trees, bushes, reeds, flowers, barley and tufts of grass all lean together and a gust can be seen crossing a field (stronger in storms, nearly still in fog). The river's surface drifts and shimmers (until it freezes), and the hearth's flames lick and gutter, with sparks flying up downwind. All of it stands still while you rest.
+- **Walking**: people walk anywhere, in straight lines at any angle, taking a shortcut wherever it's clear and no slower than the way round (so worn paths and roads still draw them). They keep clear of buildings, walls and water, turn smoothly, step aside for each other, and keep a little to one side of the way. They face the way they're going (their back as they walk away, their front coming toward you, the three-quarter views going across), and their steps keep pace with the ground they cover, so their feet don't slide. Someone walking beside a building is drawn in front of it, not through it.
 - **People** are painted walking villagers, each role as a woman and a man (and children as a girl or a boy): the leader's cloak, a faith-founder's hood, a stall-keeper's satchel, elders with a staff, potters and smiths in an apron, everyone else in a farmer's clothes. Skin is each person's own (one of seven tones), recoloured into the painting, never set by their work. Each person's card shows them, with their family's mark (a sign painted on a household's pots and over its door).
 - **Animals** are painted too: goats and sheep in the pens, dogs at their people's heels, cats on doorsteps, deer at the edge of the woods, ducks on the river, each breathing gently when still, with coats that vary a little.
 
@@ -117,6 +119,14 @@ Planned: Matchmake, Inspire, Call a Festival, Commission, Avert Calamity, Found 
 - Everyday scenes are built from parts, chosen by the people involved (traits, work, family, faith, possessions, history with each other) and by the village (season, weather, hunger, recent laws, how it's governed, what it has discovered, its sacred places, its real history).
 - **People remember**: a quarrel leaves a grudge with its reason (the boundary stones, the ox, the holy day), later quarrels come back to it, and old enemies can make it up in a hard winter. Elders tell children about real events and people from the Chronicle.
 
+### Culture that comes with people
+
+- **Everyone comes from somewhere.** The first settlers bring the ways of their homeland, and every party that arrives (on its own or called) comes from a homeland of its own, with two or three ways: feasts (midsummer fires, a first-snow feast, harvest masks, the night of lamps…), crafts (spiral-patterned cloth, painted doorposts, marked hands…), food (bread baked on hot stones, fish smoked over alder…), rites (naming on the ninth day, handfasting, a night alone in the woods…), songs and stories, and beliefs. Many homelands also have their own way with the dead.
+- **Ways spread** between husbands and wives, from neighbour to neighbour, and from the town to its newcomers; children grow up in their parents' ways; newcomers slowly let go of ways the town doesn't share, unless their family keeps them up. People follow their kin, so a homeland that has sent people once tends to send more.
+- **Taking root**: when about a third of the town keeps a way, it becomes the town's own (a Chronicle entry tells who brought it, and from where). A town keeps only a couple of ways of each kind, so a new way that more people keep displaces the least-kept of its kind; a way nobody keeps fades. When most of the town grew up with another way with the dead, the town's own can change to it.
+- **What they do**: feasts and songs lift everyone's spirits, food ways and crafts add a little to the stores and to goods, rites and a dressed well help health; naming children for grandparents changes how babies are named; quarrels can break out over a newcomer's ways.
+- **Shaping it**: choose whom to call (each call shows where they come from and what they'd bring), and in Society spend a Spark to encourage a way, or discourage one, for three years. Each person's card says where their family came from and which ways they keep.
+
 ### Arrivals and sacred places
 
 - **People come on their own** a few times a year: more when the village is fed, housed, healthy and happy, fewer or none in hard times (a young settlement draws people even through a lean year). They come for what's here: work at the kiln or the furnace, fish from the dock, pasture, building work, the market, the healers. Open Gates brings more.
@@ -142,7 +152,7 @@ Planned: Matchmake, Inspire, Call a Festival, Commission, Avert Calamity, Found 
 
 ## Roadmap
 
-1. **First Fire** (done): timer, goals, Sparks, Favor, four Acts, the Bronze settlement to village, Chronicle, saving, the art test scene. Plus the menu-bar clock and pausing when away.
+1. **First Fire** (done): timer, goals, Sparks, four Acts, the Bronze settlement to village, Chronicle, saving, the art test scene. Plus the menu-bar clock and pausing when away.
 2. **Village life** (done): leadership and laws, emergent religion, petitions, plague and fire, businesses, Fortunes, family trees.
 3. **Town and city**: towns, the growing map, discoveries and ages (done). Next: districts, crime and trials, factions, neighbors, trade and war, Wonders.
 4. **Metropolis**: crowd simulation, later eras, performance work, ambient sound.

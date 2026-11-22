@@ -29,7 +29,7 @@ export function focusDay(s: GameState, t: number): FocusDay {
 
 export function startSession(s: GameState, now: number) {
   if (s.focus.running) return;
-  s.focus.running = { startedAt: now, lastTickAt: now, ms: 0, fromDay: s.day, firstEntry: s.nextId.entry, sparks: 0, favor: 0 };
+  s.focus.running = { startedAt: now, lastTickAt: now, ms: 0, fromDay: s.day, firstEntry: s.nextId.entry, sparks: 0 };
   applyDawn(s);
 }
 
@@ -46,7 +46,6 @@ export function stopSession(s: GameState, now: number, events: ClockEvents = {})
     toDay: s.day,
     firstEntry: r.firstEntry,
     sparks: r.sparks,
-    favor: r.favor,
   };
   s.focus.running = null;
   s.focus.sessions.push(rec);
@@ -122,11 +121,13 @@ export function logWords(s: GameState, words: number, now: number, events: Clock
   checkDailyGoal(s, now, events);
 }
 
+/** Sparks for reaching the day's goal. */
+export const GOAL_SPARKS = 3;
+
 function spark(s: GameState, now: number, kind: 'time' | 'words', events: ClockEvents) {
-  // A Spark is kept, to spend on calling someone, and brings a little Favor too.
-  s.favor += 1;
+  // A Spark is kept, to spend on calling someone or on an Act.
   s.sparks = (s.sparks ?? 0) + 1;
-  if (s.focus.running) { s.focus.running.sparks++; s.focus.running.favor++; }
+  if (s.focus.running) s.focus.running.sparks++;
   focusDay(s, now).sparks++;
   events.spark?.(kind);
 }
@@ -140,9 +141,9 @@ function checkDailyGoal(s: GameState, now: number, events: ClockEvents) {
     : g.dailyMinutes > 0 && day.ms >= g.dailyMinutes * 60_000;
   if (!met) return;
   day.goalMet = true;
-  s.favor += 5;
+  s.sparks = (s.sparks ?? 0) + GOAL_SPARKS;
   offerFortune(s);
-  if (s.focus.running) s.focus.running.favor += 5;
+  if (s.focus.running) s.focus.running.sparks += GOAL_SPARKS;
   events.dailyGoal?.();
 }
 

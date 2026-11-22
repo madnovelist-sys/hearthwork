@@ -1,4 +1,5 @@
 // Making people: traits, trades, dreams and the drafts newcomers arrive from.
+import { inheritWays, keeps } from './culture';
 import { chance, int, pick, rand, weighted, type RngState } from './rng';
 import { familyName, givenName } from './names';
 import { DAYS_PER_YEAR, type DreamId, type GameState, type JobId, type Orientation, type Person, type PersonDraft, type Sex, type TraitId } from './types';
@@ -114,6 +115,8 @@ export function createPerson(s: GameState, d: PersonDraft, origin: Person['origi
     dream: d.dream,
     origin,
     backstory: d.backstory,
+    land: d.land,
+    customs: d.customs ? [...d.customs] : undefined,
     patron: d.patron || undefined,
     lineage: d.patron || undefined,
     parents: [],
@@ -145,6 +148,8 @@ export function childOf(s: GameState, mother: Person, father: Person | undefined
     dream: pick(r, DREAMS),
     origin: 'born',
     lineage: mother.lineage || father?.lineage || undefined,
+    land: mother.land ?? father?.land,
+    customs: inheritWays(s, mother, father),
     parents: father ? [mother.id, father.id] : [mother.id],
     children: [],
     health: 100,
@@ -184,7 +189,10 @@ export function nameChild(s: GameState, mother: Person, father: Person | undefin
   const honorees = [...mother.parents, ...(father?.parents ?? [])]
     .map((id) => s.people[id])
     .filter((g) => g && !g.alive && g.sex === sex && !siblings.has(g.first));
-  if (honorees.length && chance(r, 0.35)) return pick(r, honorees)!.first;
+  // Where children are named for their grandparents, living ones count too, and it's likelier.
+  const forGrandparents = keeps(s, 'grandparent-names');
+  const pool = forGrandparents ? [...mother.parents, ...(father?.parents ?? [])].map((id) => s.people[id]).filter((g) => g && g.sex === sex && !siblings.has(g.first)) : honorees;
+  if (pool.length && chance(r, forGrandparents ? 0.7 : 0.35)) return pick(r, pool)!.first;
   for (let i = 0; i < 10; i++) {
     const n = givenName(r, sex);
     if (!siblings.has(n)) return n;

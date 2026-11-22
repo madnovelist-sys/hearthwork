@@ -1,4 +1,4 @@
-// The player's powers, paid for with Favor. Acts nudge the settlement; they
+// The player's powers, paid for with Sparks (the one thing your work earns). Acts nudge the settlement; they
 // never run it. Anything that brings people or sends them away waits for dawn.
 import { log, P } from './chronicle';
 import { settleParty } from './arrivals';
@@ -17,10 +17,10 @@ export const ACTS: { id: ActId; label: string; cost: number; blurb: string }[] =
   { id: 'bless', label: 'Bless', cost: 1, blurb: 'A year of good luck and health for one person.' },
   { id: 'name', label: 'Name', cost: 1, blurb: 'Name this year, or a newborn.' },
   { id: 'settler', label: 'Create a Settler', cost: 3, blurb: 'Someone of your making arrives at dawn.' },
-  { id: 'quest', label: 'Send on a Quest', cost: 3, blurb: 'Send someone (and companions) out into the world.' },
-  { id: 'law', label: 'Whisper a Law', cost: 5, blurb: "Put a law in the leader's head, or talk them out of one. Costs more if they'd hate it." },
-  { id: 'prophet', label: 'Raise a Prophet', cost: 8, blurb: 'Someone wakes certain of something, and founds a faith you shape.' },
-  { id: 'inspire', label: 'Inspire', cost: 4, blurb: "Give someone an idea that won't let go. The next discovery is likely to come from their work, and sooner." },
+  { id: 'quest', label: 'Send on a Quest', cost: 2, blurb: 'Send someone (and companions) out into the world.' },
+  { id: 'law', label: 'Whisper a Law', cost: 4, blurb: "Put a law in the leader's head, or talk them out of one. Costs more if they'd hate it." },
+  { id: 'prophet', label: 'Raise a Prophet', cost: 6, blurb: 'Someone wakes certain of something, and founds a faith you shape.' },
+  { id: 'inspire', label: 'Inspire', cost: 3, blurb: "Give someone an idea that won't let go. The next discovery is likely to come from their work, and sooner." },
 ];
 
 export const actCost = (id: ActId) => ACTS.find((a) => a.id === id)!.cost;
@@ -29,8 +29,8 @@ export type ActResult = { ok: true } | { ok: false; reason: string };
 
 function spend(s: GameState, id: ActId): ActResult {
   const cost = actCost(id);
-  if (s.favor < cost) return { ok: false, reason: `You need ${cost} Favor for that.` };
-  s.favor -= cost;
+  if (s.sparks < cost) return { ok: false, reason: `You need ${cost} Spark${cost === 1 ? '' : 's'} for that.` };
+  s.sparks -= cost;
   return { ok: true };
 }
 
@@ -169,8 +169,8 @@ export function whisperLaw(s: GameState, id: LawId): ActResult {
   const leader = s.leader ? s.people[s.leader.person] : undefined;
   if (!leader || !leader.alive) return { ok: false, reason: 'No one leads the settlement yet.' };
   const cost = lawCost(s, id);
-  if (s.favor < cost) return { ok: false, reason: `You need ${cost} Favor for that.` };
-  s.favor -= cost;
+  if (s.sparks < cost) return { ok: false, reason: `You need ${cost} Sparks for that.` };
+  s.sparks -= cost;
   if (hasLaw(s, id)) repealLaw(s, id, { patron: true });
   else enactLaw(s, id, { patron: true });
   return { ok: true };

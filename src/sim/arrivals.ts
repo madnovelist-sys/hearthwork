@@ -2,6 +2,7 @@
 // has work they can do: a kiln draws potters, a dock draws fishers, building
 // draws journeymen. In hard times, few come. (Calling someone special with
 // Sparks is in callers.ts.)
+import { keeps, landOf, pickLand, waysOf, waysPhrase } from './culture';
 import { F, log, P } from './chronicle';
 import { familyName } from './names';
 import { createPerson, draftPerson } from './people';
@@ -134,12 +135,26 @@ export function makeParty(s: GameState): Party {
       break;
     }
   }
-  return { id: s.nextId.party++, story, people, faith };
+  // Where they come from, and the ways they carry.
+  const land = pickLand(s);
+  for (const d of people) { d.land = land.id; d.customs = waysOf(s, land); }
+  return { id: s.nextId.party++, story, people, faith, land: land.id };
 }
 
 export function makeArrivalOptions(s: GameState): Party[] {
   const n = hasLaw(s, 'open-gates') ? 4 : 3;
   return Array.from({ length: n }, () => makeParty(s));
+}
+
+/** Where they came from, and what they brought that's new here (or whom they followed). */
+export function fromLine(s: GameState, party: Party, created: { land?: number; family: string; id: number }[]): string {
+  const land = landOf(s, party.land);
+  if (!land) return '';
+  const before = s.people.find((p) => p.land === land.id && !created.some((c) => c.id === p.id) && p.alive && p.origin !== 'born');
+  const newWays = land.customs.filter((id) => !keeps(s, id) && !s.people.some((p) => p.alive && p.customs?.includes(id) && !created.some((c) => c.id === p.id)));
+  if (newWays.length) return ` They came from ${land.name}, and brought its ways with them: ${waysPhrase(newWays)}.`;
+  if (before && land.id !== s.culture?.home) return ` They came from ${land.name}, like the ${before.family}s before them.`;
+  return ` They came from ${land.name}.`;
 }
 
 /** The party arrives: real people, a tent, and a line in the Chronicle. */
@@ -168,7 +183,7 @@ export function settleParty(s: GameState, party: Party, patron = false, quiet = 
     // Turn the first mention of each newcomer into a clickable name.
     let story = party.story;
     for (const p of created) story = story.replace(new RegExp(`\\b${p.first}\\b`), F(p.id));
-    log(s, 'arrival', `New arrivals: ${story}`, ids, 3, created.length >= 4 ? `The Year the ${created[0].family}s Came` : undefined);
+    log(s, 'arrival', `New arrivals: ${story}${fromLine(s, party, created)}`, ids, 3, created.length >= 4 ? `The Year the ${created[0].family}s Came` : undefined);
   }
   return created;
 }
@@ -184,7 +199,7 @@ export function draws(s: GameState): { perYear: number; reasons: Draw[] } {
   const pop = people.length;
   const built = (k: string) => s.buildings.some((b) => b.kind === k && b.built && !b.removed);
   const workers = (j: JobId) => people.filter((p) => p.job === j).length;
-  const reasons: Draw[] = [{ why: 'that the land along the river was good and the people kind', weight: 2 }];
+  const reasons: Draw[] = [{ why: 'the land along the river was good and the people kind', weight: 2 }];
   if (built('kiln')) reasons.push({ why: `there was work at the kiln in ${s.name}`, job: 'potter', weight: workers('potter') < 2 + pop / 40 ? 2 : 0.6 });
   if (built('furnace')) reasons.push({ why: `the furnace in ${s.name} needed hands`, job: 'smith', weight: workers('smith') < 1 + pop / 60 ? 2 : 0.5 });
   if (built('dock')) reasons.push({ why: 'the river here was full of fish', job: 'fisher', weight: 1.2 });

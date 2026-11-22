@@ -57,13 +57,23 @@ export function roleFor(p: Person, age: number, roles: Roles): Role {
   return f ? 'farmer-woman' : 'farmer';
 }
 
-/** Which way someone is walking on screen, from their step across the map. */
+/**
+ * Which way someone faces, from the way they're going on screen: away from you (any way up the
+ * screen) shows their back; toward you, their front; across, and down at a slant, the three-
+ * quarter views turned the way they go. A few degrees of give at each edge, so they don't flicker
+ * between two views when walking right along one.
+ */
 export function dirOf(dx: number, dy: number, was: Dir): Dir {
   const sx = dx - dy, sy = (dx + dy) / 2;
-  if (Math.abs(sx) < 1e-6 && Math.abs(sy) < 1e-6) return was;
-  // The front and back views are the painted ones; the sides are only for walking nearly across.
-  if (Math.abs(sx) > 2.5 * Math.abs(sy)) return sx > 0 ? 'right' : 'left';
-  return sy > 0 ? 'down' : 'up';
+  if (Math.hypot(sx, sy) < 1e-4) return was;
+  const a = (Math.atan2(sy, sx) * 180) / Math.PI; // 0 = right, 90 = down the screen
+  // The streets run at about ±27° and ±153° on screen; the edges between views are kept well
+  // away from them, so walking along a street never flickers between two views.
+  const sector = (deg: number): Dir => (deg >= -10 && deg < 60 ? 'right' : deg >= 60 && deg < 120 ? 'down' : deg >= 120 || deg < -170 ? 'left' : 'up');
+  const now = sector(a);
+  if (now === was) return was;
+  // Only turn once well into the new view's range.
+  return sector(a - 8) === now && sector(a + 8) === now ? now : was;
 }
 
 /**

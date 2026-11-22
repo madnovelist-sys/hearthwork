@@ -5,6 +5,7 @@
 // governed, what it has discovered, what happened lately). People remember:
 // quarrels leave grudges with a reason, and friendships grow, so later scenes
 // call back to earlier ones.
+import { CUSTOM_BY_ID, keeps } from './culture';
 import { log, P } from './chronicle';
 import { chance, pick, rand } from './rng';
 import { DAYS_PER_YEAR, type GameState, type Person, type TraitId } from './types';
@@ -159,6 +160,12 @@ function causes(s: GameState, a: Person, b: Person): Cause[] {
       gatherer: [{ why: 'the hazel thicket', text: `the hazel thicket, and who had found it first`, heat: 1 }],
     };
     out.push(...(work[a.job] ?? []));
+  }
+  // Brought up in different ways: one keeps a way the other thinks has no place here.
+  const theirs = (a.customs ?? []).filter((id) => !(b.customs ?? []).includes(id) && !keeps(s, id));
+  if (theirs.length && b.land !== a.land && chance(s.rng, 0.35)) {
+    const c = CUSTOM_BY_ID.get(theirs[0]);
+    if (c) out.push({ why: 'the old ways', text: `${c.name}, which ${P(a.id)} kept as ${a.sex === 'f' ? 'she' : 'he'} had been raised to and ${P(b.id)} said had no place in ${s.name}`, heat: 2, retort: ['That is how it was done where I come from', 'You have your ways and I have mine'] });
   }
   if (inLaws(s, a, b)) out.push({ why: 'the children', text: `how the children should be raised, which was nobody's business but the parents', as ${P(a.id)} put it`, heat: 2 });
   if (a.faith !== undefined && b.faith !== undefined && a.faith !== b.faith && s.faiths[a.faith] && s.faiths[b.faith]) {

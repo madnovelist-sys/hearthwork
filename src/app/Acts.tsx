@@ -1,5 +1,6 @@
-// Acts: the player's powers, bought with Favor. Plus the people who can be called
+// Acts: the player's powers, bought with Sparks. Plus the people who can be called
 // with Sparks, and the people who come on their own.
+import { landOf, waysPhrase } from '../sim/culture';
 import { useState } from 'preact/hooks';
 import { ACTS, actCost, applyPending, createSettler, inspire, lawCost, nameChild, nameYear, raiseProphet, sendOnQuest, welcomeParty, whisperLaw } from '../sim/acts';
 import { CALL_COST, call, callOptions } from '../sim/callers';
@@ -31,15 +32,15 @@ export function ActsPanel() {
     <>
       <Fortunes />
       <p class="note">
-        You have <b class="cost">✦ {s.favor} Favor</b>. Every Spark earns 1; reaching your daily goal earns 5.
+        You have <b class="cost">✧ {s.sparks} Spark{s.sparks === 1 ? '' : 's'}</b>, earned as you work (and 3 more for reaching your daily goal). Spend them on Acts, or on calling someone to {s.name}.
         {!s.focus.running && ' Anything that brings people or sends them away happens at dawn, when you next start working.'}
       </p>
       {ACTS.map((a) => (
         <div class="act" key={a.id}>
           <div class="icon" aria-hidden>{ICON[a.id]}</div>
           <div class="what"><b>{a.label}</b><span>{a.blurb}</span></div>
-          <span class="cost">{cost(a.id) ? `✦${cost(a.id)}${a.id === 'law' ? '+' : ''}` : 'free'}</span>
-          <button class="btn small" disabled={s.favor < cost(a.id) || (a.id === 'law' && !s.leader)}
+          <span class="cost">{cost(a.id) ? `✧${cost(a.id)}${a.id === 'law' ? '+' : ''}` : 'free'}</span>
+          <button class="btn small" disabled={s.sparks < cost(a.id) || (a.id === 'law' && !s.leader)}
             onClick={() => (a.id === 'bless'
               ? store.toast('Choose someone on the map or in People, then press Bless on their card.')
               : store.setUi({ act: a.id as 'settler' | 'quest' | 'name' | 'law' | 'prophet' | 'inspire', actTarget: undefined }))}>
@@ -99,7 +100,7 @@ function SettlerForm() {
   };
   return (
     <form class="form" onSubmit={submit}>
-      <Back title={`Create a Settler · ✦${actCost('settler')}`} />
+      <Back title={`Create a Settler · ✧${actCost('settler')}`} />
       <p class="note">Someone of your making. They and their children's children carry your mark ✦.</p>
       <div class="two">
         <div><label>First name</label><input type="text" value={d.first} maxLength={24} onInput={(e) => set({ first: (e.target as HTMLInputElement).value })} /></div>
@@ -146,7 +147,7 @@ function SettlerForm() {
       <label>Where they come from (optional)</label>
       <textarea maxLength={240} placeholder="A one-line backstory. It goes into the Chronicle when they arrive." value={d.backstory} onInput={(e) => set({ backstory: (e.target as HTMLTextAreaElement).value })} />
       {error && <div class="error">{error}</div>}
-      <div style={{ marginTop: 12 }}><button class="btn primary" type="submit" disabled={s.favor < actCost('settler')}>Create {d.first || 'settler'} · ✦{actCost('settler')}</button></div>
+      <div style={{ marginTop: 12 }}><button class="btn primary" type="submit" disabled={s.sparks < actCost('settler')}>Create {d.first || 'settler'} · ✧{actCost('settler')}</button></div>
     </form>
   );
 }
@@ -172,7 +173,7 @@ function QuestForm() {
   };
   return (
     <form class="form" onSubmit={submit}>
-      <Back title={`Send on a Quest · ✦${actCost('quest')}`} />
+      <Back title={`Send on a Quest · ✧${actCost('quest')}`} />
       <p class="note">Quests take half a year to a few years. Brave, clever and strong travelers fare better; a blessing helps. Some never come back.</p>
       <label>Who goes</label>
       <select value={leader} onChange={(e) => { setLeader(Number((e.target as HTMLSelectElement).value)); setMates([]); }}>
@@ -194,7 +195,7 @@ function QuestForm() {
         <p class="hint">{lead.first} has family here. They'll be missed.</p>
       )}
       {error && <div class="error">{error}</div>}
-      <div style={{ marginTop: 12 }}><button class="btn primary" type="submit" disabled={!lead || s.favor < actCost('quest')}>Send {lead?.first ?? ''} · ✦{actCost('quest')}</button></div>
+      <div style={{ marginTop: 12 }}><button class="btn primary" type="submit" disabled={!lead || s.sparks < actCost('quest')}>Send {lead?.first ?? ''} · ✧{actCost('quest')}</button></div>
     </form>
   );
 }
@@ -215,7 +216,7 @@ function NameForm() {
   };
   return (
     <form class="form" onSubmit={submit}>
-      <Back title={`Name · ✦${actCost('name')}`} />
+      <Back title={`Name · ✧${actCost('name')}`} />
       <label>What to name</label>
       <select value={String(target)} onChange={(e) => { const v = (e.target as HTMLSelectElement).value; setTarget(v === 'year' ? 'year' : Number(v)); }}>
         <option value="year">This year (Year {yearOf(s.day)})</option>
@@ -224,7 +225,7 @@ function NameForm() {
       <label>{target === 'year' ? 'The Year of…' : 'First name'}</label>
       <input type="text" value={name} maxLength={target === 'year' ? 60 : 24} placeholder={target === 'year' ? 'the Long Summer' : ''} onInput={(e) => setName((e.target as HTMLInputElement).value)} />
       {error && <div class="error">{error}</div>}
-      <div style={{ marginTop: 12 }}><button class="btn primary" type="submit" disabled={s.favor < actCost('name')}>Name it · ✦{actCost('name')}</button></div>
+      <div style={{ marginTop: 12 }}><button class="btn primary" type="submit" disabled={s.sparks < actCost('name')}>Name it · ✧{actCost('name')}</button></div>
     </form>
   );
 }
@@ -265,6 +266,11 @@ export function ArrivalsPanel() {
           <div class="party" key={party.id}>
             {party.title && <h5 class="call-title">{party.title}</h5>}
             <div class="story">{party.story}</div>
+            {party.land !== undefined && landOf(s, party.land) && (
+              <div class="sub">
+                From {landOf(s, party.land)!.name}{landOf(s, party.land)!.customs.length ? `, bringing ${waysPhrase(landOf(s, party.land)!.customs)}` : ''}.
+              </div>
+            )}
             <ul>
               {party.people.map((d, i) => (
                 <li key={i}>
@@ -364,7 +370,7 @@ function LawForm() {
             <b>{l.name}</b>{inForce && <span class="tag" style={{ marginLeft: 6 }}>in force</span>}
             <div class="story" style={{ fontStyle: 'normal' }}>{l.effect}</div>
             <span class="sub">{leader.first} {inForce ? (opinion(leader, l.id) > 0 ? 'would hate to lose it' : "wouldn't miss it") : feel(l.id)}. </span>
-            <button class="btn small" disabled={s.favor < cost} onClick={() => go(l.id)}>{inForce ? 'Undo it' : 'Whisper it'} · ✦{cost}</button>
+            <button class="btn small" disabled={s.sparks < cost} onClick={() => go(l.id)}>{inForce ? 'Undo it' : 'Whisper it'} · ✧{cost}</button>
           </div>
         );
       })}
@@ -392,7 +398,7 @@ function ProphetForm() {
   };
   return (
     <form class="form" onSubmit={submit}>
-      <Back title={`Raise a Prophet · ${free ? 'free' : `✦${actCost('prophet')}`}`} />
+      <Back title={`Raise a Prophet · ${free ? 'free' : `✧${actCost('prophet')}`}`} />
       <p class="note">Someone wakes certain of something, and founds a faith. It spreads through families and friends, keeps a holy day, and may one day split.</p>
       <label>Who wakes with the calling</label>
       <select value={who} onChange={(e) => setWho(Number((e.target as HTMLSelectElement).value))}>
@@ -407,7 +413,7 @@ function ProphetForm() {
       <label>Name of the faith (optional)</label>
       <input type="text" maxLength={40} placeholder="Leave blank and the followers will name it" value={name} onInput={(e) => setName((e.target as HTMLInputElement).value)} />
       {error && <div class="error">{error}</div>}
-      <div style={{ marginTop: 12 }}><button class="btn primary" type="submit" disabled={!free && s.favor < actCost('prophet')}>Raise a prophet</button></div>
+      <div style={{ marginTop: 12 }}><button class="btn primary" type="submit" disabled={!free && s.sparks < actCost('prophet')}>Raise a prophet</button></div>
     </form>
   );
 }
@@ -433,7 +439,7 @@ function InspireForm() {
   };
   return (
     <form class="form" onSubmit={submit}>
-      <Back title={`Inspire · ✦${actCost('inspire')}`} />
+      <Back title={`Inspire · ✧${actCost('inspire')}`} />
       <p class="note">Give someone an idea that won't let go. Knowledge gathers faster, and the next discovery will likely come out of their work. Their trade decides what they might find.</p>
       <label>Who</label>
       <select value={who} onChange={(e) => setWho(Number((e.target as HTMLSelectElement).value))}>
@@ -445,7 +451,7 @@ function InspireForm() {
           : <>Nothing their trade leads to is in the air just now, but the knowledge still helps.</>}
       </p>
       {error && <div class="error">{error}</div>}
-      <div style={{ marginTop: 12 }}><button class="btn primary" type="submit" disabled={s.favor < actCost('inspire')}>Inspire</button></div>
+      <div style={{ marginTop: 12 }}><button class="btn primary" type="submit" disabled={s.sparks < actCost('inspire')}>Inspire</button></div>
     </form>
   );
 }

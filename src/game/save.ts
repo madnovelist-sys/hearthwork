@@ -1,5 +1,6 @@
 // Saving. A city can hold hundreds of hours of someone's work, so it's saved
 // often, backed up daily, and can be exported to a file at any time.
+import { migrateCulture } from '../sim/culture';
 import { DAYS_PER_YEAR } from '../sim/types';
 import type { GameState } from '../sim/types';
 import { SAVE_VERSION } from '../sim/sim';
@@ -104,6 +105,11 @@ function migrate(s: GameState): GameState {
   s.pending ??= [];
   s.arrivals ??= [];
   s.sparks ??= 0;
+  // Older villages keep the ways of a homeland they no longer remember.
+  migrateCulture(s);
+  // Favor is gone: Sparks are the one currency. An older village's Favor comes over at half.
+  if (s.favor) s.sparks += Math.ceil(s.favor / 2);
+  delete s.favor;
   s.settings.units ??= defaultUnits();
   // Traditions: an older village already buries its dead, and (if it's a village) has a chief.
   if (!s.traditions) {

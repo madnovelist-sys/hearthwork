@@ -1,5 +1,6 @@
 // The lives of the settlers: love, children, sickness, accidents, old age,
 // grief. Darkness scales the avoidable deaths and the way they're told.
+import { cultureBoost } from './culture';
 import { F, log, P } from './chronicle';
 import { assignJobs } from './economy';
 import { DREAM_LABEL, childOf, nameChild } from './people';
@@ -165,7 +166,7 @@ export function lifeDay(s: GameState) {
   const hasHealer = present(s).some((p) => p.job === 'healer' && !p.sick);
   // What's been learned about sickness, and healers' huts to nurse people in.
   const huts = s.buildings.filter((b) => b.kind === 'healer' && b.built && !b.removed).length;
-  const healing = boost(s, 'health') * (1 + Math.min(3, huts) * 0.12);
+  const healing = boost(s, 'health') * cultureBoost(s, 'health') * (1 + Math.min(3, huts) * 0.12);
   const people = present(s);
   const dark = darkFactor(s);
 

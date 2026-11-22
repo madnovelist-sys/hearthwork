@@ -1,5 +1,5 @@
 // The top bar: where and when the city is, the focus timer, progress to the
-// next Spark and today's goal, Favor, and the panel buttons.
+// next Spark and today's goal, Sparks, and the panel buttons.
 import { useEffect, useState } from 'preact/hooks';
 import { goalDaysThisWeek, localDate, sessionElapsed } from '../game/clock';
 import { store, type Panel } from '../game/store';
@@ -69,7 +69,7 @@ export function Hud() {
           <button class="btn small" onClick={() => store.setUi({ logWords: true })} title="Add words you wrote">+ Words</button>
         )}
         <div class="meters">
-          <div class="meter" title="Every Spark is kept to spend on calling someone, and brings 1 Favor">
+          <div class="meter" title="Every Spark is kept, to spend on calling someone or on Acts">
             <span>Spark</span><div class="bar"><i style={{ width: `${sparkFrac * 100}%` }} /></div><span>{sparkLeft}</span>
           </div>
           <div class="meter" title={`Daily goal: ${byWords ? `${g.dailyWords} words` : `${g.dailyMinutes} minutes`}. ${goalDaysThisWeek(s, now)} goal days this week.`}>
@@ -81,8 +81,7 @@ export function Hud() {
       </div>
       <div class="stats">
         <div class="stat" title={`The weather in ${s.name} today`}><b>{formatTemp(temperature(s), s.settings.units ?? 'c')}</b><span>{SKY_LABEL[s.weather?.sky ?? 'clear']}</span></div>
-        <div class="stat favor" title="Favor: spend it on Acts"><b>✦ {s.favor}</b><span>Favor</span></div>
-        <div class="stat spark" title={`Sparks: spend ${CALL_COST} to call someone to ${s.name}`}><b>✧ {s.sparks ?? 0}</b><span>Sparks</span></div>
+        <div class="stat spark" title={`Sparks: spend ${CALL_COST} to call someone to ${s.name}, or spend them on Acts`}><b>✧ {s.sparks ?? 0}</b><span>Sparks</span></div>
         <div class="stat"><b>{population(s)}</b><span>People</span></div>
       </div>
       <div class="tabs">
