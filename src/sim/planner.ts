@@ -1,5 +1,6 @@
 // The settlement builds itself: it decides what to build, where it goes,
 // and moves families in when it's done. Footsteps wear paths into the grass.
+import { looksWet } from './shore';
 import { log } from './chronicle';
 import { openBusiness } from './society';
 import { startHerd } from './animals';
@@ -120,6 +121,8 @@ export function findSite(s: GameState, kind: BuildingKind): { x: number; y: numb
   const sk = siteKind(kind);
   const region = settlementRegion(s);
   const { map, hearth } = s;
+  // Land where the river's painted edge spreads over it is left alone (except by docks).
+  const wet = sk === 'dock' ? null : looksWet(map);
   const nBuilt = s.buildings.filter((b) => !b.removed && b.kind !== 'field').length;
   const ring = 2.6 + Math.sqrt(nBuilt) * 0.85;
   // The search reaches farther as the settlement spreads (and the map widens).
@@ -137,7 +140,7 @@ export function findSite(s: GameState, kind: BuildingKind): { x: number; y: numb
       for (let yy = y; yy < y + h && ok; yy++) {
         for (let xx = x; xx < x + w; xx++) {
           const i = yy * map.w + xx;
-          if (!region[i] || map.occ[i] || !isBuildable(map.terrain[i]) || map.walls?.[i]) { ok = false; break; }
+          if (!region[i] || map.occ[i] || !isBuildable(map.terrain[i]) || map.walls?.[i] || wet?.[i]) { ok = false; break; }
           if (map.trees[i]) trees += map.trees[i] === TREE.BOULDER ? 3 : 1;
           if (map.wear[i] > 1.2) worn++;
           fert += map.fertility[i];

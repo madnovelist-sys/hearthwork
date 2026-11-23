@@ -28,7 +28,8 @@ const COATS: Record<AnimalKind, (Tint | null)[]> = {
 type Tint = 'dark' | 'pale' | 'grey' | 'black';
 
 export function drawAnimalArt(g: CanvasRenderingContext2D, a: Animal, x: number, y: number, k: number, now: number, dpr: number): boolean {
-  const moving = Math.hypot(a.tx - a.x, a.ty - a.y) > 0.05;
+  const pace = Math.hypot(a.vx, a.vy);
+  const moving = pace > 0.04;
   const state: State = a.kind === 'duck' ? 'swimming' : moving ? 'idle' : 'ambient';
   const height = HEIGHT[a.kind] * k;
   const scale96 = height / PAINTED[a.kind];
@@ -41,24 +42,23 @@ export function drawAnimalArt(g: CanvasRenderingContext2D, a: Animal, x: number,
   const frame = frames > 1 ? Math.floor(now / 190 + a.variant * 1.7) % frames : 0;
   const coats = COATS[a.kind];
   const src = coat(img, a.kind, state, size, coats[a.variant % coats.length]);
-  // A little bob as it walks; a duck rides the water.
-  const bob = a.kind === 'duck' ? Math.sin(now / 600 + a.variant) * 0.5 * k : moving ? Math.abs(Math.sin(now / 95 + a.variant)) * 1.1 * k : 0;
+  // A duck rides the water; anything walking sways gently with its steps (no hopping): its body
+  // rises a touch and rocks from foot to foot as it covers the ground.
+  const gait = a.stride / (a.kind === 'dog' || a.kind === 'cat' ? 3.2 : 4.5);
+  const bob = a.kind === 'duck' ? Math.sin(now / 600 + a.variant) * 0.5 * k : moving ? (Math.sin(gait * Math.PI) * 0.5 + 0.5) * 0.35 * k * Math.min(1, pace * 3) : 0;
+  const rock = a.kind !== 'duck' && moving ? Math.sin(gait * Math.PI * 0.5) * 0.035 * Math.min(1, pace * 3) : 0;
   if (a.kind !== 'duck') {
     g.fillStyle = 'rgba(62,58,79,0.25)';
     g.beginPath(); g.ellipse(x, y, height * 0.42, height * 0.17, 0, 0, Math.PI * 2); g.fill();
   }
   const [ax, ay] = ANCHOR[size];
   const w = size * scale;
-  const top = y - ay * scale - bob;
-  if (a.facing < 0) {
-    g.save();
-    g.translate(x + ax * scale, top);
-    g.scale(-1, 1);
-    g.drawImage(src, frame * size, 0, size, size, 0, 0, w, w);
-    g.restore();
-  } else {
-    g.drawImage(src, frame * size, 0, size, size, x - ax * scale, top, w, w);
-  }
+  g.save();
+  g.translate(x, y - bob);
+  if (rock) g.rotate(rock);
+  if (a.facing < 0) g.scale(-1, 1);
+  g.drawImage(src, frame * size, 0, size, size, -ax * scale, -ay * scale, w, w);
+  g.restore();
   return true;
 }
 

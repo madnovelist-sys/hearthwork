@@ -13,6 +13,10 @@ import { Fauna, drawAnimal, drawBirds } from './fauna';
 import { drawAnimalArt } from './animal-art';
 import { groundReady, surface, type Surface } from './ground';
 import { DECOR, DECOR_KEY, Decor } from './decor';
+import { blobAt } from '../sim/shore';
+import { DRAW_MS, drawBucket, drawLine, wellParts } from './work';
+import { barleyState, harvestOf } from './harvest';
+import { PERSON_PX, placement, resetPlacements, treeSpot } from './layout';
 import { sway, windStrength } from './wind';
 import type { Selection } from '../game/store';
 
@@ -24,7 +28,7 @@ interface Puff { x: number; y: number; z: number; age: number; life: number; dri
 interface Flake { x: number; y: number; speed: number; sway: number }
 
 type Drawable =
-  | { depth: number; kind: 'sprite'; sprite: Sprite; gx: number; gy: number; b?: Building; alpha?: number; fit?: number; flip?: boolean; bend?: number }
+  | { depth: number; kind: 'sprite'; sprite: Sprite; gx: number; gy: number; b?: Building; alpha?: number; fit?: number; flip?: boolean; bend?: number; cut?: { at: number; under: Sprite } }
   | { depth: number; kind: 'wall'; x: number; y: number }
   | { depth: number; kind: 'deck'; x: number; y: number; alongX: boolean }
   | { depth: number; kind: 'walker'; id: number }
@@ -33,6 +37,9 @@ type Drawable =
 const BARLEY = 'nat_barley_any_2x2';
 /** Grass tufts by season: [shaded blades, lit blades]. */
 const GRASS_TUFT: [string, string][] = [['#5E8A3A', '#8DB65A'], ['#557F36', '#86AD4F'], ['#8A6E33', '#B8964A'], ['#6E7350', '#959A72']];
+
+/** How big each kind of tree stands against the people (the art was made for smaller people). */
+const TREE_SIZE: Record<number, number> = { [TREE.BROADLEAF]: 1.4, [TREE.PINE]: 1.3, [TREE.FRUIT]: 1.12, [TREE.BUSH]: 1.05, [TREE.BOULDER]: 1, [TREE.STUMP]: 1 };
 
 /** How far each kind of tree or plant leans in a full gust (a shear: top shift / height). */
 const TREE_BEND: Record<number, number> = { [TREE.BROADLEAF]: 0.04, [TREE.PINE]: 0.025, [TREE.FRUIT]: 0.035, [TREE.BUSH]: 0.06 };
@@ -43,10 +50,6 @@ const KIND_OF: Record<number, string> = {
   [TERRAIN.GRASS]: 'grass', [TERRAIN.SAND]: 'sand', [TERRAIN.ROCK]: 'rock', [TERRAIN.WATER]: 'shallow',
   [TERRAIN.DEEP]: 'deep', [TERRAIN.MARSH]: 'marsh', [TERRAIN.PLAZA]: 'plaza', [TERRAIN.BRIDGE]: 'shallow',
 };
-/** How far from its centre each kind of ground reaches at its edge (half a tile is its own square). */
-const BLOB: Record<string, number> = { shallow: 0.62, deep: 0.6, sand: 0.58, rock: 0.56, marsh: 0.58 };
-/** Deep water lies within the shallows: for the shallows' edge, both are the same water. */
-const sameBody = (own: string, other: string) => other === own || (own === 'shallow' && other === 'deep');
 const RANK: Record<string, number> = { grass: 0, plaza: 0, marsh: 1, rock: 2, sand: 3, shallow: 4, deep: 5 };
 /** Each corner of a tile: its two side neighbours and the one across, as (dx, dy) pairs. */
 const CORNERS: [number, number, number, number, number, number][] = [
@@ -54,21 +57,6 @@ const CORNERS: [number, number, number, number, number, number][] = [
 ];
 const kindAt = (map: GameState['map'], x: number, y: number) =>
   x < 0 || y < 0 || x >= map.w || y >= map.h ? undefined : KIND_OF[map.terrain[y * map.w + x]];
-
-/**
- * How a barley field looks today: sprouting in spring, green then ripening in summer, cut one
- * field at a time through the autumn, and lying fallow (under snow, when there is some) in winter.
- */
-function barleyState(s: GameState, b: Building, snowy: boolean): string {
-  const season = seasonIndex(s.day);
-  const p = seasonProgress(s.day);
-  if (snowy) return 'winter-fallow';
-  if (season === 3) return 'harvested';
-  if (season === 0) return p < 0.45 ? 'sprouts' : 'growing';
-  if (season === 1) return p < 0.55 ? 'growing' : 'ripe';
-  const cut = 0.15 + (hashString(`field${b.id}`) % 100) / 100 * 0.5; // each field is cut on its own day
-  return p < cut ? 'ripe' : 'harvested';
-}
 
 export class Renderer {
   /** The context drawn to: the canvas, or briefly the cached ground while it's being repainted. */
@@ -94,7 +82,7 @@ export class Renderer {
   constructor(readonly canvas: HTMLCanvasElement) {
     this.g = canvas.getContext('2d')!;
     this.resize();
-    onArtChange(() => { this.groundKey = ''; });
+    onArtChange(() => { this.groundKey = ''; resetPlacements(); this.tinted = new WeakMap(); });
   }
 
   /** Sparks flying up from the hearth (positions in px at zoom 1 from the fire). */
@@ -165,6 +153,8 @@ export class Renderer {
     this.last = now;
     // The window was hidden (no frames drawn, so nobody moved): the city carried on without us.
     if (running && gap > 3000) {
+      this.decor.update(s);
+      this.walkers.obstacles.update(s, this.decor);
       this.walkers.scatter(s, now, this.night);
       this.fauna.catchUp(s, this.walkers, now, this.night, this.w, this.h, (sx, sy) => this.toGrid(sx, sy));
     }
@@ -188,6 +178,8 @@ export class Renderer {
     this.walkers.indoor = indoorShare(s);
     this.walkers.fieldsAsleep = fieldsAsleep(s);
     this.walkers.frozen = !!s.weather?.ice;
+    this.decor.update(s);
+    this.walkers.obstacles.update(s, this.decor);
     if (running) {
       this.walkers.update(s, now, dt, this.night);
       this.fauna.update(s, this.walkers, now, dt, this.night, this.w, this.h, (sx, sy) => this.toGrid(sx, sy));
@@ -514,28 +506,14 @@ export class Renderer {
         // on the edge of a stretch of water, sand, rock or marsh adds a broad round patch, set back
         // toward the middle of the stretch, reaching a little (and a little more or less, as the
         // shore wanders) past its own square.
-        const reach = BLOB[own];
-        if (reach) {
-          let ix = 0, iy = 0, edge = false;
-          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-            if (!dx && !dy) continue;
-            const k = kindAt(map, x + dx, y + dy);
-            if (k === undefined) continue;
-            if (sameBody(own, k)) { ix += dx; iy += dy; } else edge = true;
-          }
-          if (edge) {
-            const len = Math.hypot(ix, iy);
-            const R = len ? 1.35 : reach;
-            const wander = Math.sin(x * 0.71 + y * 0.29) * 0.06 + Math.sin(x * 0.23 - y * 0.61 + 2) * 0.06;
-            const back = len ? R - (reach + wander) : 0;
-            const gx = x + 0.5 + (len ? (ix / len) * back : 0), gy = y + 0.5 + (len ? (iy / len) * back : 0);
-            const cc = this.toScreen(gx, gy);
-            const rx = Math.SQRT2 * (tw / 2) * R;
-            let p = shapes.get(`blob:${own}`);
-            if (!p) { p = new Path2D(); shapes.set(`blob:${own}`, p); }
-            p.moveTo(cc.x + rx, cc.y);
-            p.ellipse(cc.x, cc.y, rx, rx / 2, 0, 0, Math.PI * 2);
-          }
+        const blob = blobAt(map, x, y);
+        if (blob) {
+          const cc = this.toScreen(blob.gx, blob.gy);
+          const rx = Math.SQRT2 * (tw / 2) * blob.r;
+          let p = shapes.get(`blob:${own}`);
+          if (!p) { p = new Path2D(); shapes.set(`blob:${own}`, p); }
+          p.moveTo(cc.x + rx, cc.y);
+          p.ellipse(cc.x, cc.y, rx, rx / 2, 0, 0, Math.PI * 2);
         }
         // Smooth the staircase where two kinds of ground meet: a corner closed in on both sides
         // (and across) by a kind painted over this one is filled with it, along the tile's diagonal.
@@ -590,7 +568,7 @@ export class Renderer {
     // Paths worn into the ground, deeper the more they're walked.
     // Land smoothing into land goes under the paths and the snow; water into land goes over them.
     fill('edge:sand', 'sand'); fill('edge:rock', 'rock'); fill('edge:marsh', 'marsh');
-    fill('blob:marsh', 'marsh'); fill('blob:rock', 'rock'); fill('blob:sand', 'sand');
+    fill('blob:marsh', 'marsh'); fill('blob:rock', 'rock'); fill('blob:sand', 'sand'); fill('blob:plaza', 'plaza');
     for (let k = 1; k <= 4; k++) fill(`worn${k}`, 'dirt', k / 4.6);
     // Snow lies over everything but the water; trodden paths show through it.
     if (snow) {
@@ -734,15 +712,21 @@ export class Renderer {
         const i = y * map.w + x;
         const t = map.trees[i];
         if (t === TREE.NONE) continue;
-        const h = hashString(`${x},${y}`);
-        const v = h % 3;
         // Trees stand anywhere in their patch of ground, not on a grid.
-        const ox = (((h >>> 4) % 100) / 100 - 0.5) * 0.5, oy = (((h >>> 11) % 100) / 100 - 0.5) * 0.5;
+        const spot = treeSpot(x, y);
+        const h = spot.h;
+        const v = h % 3;
+        const ox = spot.x - x - 0.5, oy = spot.y - y - 0.5;
         // Saplings are drawn small and grow over the years.
         const g = map.growth?.[i] ?? 1;
-        const fit = t !== TREE.STUMP && g < 1 ? 0.3 + 0.7 * g : undefined;
-        const bend = (TREE_BEND[t] ?? 0) * (fit ? 1.6 - fit * 0.6 : 1) * sway(x, y, now, ((h >>> 18) % 100) / 100);
-        list.push({ depth: x + y + 2 + ox + oy, kind: 'sprite', sprite: treeSprite(t, winter ? 3 : season, v), gx: x + 1 + ox, gy: y + 1 + oy, fit, bend });
+        const young = t !== TREE.STUMP && g < 1 ? 0.3 + 0.7 * g : 1;
+        // Every tree its own: taller or shorter, mirrored or not, a shade lighter or darker.
+        // (In five steps, so each picture is only ever shrunk to a few sizes.)
+        const size = (TREE_SIZE[t] ?? 1) * (0.84 + (((h >>> 20) % 5) / 4) * 0.34);
+        const fit = young * size;
+        const bend = (TREE_BEND[t] ?? 0) * (young < 1 ? 1.6 - young * 0.6 : 1) * sway(x, y, now, ((h >>> 18) % 100) / 100);
+        const sprite = this.treeTintImpl(treeSprite(t, winter ? 3 : season, v), (h >>> 26) % 4);
+        list.push({ depth: x + y + 2 + ox + oy, kind: 'sprite', sprite, gx: x + 1 + ox, gy: y + 1 + oy, fit, bend, flip: ((h >>> 9) & 1) === 1 });
       }
     }
     // Low plants, rocks and logs: the day's scenery.
@@ -762,9 +746,13 @@ export class Renderer {
         // Barley, at whatever stage the year has it (fields being dug are drawn with the ground).
         const sprite = b.built ? realSprite(BARLEY, 0, barleyState(s, b, snowy)) : undefined;
         if (sprite && b.x + b.w >= r.x0 && b.x <= r.x1 + 1 && b.y + b.h >= r.y0 && b.y <= r.y1 + 1) {
-          // Standing barley ripples in the wind; stubble and bare earth don't.
+          // Standing barley ripples in the wind; stubble and bare earth don't. At harvest, the field
+          // is cut a strip at a time: stubble behind the line, standing barley ahead of it.
           const tall = sprite === realSprite(BARLEY, 0, 'growing') || sprite === realSprite(BARLEY, 0, 'ripe');
-          list.push({ depth: b.x + b.y + 0.5, kind: 'sprite', sprite, gx: b.x + b.w, gy: b.y + b.h, b, bend: tall ? 0.035 * sway(b.x + 1, b.y + 1, now, 0.3) : 0 });
+          const at = snowy ? 0 : harvestOf(s, b);
+          const under = realSprite(BARLEY, 0, 'harvested');
+          const cut = at > 0 && at < 1 && under ? { at, under } : undefined;
+          list.push({ depth: b.x + b.y + 0.5, kind: 'sprite', sprite, gx: b.x + b.w, gy: b.y + b.h, b, bend: tall ? 0.035 * sway(b.x + 1, b.y + 1, now, 0.3) : 0, cut });
         }
         continue;
       }
@@ -777,10 +765,14 @@ export class Renderer {
       // The hearth is banked to embers while the village sleeps (resting, after dark).
       const banked = b.kind === 'hearth' && b.built && this.banked ? realSprite('lmk_hearth_bronze_1x1', b.variant, 'embers') : undefined;
       const sprite = banked ?? (b.built ? buildingSprite(b.kind, b.variant, winter, b.era) : scaffoldSprite(b.w, b.h, b.progress / Math.max(1, b.required)));
-      const depth = b.kind === 'graveyard' || b.kind === 'pen' ? b.x + b.y + 0.5 : b.x + b.w + b.y + b.h; // low enclosures sit under what's inside them
-      // Art made for a different footprint (e.g. a 2×2 granary in an older city's 1×1 spot) is scaled to fit.
-      const fit = sprite.tiles && sprite.tiles !== b.w ? b.w / sprite.tiles : undefined;
-      list.push({ depth, kind: 'sprite', sprite, gx: b.x + b.w, gy: b.y + b.h, b, fit });
+      // Art made for a different footprint (e.g. a 2×2 granary in an older city's 1×1 spot) is scaled
+      // to fit, and every building is drawn at its true size against the people, standing where
+      // it stands in its plot (see layout.ts). Scaffolding fills the plot.
+      const at = b.built ? placement(b) : { scale: 1, cx: b.x + b.w / 2, cy: b.y + b.h / 2 };
+      const fit = (sprite.tiles && sprite.tiles !== b.w ? b.w / sprite.tiles : 1) * at.scale;
+      const gx = at.cx + (b.w / 2) * at.scale, gy = at.cy + (b.h / 2) * at.scale;
+      const depth = b.kind === 'graveyard' || b.kind === 'pen' ? b.x + b.y + 0.5 : gx + gy; // low enclosures sit under what's inside them
+      list.push({ depth, kind: 'sprite', sprite, gx, gy, b, fit: fit === 1 ? undefined : fit });
     }
     // The town wall, where it's been built so far.
     const wl = map.walls;
@@ -821,18 +813,87 @@ export class Renderer {
     // of it), so buildings stay planted on their tiles while zooming instead of shifting a little
     // each time the zoom crosses one of the pre-shrunk sizes. Plants lean with the wind (sheared
     // about their base, so their roots stay put) and some are mirrored, about their anchor.
-    const img = this.prescaled(sp, scale);
-    if (flip || bend) {
+    // (Mirrored pictures are kept ready-mirrored: flipping while drawing is slow on some machines.)
+    const img = flip ? this.mirrored(this.prescaled(sp, scale)) : this.prescaled(sp, scale);
+    const lx = flip ? -(sp.w - sp.ax) * scale : left;
+    if (bend) {
       g.save();
       g.translate(a.x, a.y);
-      if (bend) g.transform(1, 0, -bend, 1, 0, 0);
-      if (flip) g.scale(-1, 1);
-      g.drawImage(img, left, top, w, h);
+      g.transform(1, 0, -bend, 1, 0, 0);
+      g.drawImage(img, lx, top, w, h);
       g.restore();
     } else {
-      g.drawImage(img, a.x + left, a.y + top, w, h);
+      g.drawImage(img, a.x + lx, a.y + top, w, h);
     }
     if (alpha < 1) g.globalAlpha = 1;
+  }
+
+  /** A well, its bucket on the rope: hanging still, or going down for water while someone waits. */
+  private wellSprites = new WeakMap<Sprite, Sprite>();
+  private drawWell(b: Building, sp: Sprite, gx: number, gy: number, fit: number, now: number) {
+    const parts = wellParts(sp);
+    if (!parts) { this.drawSprite(sp, gx, gy, 1, fit); return; }
+    let empty = this.wellSprites.get(sp);
+    if (!empty) { empty = { ...sp, img: parts.empty }; this.wellSprites.set(sp, empty); }
+    this.drawSprite(empty, gx, gy, 1, fit);
+    const use = this.walkers.wells.get(b.id);
+    const t = use ? now - use.start : -1;
+    const a = this.toScreen(gx, gy);
+    drawBucket(this.g, parts, sp, a.x, a.y, (this.tw / sp.tilePx) * fit, t >= 0 && t < DRAW_MS ? t : -1, use?.toward ?? -1);
+  }
+
+  /** A field part-way through its harvest: stubble behind the cutting line, barley still standing beyond it. */
+  private drawCutField(b: Building, ripe: Sprite, stubble: Sprite, at: number, gx: number, gy: number, bend: number) {
+    this.drawSprite(stubble, gx, gy);
+    const g = this.g;
+    const x0 = b.x + at * b.w, x1 = b.x + b.w, y0 = b.y, y1 = b.y + b.h;
+    const lift = this.tw * 0.9;
+    const pts = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => this.toScreen(x, y));
+    // The ground still to cut, and everything standing above it.
+    const hull = [...pts, ...pts.map((p) => ({ x: p.x, y: p.y - lift }))].sort((a, b2) => a.x - b2.x || a.y - b2.y);
+    const cross = (o: { x: number; y: number }, a: { x: number; y: number }, c: { x: number; y: number }) => (a.x - o.x) * (c.y - o.y) - (a.y - o.y) * (c.x - o.x);
+    const lower: typeof hull = [], upper: typeof hull = [];
+    for (const p of hull) { while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop(); lower.push(p); }
+    for (const p of hull.slice().reverse()) { while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop(); upper.push(p); }
+    const poly = [...lower.slice(0, -1), ...upper.slice(0, -1)];
+    g.save();
+    g.beginPath(); poly.forEach((p, i) => (i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y))); g.closePath(); g.clip();
+    this.drawSprite(ripe, gx, gy, 1, 1, false, bend);
+    g.restore();
+  }
+
+  /** Trees in a few shades: as painted, a little darker, a little lighter and warmer, a little bluer. */
+  private tinted = new WeakMap<Sprite, Sprite[]>();
+  private treeTintImpl(sp: Sprite, n: number): Sprite {
+    if (!n || !sp.real) return sp;
+    let set = this.tinted.get(sp);
+    if (!set) { set = []; this.tinted.set(sp, set); }
+    if (set[n]) return set[n];
+    const cv = document.createElement('canvas');
+    cv.width = sp.w; cv.height = sp.h;
+    const g = cv.getContext('2d')!;
+    g.drawImage(sp.img, 0, 0);
+    g.globalCompositeOperation = n === 2 ? 'screen' : 'multiply';
+    g.fillStyle = n === 1 ? '#C9C2B4' : n === 2 ? '#2A2410' : '#C4CCC8';
+    g.fillRect(0, 0, cv.width, cv.height);
+    g.globalCompositeOperation = 'destination-in';
+    g.drawImage(sp.img, 0, 0);
+    set[n] = { ...sp, img: cv };
+    return set[n];
+  }
+
+  private mirrorCache = new WeakMap<object, HTMLCanvasElement>();
+  private mirrored(img: CanvasImageSource): HTMLCanvasElement {
+    let m = this.mirrorCache.get(img as object);
+    if (m) return m;
+    const src = img as HTMLCanvasElement;
+    m = document.createElement('canvas');
+    m.width = src.width; m.height = src.height;
+    const g = m.getContext('2d')!;
+    g.translate(m.width, 0); g.scale(-1, 1);
+    g.drawImage(src, 0, 0);
+    this.mirrorCache.set(img as object, m);
+    return m;
   }
 
   /** A sprite darkened to a burned-out shell (made once, then kept). */
@@ -889,7 +950,7 @@ export class Renderer {
       og.drawImage(src, 0, 0, out.width, out.height);
       hit = { key, img: out };
       list.unshift(hit);
-      if (list.length > 3) list.pop();
+      if (list.length > 10) list.pop(); // (trees and buildings come in a few sizes each)
     }
     return hit.img;
   }
@@ -908,6 +969,10 @@ export class Renderer {
         if (d.b?.burned) {
           // A charred shell.
           this.drawSprite(this.charred(d.sprite), d.gx, d.gy, d.alpha, d.fit);
+        } else if (d.cut && d.b) {
+          this.drawCutField(d.b, d.sprite, d.cut.under, d.cut.at, d.gx, d.gy, d.bend ?? 0);
+        } else if (d.b?.kind === 'well' && d.b.built) {
+          this.drawWell(d.b, d.sprite, d.gx, d.gy, d.fit ?? 1, now);
         } else {
           this.drawSprite(d.sprite, d.gx, d.gy, d.alpha, d.fit, d.flip, d.bend);
         }
@@ -919,7 +984,8 @@ export class Renderer {
         if (!a) continue;
         const c = this.toScreen(a.x, a.y);
         if (c.x < -20 || c.x > this.w + 20 || c.y < -30 || c.y > this.h + 20) continue;
-        if (!drawAnimalArt(g, a, c.x, c.y, tw / 64, now, this.dpr)) drawAnimal(g, a, c.x, c.y, tw / 64, now);
+        const ak = (tw / 64) * (PERSON_PX / 20);
+        if (!drawAnimalArt(g, a, c.x, c.y, ak, now, this.dpr)) drawAnimal(g, a, c.x, c.y, ak, now);
         continue;
       }
       const w = this.walkers.list.get(d.id)!;
@@ -928,7 +994,7 @@ export class Renderer {
       if (c.x < -20 || c.x > this.w + 20 || c.y < -30 || c.y > this.h + 20) continue;
       const age = Math.floor((s.day - p.born) / 360);
       // About 17 px for a grown-up at the usual zoom; children smaller.
-      const k = tw / 64 * 1.08 * sizeFor(age);
+      const k = tw / 64 * 1.08 * (PERSON_PX / 20) * sizeFor(age);
       g.globalAlpha = w.alpha;
       if (d.id === selP || d.id === this.hoverPerson) {
         g.strokeStyle = C.hearthGold; g.lineWidth = 2;
@@ -936,18 +1002,24 @@ export class Renderer {
       }
       // The painted villagers: a grown-up about 20 px tall at the usual zoom (the sheet's child is
       // smaller already; little ones a bit smaller still). Four steps to a stride; elders step slower.
-      const height = tw / 64 * 20 * (age < 8 ? 0.85 : age >= 12 && age < 16 ? 0.92 : 1);
+      const height = tw / 64 * PERSON_PX * (age < 8 ? 0.85 : age >= 12 && age < 16 ? 0.92 : 1);
       let painted = false;
       if (citizensReady()) {
         g.fillStyle = 'rgba(62,58,79,0.28)';
         g.beginPath(); g.ellipse(c.x, c.y, 4.2 * k, 1.9 * k, 0, 0, Math.PI * 2); g.fill();
         // A step for every few pixels walked, so the feet keep pace with the ground.
-        const frame = w.moving ? Math.floor(w.stride / 4.3) % 4 : 1;
+        const frame = w.moving ? Math.floor(w.stride / (4.3 * PERSON_PX / 20)) % 4 : 1;
         painted = drawCitizen(g, c.x, c.y, height, this.dpr, roleFor(p, age, roles), w.dir, frame, p.look.skin);
       }
       if (!painted) {
         const frame = Math.floor(now / (age >= 60 ? 190 : 135) + d.id * 0.37) % 4;
         drawFigure(g, c.x, c.y, k, p, costumeOf(p, age, roles), { frame, facing: w.facing, moving: w.moving, age });
+      }
+      // A fisher's line, out to a float on the water.
+      if (w.task?.kind === 'fish') {
+        const f = this.toScreen(w.task.fx, w.task.fy);
+        const side = f.x >= c.x ? 1 : -1;
+        drawLine(g, c.x + side * height * 0.18, c.y - height * 0.5, f.x, f.y, tw / 64 * (PERSON_PX / 20), now, d.id);
       }
       if (p.patron || p.lineage) {
         g.fillStyle = C.hearthGold;
@@ -1099,8 +1171,10 @@ export class Renderer {
 
   private drawHearthFire(s: GameState, now: number, running: boolean) {
     const g = this.g;
-    const c = this.toScreen(s.hearth.x + 0.5, s.hearth.y + 0.5);
-    const k = this.tw / 64;
+    const hb = s.buildings.find((b) => b.kind === 'hearth' && !b.removed);
+    const hp = hb ? placement(hb) : undefined;
+    const c = hp ? this.toScreen(hp.cx, hp.cy) : this.toScreen(s.hearth.x + 0.5, s.hearth.y + 0.5);
+    const k = (this.tw / 64) * (hp?.scale ?? 1);
     if (hasBuildingArt('hearth')) {
       // Banked for the night: the embers breathe, and that's all.
       if (this.banked) return;

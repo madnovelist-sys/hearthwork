@@ -4,9 +4,14 @@ import { buildCostGrid, findPath } from '../sim/path';
 import { currentTarget } from '../sim/forest';
 import { doorOf, workSite } from '../sim/planner';
 import { hashString } from '../sim/rng';
-import { TREE, type GameState, type Person } from '../sim/types';
+import { TERRAIN, TREE, type Building, type GameState, type Person } from '../sim/types';
 import { ageOf } from '../sim/world';
 import { dirOf, type Dir } from './citizens';
+import { Obstacles } from './obstacles';
+import { looksWet } from '../sim/shore';
+import { doorstep, placement } from './layout';
+import { DRAW_MS } from './work';
+import { harvestOf } from './harvest';
 
 export interface Walker {
   id: number;
@@ -20,6 +25,14 @@ export interface Walker {
   vy: number;
   /** How far they've walked, in screen px at zoom 1: their steps follow it, so feet don't slide. */
   stride: number;
+  /** Where they're going (to find a new way if they get stuck), and for how long they've been stuck. */
+  goal?: { x: number; y: number };
+  stuck: number;
+  /** Going indoors: the doorstep they step up to before they're gone. */
+  doorstep?: { x: number; y: number };
+  /** What this walk is for (water from a well), and what they're doing now they're there. */
+  errand?: { kind: 'water'; well: number };
+  task?: { kind: 'water'; well: number; start: number } | { kind: 'queue'; well: number } | { kind: 'fish'; fx: number; fy: number };
   waitUntil: number;
   next: 'work' | 'social' | 'home';
   alpha: number;
@@ -34,6 +47,10 @@ export interface Walker {
 }
 
 const MAX_WALKERS = 450;
+/** Where people meet, besides the fire. */
+const GATHER = new Set(['well', 'stall', 'alehouse', 'temple', 'shrine', 'guildhall', 'hall']);
+/** How much room someone takes up, in tiles (half a shoulder-width, more or less). */
+const BODY = 0.1;
 
 export class Walkers {
   list = new Map<number, Walker>();
@@ -44,6 +61,10 @@ export class Walkers {
   private treesAt = 0;
 
   private crowd = new Map<number, Walker[]>();
+  /** Who is drawing water at each well, since when, and which side they stand (+1 right, -1 left on screen). */
+  readonly wells = new Map<number, { walker: number; start: number; toward: number }>();
+  /** What people walk around (buildings as drawn, trees, rocks, props). */
+  readonly obstacles = new Obstacles();
 
   /** How much people keep indoors (0..1, from the weather), and whether the fields lie fallow. */
   indoor = 0;
@@ -56,6 +77,9 @@ export class Walkers {
     const key = `${s.buildings.length}:${s.day >> 3}`;
     if (!this.grid || (key !== this.gridKey && now - this.gridAt > 3000)) {
       this.grid = buildCostGrid(s.map, s.buildings);
+      // Nobody walks where the water's edge has been painted over the land.
+      const wet = looksWet(s.map);
+      for (let i = 0; i < wet.length; i++) if (wet[i] && s.map.terrain[i] !== TERRAIN.BRIDGE) this.grid[i] = Infinity;
       this.gridAt = now;
       this.gridKey = key;
     }
@@ -79,14 +103,14 @@ export class Walkers {
       let w = this.list.get(p.id);
       const home = s.buildings[p.home];
       if (!home || home.removed) continue;
-      const door = doorOf(home);
+      const door = this.doorFor(s, home);
       if (!w) {
         const h = hashString(`w${p.id}`);
         w = {
           id: p.id, x: door.x + 0.5, y: door.y + 0.5, path: null, seg: 0,
           waitUntil: now + (h % 4000), next: 'work', alpha: 0, inside: true,
           offX: ((h % 100) / 100 - 0.5) * 0.5, offY: (((h >> 8) % 100) / 100 - 0.5) * 0.5,
-          speed: 0.75 + ((h >> 16) % 30) / 100, facing: 1, dir: 'down', moving: false, vx: 0, vy: 0, stride: (h >> 3) % 17,
+          speed: 0.75 + ((h >> 16) % 30) / 100, facing: 1, dir: 'down', moving: false, vx: 0, vy: 0, stride: (h >> 3) % 17, stuck: 0,
         };
         this.list.set(p.id, w);
       }
@@ -98,7 +122,9 @@ export class Walkers {
         const atHome = w!.next === 'work';
         w!.path = null;
         w!.inside = atHome;
+        w!.doorstep = atHome ? doorstep(home) : undefined;
         w!.waitUntil = now + this.stay(p, w!, atHome);
+        if (!atHome) this.beginTask(s, p, w!, now);
       };
 
       // Night falls (or they're unwell): head home.
@@ -118,9 +144,28 @@ export class Walkers {
         continue;
       }
       w.vx = 0; w.vy = 0;
-      if (w.inside) w.alpha = Math.max(0, w.alpha - dt * 2.5);
-      else w.alpha = Math.min(1, w.alpha + dt * 3);
+      // Going in: up to the door of the house as it stands, then gone.
+      const step = w.inside && w.doorstep && w.alpha > 0.05 ? w.doorstep : undefined;
+      if (step) {
+        const ex = step.x - w.x, ey = step.y - w.y, e = Math.hypot(ex, ey);
+        if (e < 0.08) w.doorstep = undefined;
+        else {
+          const k = Math.min(e, speed * 0.8 * dt) / e;
+          w.x += ex * k; w.y += ey * k;
+          w.stride += Math.hypot((ex - ey) * k * 32, (ex + ey) * k * 16);
+          w.dir = dirOf(ex, ey, w.dir);
+          w.moving = true;
+        }
+      }
+      if (w.inside && !step) w.alpha = Math.max(0, w.alpha - dt * 2.5);
+      else if (!w.inside) w.alpha = Math.min(1, w.alpha + dt * 3);
+      // Waiting a turn at the well.
+      if (w.task?.kind === 'queue' && now >= w.waitUntil && !stayIn) {
+        if (this.claimWell(s, w, w.task.well, now)) continue;
+        w.task = undefined;
+      }
       if (now < w.waitUntil || stayIn) continue;
+      w.task = undefined;
 
       // The next leg: home, then work, then somewhere social, then home again.
       // In the cold or the wet, most people keep indoors; those whose work is outside still go.
@@ -132,7 +177,13 @@ export class Walkers {
       }
       if (leg === 'social' && roll < this.indoor * 100) w.next = 'home';
       const going = w.next;
-      const target = going === 'work' ? this.workTarget(s, p, home) : going === 'social' ? this.socialTarget(s, p, now) : door;
+      let target: { x: number; y: number; end?: { x: number; y: number } } | null = going === 'work' ? this.workTarget(s, p, home) : going === 'social' ? this.socialTarget(s, p, now) : door;
+      // Instead of idling, a grown-up sometimes fetches water from the nearest well.
+      w.errand = undefined;
+      if (going === 'social' && ageOf(s, p) >= 12 && hashString(`water${p.id}:${Math.floor(now / 30000)}`) % 100 < 30) {
+        const well = this.nearestWell(s, home);
+        if (well) { w.errand = { kind: 'water', well: well.id }; target = { x: well.x, y: well.y, end: doorstep(well) }; }
+      }
       w.next = going === 'work' ? 'social' : going === 'social' ? 'home' : 'work';
       if (!target || !this.go(s, w, target, now)) arrive();
     }
@@ -149,7 +200,7 @@ export class Walkers {
       if (!p || p.home === undefined) continue;
       const home = s.buildings[p.home];
       if (!home || home.removed) continue;
-      const door = doorOf(home);
+      const door = this.doorFor(s, home);
       const h = hashString(`${w.id}:${Math.floor(now / 1000)}`);
       const roll = h % 100;
       const stayIn = !!(p.sick || p.injured) || night > 0.55 || this.cold;
@@ -161,7 +212,7 @@ export class Walkers {
       w.moving = false;
       w.vx = 0; w.vy = 0;
       if (at) {
-        w.x = at.x + 0.5 + w.offX; w.y = at.y + 0.5 + w.offY;
+        ({ x: w.x, y: w.y } = this.obstacles.pushOut(at.x + 0.5 + w.offX, at.y + 0.5 + w.offY, BODY));
         w.inside = false; w.alpha = 1;
         w.waitUntil = now + (h % 6000);
       } else {
@@ -180,16 +231,138 @@ export class Walkers {
   }
 
   /** Start walking somewhere. Returns false if there's no way (or no need) to get there. */
-  private go(s: GameState, w: Walker, to: { x: number; y: number }, now: number): boolean {
+  private go(s: GameState, w: Walker, to: { x: number; y: number; end?: { x: number; y: number } }, now: number): boolean {
     const fx = Math.floor(w.x);
     const fy = Math.floor(w.y);
-    if (fx === to.x && fy === to.y) return false;
+    if (fx === to.x && fy === to.y && !to.end) return false;
     const tiles = findPath(s.map, s.buildings, fx, fy, to.x, to.y, 2500, this.grid ?? undefined);
     if (!tiles || tiles.length < 2) return false;
+    w.task = undefined;
     w.path = this.route(s, w, tiles);
+    // Exactly where they're going, if it matters (the well's step, the harvest line).
+    if (to.end) w.path[w.path.length - 1] = to.end;
     w.seg = 0;
     w.waitUntil = now;
     w.inside = false;
+    w.goal = to;
+    w.stuck = 0;
+    return true;
+  }
+
+  /**
+   * The open ground where someone comes out of (or goes into) a building: in front of it if that's
+   * free, else the nearest free spot around it (in a crowded street, the front may be next door).
+   */
+  private doors = new Map<number, { x: number; y: number; key: string }>();
+  private doorFor(s: GameState, b: Building): { x: number; y: number } {
+    const key = this.gridKey;
+    const hit = this.doors.get(b.id);
+    if (hit && hit.key === key) return hit;
+    const front = doorOf(b);
+    const free = (x: number, y: number) => x >= 0 && y >= 0 && x < s.map.w && y < s.map.h && isFinite(this.grid?.[y * s.map.w + x] ?? 1);
+    let best = free(front.x, front.y) ? front : null;
+    if (!best) {
+      let bd = Infinity;
+      for (let y = b.y - 1; y <= b.y + b.h; y++) for (let x = b.x - 1; x <= b.x + b.w; x++) {
+        if (x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h) continue;
+        if (!free(x, y)) continue;
+        const d = Math.hypot(x - front.x, y - front.y) + (y < b.y ? 0.5 : 0); // the back is a last resort
+        if (d < bd) { bd = d; best = { x, y }; }
+      }
+    }
+    const out = { ...(best ?? front), key };
+    this.doors.set(b.id, out);
+    return out;
+  }
+
+  /** A bit of bank (open ground beside the water) within a few steps of somewhere, picked by h. */
+  private shoreSpot(s: GameState, c: { x: number; y: number }, h: number): { x: number; y: number } | null {
+    const { map } = s;
+    const out: { x: number; y: number }[] = [];
+    for (let y = c.y - 5; y <= c.y + 5; y++) for (let x = c.x - 5; x <= c.x + 5; x++) {
+      if (x < 1 || y < 1 || x >= map.w - 1 || y >= map.h - 1) continue;
+      if (!isFinite(this.grid?.[y * map.w + x] ?? Infinity)) continue;
+      const wet = (i: number) => map.terrain[i] === TERRAIN.WATER || map.terrain[i] === TERRAIN.DEEP;
+      if (wet(y * map.w + x)) continue;
+      if (wet(y * map.w + x + 1) || wet(y * map.w + x - 1) || wet((y + 1) * map.w + x) || wet((y - 1) * map.w + x)) out.push({ x, y });
+    }
+    return out.length ? out[(h >>> 7) % out.length] : null;
+  }
+
+  private nearestWell(s: GameState, home: Building): Building | undefined {
+    let best: Building | undefined, bd = 18;
+    for (const b of s.buildings) {
+      if (b.kind !== 'well' || !b.built || b.removed) continue;
+      const d = Math.hypot(b.x - home.x, b.y - home.y);
+      if (d < bd) { bd = d; best = b; }
+    }
+    return best;
+  }
+
+  /** Arrived: at the well, draw water (or wait a turn); at the water, cast a line. */
+  private beginTask(s: GameState, p: Person, w: Walker, now: number) {
+    if (w.errand?.kind === 'water') {
+      const well = w.errand.well;
+      w.errand = undefined;
+      if (this.claimWell(s, w, well, now)) return;
+      // Someone's there: stand aside and wait a turn.
+      const use = this.wells.get(well)!;
+      const side = this.obstacles.pushOut(w.x + 0.4, w.y + 0.25, BODY);
+      if (this.open(s, side.x, side.y, -1)) { w.x = side.x; w.y = side.y; }
+      w.task = { kind: 'queue', well };
+      w.waitUntil = use.start + DRAW_MS + 300;
+      return;
+    }
+    if (p.job === 'fisher' && !this.frozen && w.next === 'social') {
+      // The nearest water within a couple of steps.
+      let best: { x: number; y: number } | null = null, bd = 2.6;
+      const tx = Math.floor(w.x), ty = Math.floor(w.y);
+      for (let y = ty - 3; y <= ty + 3; y++) for (let x = tx - 3; x <= tx + 3; x++) {
+        if (x < 0 || y < 0 || x >= s.map.w || y >= s.map.h) continue;
+        const tr = s.map.terrain[y * s.map.w + x];
+        if (tr !== TERRAIN.WATER && tr !== TERRAIN.DEEP) continue;
+        const d = Math.hypot(x + 0.5 - w.x, y + 0.5 - w.y);
+        if (d < bd) { bd = d; best = { x: x + 0.5, y: y + 0.5 }; }
+      }
+      if (best) {
+        const n = hashString(`cast${p.id}:${s.day}`);
+        const fx = best.x + ((n % 100) / 100 - 0.5) * 0.6, fy = best.y + (((n >> 8) % 100) / 100 - 0.5) * 0.6;
+        w.task = { kind: 'fish', fx, fy };
+        w.dir = dirOf(fx - w.x, fy - w.y, w.dir);
+        w.facing = fx - fy - (w.x - w.y) >= 0 ? 1 : -1;
+        w.waitUntil = Math.max(w.waitUntil, now + 12000);
+      }
+    }
+  }
+
+  /** Take a turn at the well, if it's free: face it and draw water. */
+  private claimWell(s: GameState, w: Walker, wellId: number, now: number): boolean {
+    const use = this.wells.get(wellId);
+    if (use && use.walker !== w.id && now - use.start < DRAW_MS && this.list.get(use.walker)?.task?.kind === 'water') return false;
+    const b = s.buildings[wellId];
+    if (!b || b.removed) return false;
+    const spot = doorstep(b);
+    const p = placement(b);
+    // They stand at the step if it's free, facing the well.
+    if (Math.hypot(spot.x - w.x, spot.y - w.y) < 0.8) { w.x = spot.x; w.y = spot.y; }
+    const sx = (w.x - w.y) - (p.cx - p.cy);
+    this.wells.set(wellId, { walker: w.id, start: now, toward: sx >= 0 ? 1 : -1 });
+    w.task = { kind: 'water', well: wellId, start: now };
+    w.dir = dirOf(p.cx - w.x, p.cy - w.y, w.dir);
+    w.waitUntil = now + DRAW_MS + 200;
+    return true;
+  }
+
+  /** Stuck: find a way on to the same place from where they stand now. */
+  private replan(s: GameState, w: Walker): boolean {
+    const to = w.goal!;
+    const tiles = findPath(s.map, s.buildings, Math.floor(w.x), Math.floor(w.y), to.x, to.y, 2500, this.grid ?? undefined);
+    if (!tiles || tiles.length < 2) return false;
+    // Nudge them off whatever they're wedged against first.
+    const n = hashString(`${w.id}:${Math.floor(w.x * 13 + w.y * 7)}`);
+    w.offX = ((n % 100) / 100 - 0.5) * 0.5; w.offY = (((n >> 8) % 100) / 100 - 0.5) * 0.5;
+    w.path = this.route(s, w, tiles);
+    w.seg = 0;
     return true;
   }
 
@@ -206,7 +379,9 @@ export class Walkers {
       const cx = (ti % mw) + 0.5, cy = Math.floor(ti / mw) + 0.5;
       // Each walker keeps a little to one side of the way (where there's room).
       const lane = k === 0 ? null : { x: cx + w.offX * 0.7, y: cy + w.offY * 0.7 };
-      return lane && this.open(s, lane.x, lane.y, goal) ? lane : { x: cx, y: cy };
+      const pt = lane && this.open(s, lane.x, lane.y, goal) && !this.obstacles.blocked(lane.x, lane.y, BODY) ? lane : { x: cx, y: cy };
+      // A tile's middle may be a tree trunk: stand beside it instead.
+      return k === tiles.length - 1 ? pt : this.obstacles.pushOut(pt.x, pt.y, BODY);
     });
     pts[0] = { x: w.x, y: w.y };
     // The cost of walking the tile path up to each point.
@@ -253,7 +428,8 @@ export class Walkers {
       const x = a.x + ((b.x - a.x) * k) / n, y = a.y + ((b.y - a.y) * k) / n;
       if (!this.open(s, x + px, y + py, goal) || !this.open(s, x - px, y - py, goal)) return false;
     }
-    return true;
+    // And nothing in the way: a building's wall, a tree, a woodshed.
+    return this.obstacles.clearLine(a.x, a.y, b.x, b.y, BODY);
   }
 
   private lineCost(s: GameState, a: { x: number; y: number }, b: { x: number; y: number }, goal: number): number {
@@ -296,15 +472,30 @@ export class Walkers {
         ux += (ex / e) * push; uy += (ey / e) * push;
       }
     }
+    // Round a tree, a rock or a woodshed just ahead.
+    const around = this.obstacles.avoid(w.x, w.y, ux, uy, BODY);
+    ux += around.x; uy += around.y;
     const turn = Math.min(1, dt * 7);
     w.vx += (ux - w.vx) * turn;
     w.vy += (uy - w.vy) * turn;
     let nx = w.x + w.vx * dt, ny = w.y + w.vy * dt;
-    if (!this.open(s, nx, ny, goal)) {
-      // Slide along whatever's in the way, or else head straight for the next point.
-      if (this.open(s, nx, w.y, goal)) ny = w.y;
-      else if (this.open(s, w.x, ny, goal)) nx = w.x;
-      else { nx = w.x + (dx / d) * speed * dt; ny = w.y + (dy / d) * speed * dt; }
+    // Never into anything: out of any shape they'd overlap, then along (not over) a blocked plot
+    // or the water's edge; if there's no way on, they wait a moment and find another way.
+    ({ x: nx, y: ny } = this.obstacles.pushOut(nx, ny, BODY));
+    // (Someone already standing somewhere they shouldn't, a plot or a doorway in a crowded street,
+    // may walk out of it.)
+    if (!this.open(s, nx, ny, goal) && this.open(s, w.x, w.y, goal)) {
+      if (this.open(s, nx, w.y, goal) && !this.obstacles.blocked(nx, w.y, BODY)) ny = w.y;
+      else if (this.open(s, w.x, ny, goal) && !this.obstacles.blocked(w.x, ny, BODY)) nx = w.x;
+      else { nx = w.x; ny = w.y; }
+    }
+    const moved = Math.hypot(nx - w.x, ny - w.y);
+    w.stuck = moved < speed * dt * 0.15 ? w.stuck + dt : Math.max(0, w.stuck - dt);
+    if (w.stuck > 1.2) {
+      w.stuck = 0;
+      w.vx = 0; w.vy = 0;
+      if (!w.goal || !this.replan(s, w)) { w.seg = path.length; return true; }
+      return false;
     }
     const mx = nx - w.x, my = ny - w.y;
     w.x = nx; w.y = ny;
@@ -321,7 +512,7 @@ export class Walkers {
     return p.job === 'woodcutter' || p.job === 'herder' || p.job === 'gatherer' || p.job === 'builder' || p.job === 'smith' || p.job === 'potter' || p.job === 'healer' || (p.job === 'farmer' && !this.fieldsAsleep);
   }
 
-  private workTarget(s: GameState, p: Person, home: { x: number; y: number }): { x: number; y: number } | null {
+  private workTarget(s: GameState, p: Person, home: { x: number; y: number }): { x: number; y: number; end?: { x: number; y: number } } | null {
     const h = hashString(`${p.id}:${s.day}`);
     if (p.job === 'child') return this.near(s, s.hearth, 3, h) ?? this.near(s, home, 2, h);
     // In winter, farmers go hunting in the woods instead.
@@ -338,24 +529,58 @@ export class Walkers {
       return this.adjacent(s, t % s.map.w, Math.floor(t / s.map.w));
     }
     if (p.job === 'gatherer') return this.near(s, home, 7, h);
+    // Fishers each take their own spot along the bank near the dock (or near home).
+    if (p.job === 'fisher' && !this.frozen) {
+      const spot = this.shoreSpot(s, workSite(s, p) ?? home, h);
+      if (spot) return spot;
+    }
     const site = workSite(s, p);
-    if (site && p.job === 'farmer') return { x: site.x - (h % 2), y: site.y - ((h >> 1) % 2) };
+    if (site && p.job === 'farmer') {
+      // At harvest, they work along the line where the barley is being cut.
+      const field = s.buildings.find((b) => b.kind === 'field' && !b.removed && b.worker === p.id);
+      const cut = field ? harvestOf(s, field) : 0;
+      if (field && cut > 0 && cut < 1) {
+        const end = { x: field.x + cut * field.w, y: field.y + 0.3 + ((h >>> 4) % 100) / 100 * (field.h - 0.6) };
+        return { x: Math.min(field.x + field.w - 1, Math.floor(end.x)), y: Math.floor(end.y), end };
+      }
+      return { x: site.x - (h % 2), y: site.y - ((h >> 1) % 2) };
+    }
     return site ?? this.near(s, s.hearth, 3, h);
   }
 
+  /**
+   * Somewhere to be with others: the fire, a well, the market, the alehouse, the temple, a
+   * sweetheart's door. The nearest of each kind to home is likeliest, and the bigger the town,
+   * the wider people spread around them, so a town doesn't all crowd round the one fire.
+   */
   private socialTarget(s: GameState, p: Person, now: number): { x: number; y: number } | null {
     const h = hashString(`${p.id}:${Math.floor(now / 20000)}`);
-    const well = s.buildings.find((b) => b.kind === 'well' && b.built && !b.removed);
-    const stall = s.buildings.find((b) => b.kind === 'stall' && b.built && !b.removed);
-    const roll = h % 10;
-    if (roll < 2 && well) return doorOf(well);
-    if (roll < 3 && stall) return doorOf(stall);
-    if (roll < 5 && p.spouse === undefined && p.courting) {
+    const roll = h % 20;
+    if (roll < 4 && p.spouse === undefined && p.courting) {
       const other = s.people[p.courting.with];
       const ob = other?.home !== undefined ? s.buildings[other.home] : undefined;
-      if (ob) return doorOf(ob);
+      if (ob) return this.doorFor(s, ob);
     }
-    return this.near(s, s.hearth, 2.6, h);
+    const home = p.home !== undefined ? s.buildings[p.home] : undefined;
+    const places = this.gatherings(s);
+    if (places.length && roll >= 4 + Math.max(2, 12 - places.length * 2) && home) {
+      // One of the three nearest gathering places to home.
+      const near3 = places.slice().sort((a, b) => Math.hypot(a.x - home.x, a.y - home.y) - Math.hypot(b.x - home.x, b.y - home.y)).slice(0, 3);
+      const b = near3[(h >>> 5) % near3.length];
+      return this.near(s, this.doorFor(s, b), 1.6, h) ?? this.doorFor(s, b);
+    }
+    const spread = 2.6 + Math.sqrt(this.list.size) * 0.22;
+    return this.near(s, s.hearth, spread, h);
+  }
+
+  private gatherAt = -1;
+  private gatherList: { x: number; y: number; w: number; h: number }[] = [];
+  private gatherings(s: GameState) {
+    if (this.gatherAt !== s.day) {
+      this.gatherAt = s.day;
+      this.gatherList = s.buildings.filter((b) => b.built && !b.removed && GATHER.has(b.kind));
+    }
+    return this.gatherList as unknown as Building[];
   }
 
   private near(s: GameState, c: { x: number; y: number }, r: number, h: number): { x: number; y: number } | null {

@@ -168,7 +168,7 @@ export function PersonCard({ id }: { id: number }) {
           <button class="btn small" onClick={() => store.setUi({ panel: 'acts', act: 'quest', actTarget: p.id })}>Send on a quest <span class="cost">✧{actCost('quest')}</span></button>
         )}
         {canAct && age < 1 && (
-          <button class="btn small" onClick={() => store.setUi({ panel: 'acts', act: 'name', actTarget: p.id })}>Name <span class="cost">✧{actCost('name')}</span></button>
+          <button class="btn small" onClick={() => store.setUi({ panel: 'acts', act: 'name', actTarget: p.id })}>Name <span class="cost">free</span></button>
         )}
       </div>
     </div>

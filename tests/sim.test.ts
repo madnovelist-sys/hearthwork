@@ -13,6 +13,8 @@ import { DISCOVERIES, agesYear, beginSideAge, boost, discover, discovery, discov
 import { actCost, inspire } from '../src/sim/acts';
 import { CUSTOM_BY_ID, nudgeWay, waysHere } from '../src/sim/culture';
 import { dirOf } from '../src/render/citizens';
+import { looksWet } from '../src/sim/shore';
+import { harvestOf } from '../src/render/harvest';
 import { addBuilding, findSite, settlementRegion } from '../src/sim/planner';
 import { describeArms, grantCharter, planBridge, planWalls, progressWalls } from '../src/sim/town';
 import { tileCost } from '../src/sim/path';
@@ -702,5 +704,37 @@ describe('culture, and walking', () => {
     expect(dirOf(1, 0, 'up')).toBe('right'); // down and to the right
     expect(dirOf(0, 1, 'up')).toBe('left'); // down and to the left
     expect(dirOf(1, 1, 'up')).toBe('down'); // straight down the screen
+  });
+});
+
+describe('the land as drawn', () => {
+  it('nothing is built where the river\'s painted edge covers the land', () => {
+    const s = run(17, 12);
+    const wet = looksWet(s.map);
+    for (const b of s.buildings) {
+      if (b.removed || b.kind === 'dock' || b.kind === 'bridge') continue;
+      for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) expect(wet[y * s.map.w + x]).toBe(0);
+    }
+  });
+
+  it('a field is cut through the autumn, a strip at a time', () => {
+    const s = foundSettlement({ seed: 3, name: 'T' });
+    const field = addBuilding(s, 'field', s.hearth.x + 6, s.hearth.y + 6, { built: true });
+    let last = 0;
+    const seen = new Set<number>();
+    for (let day = 180; day < 270; day++) {
+      s.day = day;
+      const cut = harvestOf(s, field);
+      expect(cut).toBeGreaterThanOrEqual(last);
+      last = cut;
+      seen.add(cut === 0 ? 0 : cut === 1 ? 1 : 0.5);
+    }
+    expect([...seen].sort()).toEqual([0, 0.5, 1]);
+    s.day = 100; // summer: still standing
+    expect(harvestOf(s, field)).toBe(0);
+  });
+
+  it('naming costs nothing', () => {
+    expect(actCost('name')).toBe(0);
   });
 });

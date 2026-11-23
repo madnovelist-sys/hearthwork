@@ -3,6 +3,7 @@
 // things in the country around it: a ring of standing stones, an old grove,
 // a spring, a barrow, a cairn, a vast old tree. Over the years some become
 // sacred: offerings, weddings, healing, faiths of their own.
+import { looksWet } from './shore';
 import { log, P } from './chronicle';
 import { chance, pick, rand, weighted } from './rng';
 import { TERRAIN, TREE, DAYS_PER_YEAR, type Building, type BuildingKind, type GameState, type Person, type TenetId } from './types';
@@ -89,12 +90,13 @@ function siteHere(s: GameState, x: number, y: number): SiteKind | null {
 
 function footprintFree(s: GameState, x: number, y: number, w: number, h: number, region: Uint8Array): boolean {
   const { map } = s;
+  const wet = looksWet(map); // not where the river's painted edge spreads over the land
   for (let yy = y; yy < y + h; yy++) {
     for (let xx = x; xx < x + w; xx++) {
       if (xx < 1 || yy < 1 || xx >= map.w - 1 || yy >= map.h - 1) return false;
       const i = yy * map.w + xx;
       const t = map.terrain[i];
-      if (map.occ[i] || map.walls?.[i] || !region[i]) return false;
+      if (map.occ[i] || map.walls?.[i] || !region[i] || wet[i]) return false;
       if (t !== TERRAIN.GRASS && t !== TERRAIN.SAND && t !== TERRAIN.ROCK && t !== TERRAIN.MARSH) return false;
     }
   }

@@ -1,5 +1,7 @@
 # Art
 
+What's wanted next, with briefs ready to paste to the artist, is in [BRIEFS.md](BRIEFS.md).
+
 Put art from ChatGPT here, exactly as it was made: full size, transparent background. **Don't resize, crop or trim it.** `npm run art` does that, and writes game-ready sprites plus a manifest to `public/art/`. The game finds them by name.
 
 Images made against a footprint template line up exactly. Others work too: the art step finds where the building stands from its outline. Check what it found with `npm run art -- --check some-folder`, which saves each image with its footprint drawn on. When an image isn't drawn in true 2:1 isometric (ChatGPT sometimes draws one side flatter), give it hand measurements in a sidecar file (below).
@@ -69,6 +71,14 @@ A barley field is drawn as one 2×2 sprite that changes with the year: sprouts a
 ## Ground
 
 The ground is painted from flat, seamless squares in `terrain/`, named `ter_<surface>.png`: `grass_spring`, `grass_summer`, `grass_autumn`, `grass_snow`, `dirt`, `soil_plowed`, `sand`, `rock`, `water_shallow` and `water_deep`. They're laid over the map pinned to the ground and squashed to the view's slant, so paint them top-down, with no shading toward any edge. The game blends the seasons' grasses, wears dirt paths into the grass where people walk, lays snow over everything when it snows, and smooths the edges where two kinds of ground meet. Winter grass, marsh, ice and the hearth's square are recoloured from the nearest texture until they get their own.
+
+## Size against the people
+
+Buildings don't need to be painted to any particular scale: the game draws each kind at a set height in grown-ups (see `HEIGHT` in `src/render/layout.ts`: a hut 2.6, a home 2.3, a kiln 2.2, a granary 2.9, a hall 3.8, a temple 5), standing within its plot. Trees are drawn larger than painted, plants and props as sized in their sidecars.
+
+## Cut-out art
+
+Plants, rocks, props and places cut out of a white background (`nature/`, `props/`, `landmarks/`) are cleaned up by `npm run art`: the white blended into their edge pixels is taken out, pale haze at the edge is cleared, and soft see-through edges are made crisp. Winter versions keep their white edges (that's snow).
 
 ## Night lights and smoke
 

@@ -19,6 +19,13 @@ export interface Animal {
   facing: number;
   variant: number;
   visible: boolean;
+  /** Velocity (tiles a second): animals speed up, slow down and turn, rather than snapping. */
+  vx: number;
+  vy: number;
+  /** Ground covered, in screen px at zoom 1: their gait follows it. */
+  stride: number;
+  /** Running from someone, until then. */
+  fleeing?: number;
 }
 
 /** A bird over the world: grid position, height above the ground (px at zoom 1), velocity in tiles a second. */
@@ -93,12 +100,25 @@ export class Fauna {
       const a = this.get(key, 'deer', hx, hy, i);
       seen.add(key);
       a.visible = true;
-      if (a.wait <= now && Math.hypot(a.tx - a.x, a.ty - a.y) < 0.05) {
+      // Anyone coming close (a hunter, a woodcutter, someone gathering): the deer bolts, away from
+      // them, and only settles again once it's well clear.
+      let near: { x: number; y: number } | null = null, nd = 2.2;
+      for (const w of walkers.list.values()) {
+        if (w.alpha < 0.5) continue;
+        const d = Math.hypot(w.x - a.x, w.y - a.y);
+        if (d < nd) { nd = d; near = w; }
+      }
+      if (near) {
+        const ex = a.x - near.x, ey = a.y - near.y, e = Math.hypot(ex, ey) || 1;
+        a.tx = a.x + (ex / e) * 3.2; a.ty = a.y + (ey / e) * 3.2;
+        a.fleeing = now + 2500;
+        a.wait = now + 4000;
+      } else if (a.wait <= now && Math.hypot(a.tx - a.x, a.ty - a.y) < 0.05) {
         a.tx = hx + (rnd(key, 1) - 0.5) * 2.5;
         a.ty = hy + (rnd(key, 2) - 0.5) * 2.5;
         a.wait = now + 3000 + rnd(key, 3) * 8000;
       }
-      this.step(a, dt, 0.5);
+      this.step(a, dt, (a.fleeing ?? 0) > now ? 2.6 : 0.5);
     }
 
     // Ducks on the river, except in winter.
@@ -163,22 +183,32 @@ export class Fauna {
   private get(key: string, kind: AnimalKind, x: number, y: number, variant: number): Animal {
     let a = this.list.get(key);
     if (!a || a.kind !== kind) {
-      a = { key, kind, x, y, tx: x, ty: y, wait: 0, facing: 1, variant, visible: true };
+      a = { key, kind, x, y, tx: x, ty: y, wait: 0, facing: 1, variant, visible: true, vx: 0, vy: 0, stride: 0 };
       this.list.set(key, a);
     }
     return a;
   }
 
+  /**
+   * A step toward where they're going: easing into a walk and out of it again, turning through a
+   * curve rather than on the spot, and only turning round when they really change direction.
+   */
   private step(a: Animal, dt: number, speed: number) {
     const dx = a.tx - a.x;
     const dy = a.ty - a.y;
     const d = Math.hypot(dx, dy);
-    if (d < 0.01) return;
-    if (d > 6) { a.x = a.tx; a.y = a.ty; return; } // jumped too far (e.g. after a pause): just be there
-    const move = Math.min(d, speed * dt);
-    a.x += (dx / d) * move;
-    a.y += (dy / d) * move;
-    if (Math.abs(dx - dy) > 0.02) a.facing = dx - dy > 0 ? 1 : -1;
+    if (d > 6) { a.x = a.tx; a.y = a.ty; a.vx = 0; a.vy = 0; return; } // jumped too far (e.g. after a pause): just be there
+    const want = d < 0.02 ? 0 : speed * Math.min(1, d / 0.45);
+    const ux = d < 0.02 ? 0 : (dx / d) * want, uy = d < 0.02 ? 0 : (dy / d) * want;
+    const turn = Math.min(1, dt * 3.5);
+    a.vx += (ux - a.vx) * turn;
+    a.vy += (uy - a.vy) * turn;
+    if (Math.hypot(a.vx, a.vy) < 0.004 && d < 0.02) { a.vx = 0; a.vy = 0; return; }
+    const mx = a.vx * dt, my = a.vy * dt;
+    a.x += mx; a.y += my;
+    a.stride += Math.hypot((mx - my) * 32, (mx + my) * 16);
+    const across = a.vx - a.vy;
+    if (Math.abs(across) > Math.max(0.03, speed * 0.3)) a.facing = across > 0 ? 1 : -1;
   }
 
   private scan(s: GameState, now: number) {

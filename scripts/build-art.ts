@@ -97,6 +97,51 @@ async function animals(): Promise<Record<string, Record<string, Record<string, s
   return out;
 }
 
+/**
+ * Art cut out of a white background keeps a pale rim: edge pixels part-blended with white, and
+ * a faint whitish haze. Take the white back out of the blended pixels, and clear pale, half-clear
+ * haze within a few pixels of the outside (but not on winter art, where white edges are snow).
+ */
+function defringe(data: Buffer, W: number, H: number, winter: boolean) {
+  // Distance (in px, up to 12) from the outside, for every pixel.
+  const dist = new Uint8Array(W * H).fill(255);
+  const q: number[] = [];
+  for (let i = 0; i < W * H; i++) if (data[i * 4 + 3] < 8) { dist[i] = 0; q.push(i); }
+  for (let qi = 0; qi < q.length; qi++) {
+    const i = q[qi], d = dist[i];
+    if (d >= 12) continue;
+    const x = i % W, y = (i / W) | 0;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      const j = ny * W + nx;
+      if (dist[j] > d + 1) { dist[j] = d + 1; q.push(j); }
+    }
+  }
+  for (let i = 0; i < W * H; i++) {
+    if (dist[i] === 0 || dist[i] > 12) continue;
+    const k = i * 4;
+    const a = data[k + 3] / 255;
+    let r = data[k], g = data[k + 1], b = data[k + 2];
+    // Whitish haze, as painted (before taking the white out): gone.
+    const omx = Math.max(r, g, b), omn = Math.min(r, g, b);
+    if (!winter && a < 0.9 && omx > 195 && (omx - omn) / omx < 0.18) { data[k + 3] = 0; continue; }
+    // Un-blend from white: c = a·fg + (1 − a)·255.
+    if (a < 0.98) {
+      r = Math.max(0, Math.min(255, (r - (1 - a) * 255) / a));
+      g = Math.max(0, Math.min(255, (g - (1 - a) * 255) / a));
+      b = Math.max(0, Math.min(255, (b - (1 - a) * 255) / a));
+    }
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    const pale = mx > 175 && (mx - mn) / Math.max(1, mx) < 0.2;
+    if (!winter && pale && a < 0.97) { data[k + 3] = 0; continue; }
+    data[k] = r; data[k + 1] = g; data[k + 2] = b;
+    // A soft, see-through fade at the edge becomes a crisp one, a little inside it.
+    const hard = Math.max(0, Math.min(1, (a - 0.42) / 0.4));
+    data[k + 3] = Math.round(hard * 255);
+  }
+}
+
 async function build() {
   if (!fs.existsSync(SRC)) { console.log('No art/ folder yet.'); return; }
   const manifest: {
@@ -123,6 +168,8 @@ async function build() {
     const raw = await sharp(file).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
     const W = raw.info.width;
     const H = raw.info.height;
+    // Matted art (plants, rocks, props, places) loses the pale rim of its white background.
+    if (/^(nature|props|landmarks)[\\/]/.test(rel)) defringe(raw.data, W, H, /_winter/.test(base));
     const alpha = new Uint8Array(W * H);
     for (let i = 0; i < W * H; i++) alpha[i] = raw.data[i * 4 + 3];
     if (alpha[0] === 255 && alpha[W * H - 1] === 255) problems.push(`${rel}: no transparent background`);

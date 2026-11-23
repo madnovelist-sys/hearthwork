@@ -359,7 +359,7 @@
       "tilePx": 226,
       "anchor": [
         117,
-        157
+        131
       ],
       "footprint": [
         1,
@@ -369,7 +369,7 @@
       "smoke": [
         [
           117,
-          87
+          61
         ]
       ]
     },
@@ -378,7 +378,7 @@
       "tilePx": 236,
       "anchor": [
         228,
-        251
+        250
       ],
       "footprint": [
         2,
@@ -448,7 +448,7 @@
       "tilePx": 256,
       "anchor": [
         58.7,
-        136.1
+        137.1
       ],
       "footprint": [
         1,
@@ -461,8 +461,8 @@
       "file": "nature/nat_berry-bush_any_1x1_v01_autumn.png",
       "tilePx": 256,
       "anchor": [
-        59.7,
-        136.1
+        61.7,
+        137.1
       ],
       "footprint": [
         1,
@@ -475,8 +475,8 @@
       "file": "nature/nat_berry-bush_any_1x1_v01_spring.png",
       "tilePx": 256,
       "anchor": [
-        53.7,
-        136.1
+        54.7,
+        137.1
       ],
       "footprint": [
         1,
@@ -489,7 +489,7 @@
       "file": "nature/nat_berry-bush_any_1x1_v01_winter.png",
       "tilePx": 256,
       "anchor": [
-        57.7,
+        55.7,
         136.1
       ],
       "footprint": [
@@ -714,7 +714,7 @@
       "tilePx": 256,
       "anchor": [
         53.2,
-        129.5
+        130.5
       ],
       "footprint": [
         1,
@@ -741,8 +741,8 @@
       "file": "nature/nat_pine_any_1x1_v01_winter.png",
       "tilePx": 256,
       "anchor": [
-        129.8,
-        393.7
+        128.8,
+        392.7
       ],
       "footprint": [
         1,
@@ -784,7 +784,7 @@
       "tilePx": 256,
       "anchor": [
         52.5,
-        148.1
+        146.1
       ],
       "footprint": [
         1,
@@ -825,7 +825,7 @@
       "file": "nature/nat_reeds_any_1x1_v01_winter.png",
       "tilePx": 256,
       "anchor": [
-        54.5,
+        55.5,
         149.1
       ],
       "footprint": [
@@ -937,7 +937,7 @@
       "file": "nature/nat_wildflowers_any_1x1_v01.png",
       "tilePx": 256,
       "anchor": [
-        50.4,
+        51.4,
         129.2
       ],
       "footprint": [

@@ -216,7 +216,7 @@ function NameForm() {
   };
   return (
     <form class="form" onSubmit={submit}>
-      <Back title={`Name · ✧${actCost('name')}`} />
+      <Back title="Name · free" />
       <label>What to name</label>
       <select value={String(target)} onChange={(e) => { const v = (e.target as HTMLSelectElement).value; setTarget(v === 'year' ? 'year' : Number(v)); }}>
         <option value="year">This year (Year {yearOf(s.day)})</option>
@@ -225,7 +225,7 @@ function NameForm() {
       <label>{target === 'year' ? 'The Year of…' : 'First name'}</label>
       <input type="text" value={name} maxLength={target === 'year' ? 60 : 24} placeholder={target === 'year' ? 'the Long Summer' : ''} onInput={(e) => setName((e.target as HTMLInputElement).value)} />
       {error && <div class="error">{error}</div>}
-      <div style={{ marginTop: 12 }}><button class="btn primary" type="submit" disabled={s.sparks < actCost('name')}>Name it · ✧{actCost('name')}</button></div>
+      <div style={{ marginTop: 12 }}><button class="btn primary" type="submit">Name it</button></div>
     </form>
   );
 }

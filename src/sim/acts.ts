@@ -15,7 +15,7 @@ export type ActId = 'bless' | 'name' | 'settler' | 'quest' | 'law' | 'prophet' |
 
 export const ACTS: { id: ActId; label: string; cost: number; blurb: string }[] = [
   { id: 'bless', label: 'Bless', cost: 1, blurb: 'A year of good luck and health for one person.' },
-  { id: 'name', label: 'Name', cost: 1, blurb: 'Name this year, or a newborn.' },
+  { id: 'name', label: 'Name', cost: 0, blurb: 'Name this year, or a newborn. Free: Sparks are for shaping the village, and a name is yours to give.' },
   { id: 'settler', label: 'Create a Settler', cost: 3, blurb: 'Someone of your making arrives at dawn.' },
   { id: 'quest', label: 'Send on a Quest', cost: 2, blurb: 'Send someone (and companions) out into the world.' },
   { id: 'law', label: 'Whisper a Law', cost: 4, blurb: "Put a law in the leader's head, or talk them out of one. Costs more if they'd hate it." },
