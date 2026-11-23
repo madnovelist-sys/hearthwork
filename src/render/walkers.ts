@@ -1,17 +1,37 @@
 // The little people. Purely cosmetic: they walk between home, work and the
-// fire along worn paths, and go indoors when the city sleeps.
+// fire along worn paths, and go indoors when the city sleeps. They carry
+// things and set them down: a jar to the well and home full, a basket out to
+// the harvest, the bank or the bushes and back heaped, a bundle of firewood
+// from the woods; and they work where you can see them (reaping, hoeing,
+// drawing water, fishing, gathering).
 import { buildCostGrid, findPath } from '../sim/path';
 import { currentTarget } from '../sim/forest';
 import { doorOf, workSite } from '../sim/planner';
 import { hashString } from '../sim/rng';
 import { TERRAIN, TREE, type Building, type GameState, type Person } from '../sim/types';
 import { ageOf } from '../sim/world';
-import { dirOf, type Dir } from './citizens';
+import { dirOf, facesRight, type Dir } from './citizens';
+import type { Item } from './items';
 import { Obstacles } from './obstacles';
 import { looksWet } from '../sim/shore';
 import { doorstep, placement } from './layout';
 import { DRAW_MS } from './work';
 import { harvestOf } from './harvest';
+import { seasonIndex, seasonProgress } from '../sim/world';
+
+/** How long it takes to bend down to the ground and straighten up again. */
+export const STOOP_MS = 900;
+/** The moment in a stoop when their hands reach the ground (and something changes hands). */
+const AT_GROUND = 0.45;
+export type WorkSheet = 'reap' | 'hoe';
+/** The eight ways of facing, clockwise round the screen. */
+const AROUND: Dir[] = ['e', 'se', 's', 'sw', 'w', 'nw', 'n', 'ne'];
+/** One step on the ground in the way someone faces (world tiles). */
+const AHEAD: Record<Dir, [number, number]> = {
+  se: [1, 0], ne: [0, -1], sw: [0, 1], nw: [-1, 0],
+  e: [Math.SQRT1_2, -Math.SQRT1_2], s: [Math.SQRT1_2, Math.SQRT1_2], w: [-Math.SQRT1_2, Math.SQRT1_2], n: [-Math.SQRT1_2, -Math.SQRT1_2],
+};
+const turn = (d: Dir, steps: number): Dir => AROUND[(AROUND.indexOf(d) + steps + 8) % 8];
 
 export interface Walker {
   id: number;
@@ -33,6 +53,19 @@ export interface Walker {
   /** What this walk is for (water from a well), and what they're doing now they're there. */
   errand?: { kind: 'water'; well: number };
   task?: { kind: 'water'; well: number; start: number } | { kind: 'queue'; well: number } | { kind: 'fish'; fx: number; fy: number };
+  /** What they're holding, and what they've set down by them (theirs, to pick up again). */
+  load?: Item;
+  set?: { item: Item; x: number; y: number };
+  /**
+   * Bending to the ground (to put something down at `at`, leaving it there if `drop`, or to pick
+   * up what's there, or something new, `gives`), or a work loop with their tools.
+   */
+  act?: { kind: 'stoop'; start: number; put: boolean; at?: { x: number; y: number }; drop?: boolean; gives?: Item; only?: boolean } | { kind: 'work'; sheet: WorkSheet; start: number };
+  /** The work they're out at (what fills their basket), and when they next bend to it. */
+  work?: 'reap' | 'hoe' | 'fish' | 'gather' | 'wood';
+  nextBend?: number;
+  /** Taking the day's work somewhere (a building's id): the granary, or home. */
+  haul?: number;
   waitUntil: number;
   next: 'work' | 'social' | 'home';
   alpha: number;
@@ -63,6 +96,8 @@ export class Walkers {
   private crowd = new Map<number, Walker[]>();
   /** Who is drawing water at each well, since when, and which side they stand (+1 right, -1 left on screen). */
   readonly wells = new Map<number, { walker: number; start: number; toward: number }>();
+  /** Things set down at doors (a basket of barley at the granary), until they're taken in. */
+  readonly dropped: { item: Item; x: number; y: number; until: number }[] = [];
   /** What people walk around (buildings as drawn, trees, rocks, props). */
   readonly obstacles = new Obstacles();
 
@@ -84,6 +119,7 @@ export class Walkers {
       this.gridKey = key;
     }
     if (now - this.treesAt > 10_000) this.collectTrees(s, now);
+    for (let i = this.dropped.length - 1; i >= 0; i--) if (now > this.dropped[i].until) this.dropped.splice(i, 1);
 
     // Who's walking where, so people can step around each other.
     this.crowd.clear();
@@ -92,6 +128,13 @@ export class Walkers {
       const k = Math.floor(w.x) * 4096 + Math.floor(w.y);
       const cell = this.crowd.get(k);
       if (cell) cell.push(w); else this.crowd.set(k, [w]);
+    }
+
+    // How many are at or on their way to each well (nobody sets out to join a long wait).
+    const atWell = new Map<number, number>();
+    for (const w of this.list.values()) {
+      const id = w.errand?.kind === 'water' ? w.errand.well : w.task?.kind === 'queue' || w.task?.kind === 'water' ? w.task.well : -1;
+      if (id >= 0) atWell.set(id, (atWell.get(id) ?? 0) + 1);
     }
 
     const seen = new Set<number>();
@@ -110,7 +153,7 @@ export class Walkers {
           id: p.id, x: door.x + 0.5, y: door.y + 0.5, path: null, seg: 0,
           waitUntil: now + (h % 4000), next: 'work', alpha: 0, inside: true,
           offX: ((h % 100) / 100 - 0.5) * 0.5, offY: (((h >> 8) % 100) / 100 - 0.5) * 0.5,
-          speed: 0.75 + ((h >> 16) % 30) / 100, facing: 1, dir: 'down', moving: false, vx: 0, vy: 0, stride: (h >> 3) % 17, stuck: 0,
+          speed: 0.75 + ((h >> 16) % 30) / 100, facing: 1, dir: 's', moving: false, vx: 0, vy: 0, stride: (h >> 3) % 17, stuck: 0,
         };
         this.list.set(p.id, w);
       }
@@ -119,6 +162,20 @@ export class Walkers {
       const stayIn = !!(p.sick || p.injured) || night > 0.55;
       // A leg ends; arriving home means going indoors.
       const arrive = () => {
+        // Bringing the day's work: set it down at the door, then carry on.
+        if (w!.haul !== undefined) {
+          const to = s.buildings[w!.haul];
+          w!.haul = undefined;
+          w!.path = null;
+          w!.inside = false;
+          if (to) {
+            const at = placement(to);
+            w!.dir = dirOf(at.cx - w!.x, at.cy - w!.y, w!.dir);
+          }
+          this.stoop(w!, now, true, { drop: true });
+          w!.waitUntil = now + STOOP_MS + 300;
+          return;
+        }
         const atHome = w!.next === 'work';
         w!.path = null;
         w!.inside = atHome;
@@ -127,9 +184,34 @@ export class Walkers {
         if (!atHome) this.beginTask(s, p, w!, now);
       };
 
-      // Night falls (or they're unwell): head home.
+      // Bending down or straightening up: they stay where they are till it's done.
+      if (w.act?.kind === 'stoop') {
+        const a = w.act;
+        const t = (now - a.start) / STOOP_MS;
+        if (t >= AT_GROUND && !a.only) {
+          if (a.put && w.load) {
+            const at = a.at ?? this.ahead(w, a.drop ? 0.22 : 0.3);
+            if (a.drop) this.dropped.push({ item: w.load, x: at.x, y: at.y, until: now + 25_000 + (hashString(`d${p.id}:${s.day}`) % 10_000) });
+            else w.set = { item: w.load, x: at.x, y: at.y };
+            w.load = undefined;
+          } else if (!a.put && w.set) {
+            w.load = w.set.item;
+            w.set = undefined;
+          } else if (!a.put && a.gives && !w.load) {
+            w.load = a.gives;
+          }
+        }
+        if (t < 1) { w.moving = false; w.vx = 0; w.vy = 0; continue; }
+        w.act = undefined;
+        // Back to the line, if they're fishing.
+        if (w.task?.kind === 'fish') { w.dir = dirOf(w.task.fx - w.x, w.task.fy - w.y, w.dir); w.facing = facesRight(w.dir) ? 1 : -1; }
+      }
+
+      // Night falls (or they're unwell): head home, taking whatever they'd set down.
       if (stayIn && !w.inside && w.next !== 'work') {
         w.next = 'work';
+        if (w.set) { w.load = w.set.item; w.set = undefined; }
+        w.act = undefined; w.work = undefined; w.haul = undefined;
         if (!this.go(s, w, door, now)) arrive();
       }
 
@@ -159,6 +241,23 @@ export class Walkers {
       }
       if (w.inside && !step) w.alpha = Math.max(0, w.alpha - dt * 2.5);
       else if (!w.inside) w.alpha = Math.min(1, w.alpha + dt * 3);
+      // Indoors, whatever they brought home is put away.
+      if (w.inside && w.alpha < 0.05) { w.load = undefined; w.set = undefined; w.act = undefined; w.work = undefined; w.haul = undefined; }
+      // At the well, the jar fills as the bucket is tipped into it.
+      if (w.task?.kind === 'water' && w.set && now - w.task.start > 5300) w.set.item.full = true;
+      // At work: reaping or hoeing in a steady loop, or bending now and then to gather.
+      if (!w.inside && !w.path && now < w.waitUntil && !stayIn) {
+        if ((w.work === 'reap' || w.work === 'hoe') && w.act?.kind !== 'work') {
+          w.act = { kind: 'work', sheet: w.work, start: now };
+          w.dir = w.work === 'reap' ? 'se' : (hashString(`hoe${p.id}:${s.day}`) % 2 ? 'se' : 'sw');
+          w.facing = facesRight(w.dir) ? 1 : -1;
+        }
+        if ((w.work === 'gather' || w.work === 'wood') && now >= (w.nextBend ?? 0) && w.waitUntil - now > STOOP_MS + 400) {
+          w.nextBend = now + STOOP_MS + 1400 + (hashString(`bend${p.id}:${Math.floor(now / 1000)}`) % 2200);
+          this.stoop(w, now, false, { only: true });
+          continue;
+        }
+      }
       // Waiting a turn at the well.
       if (w.task?.kind === 'queue' && now >= w.waitUntil && !stayIn) {
         if (this.claimWell(s, w, w.task.well, now)) continue;
@@ -166,6 +265,34 @@ export class Walkers {
       }
       if (now < w.waitUntil || stayIn) continue;
       w.task = undefined;
+      if (w.act?.kind === 'work') w.act = undefined;
+
+      // Done here: pick up what they set down, filled by their work (or, in the woods, a bundle of
+      // the sticks they've gathered); then take it where it's wanted.
+      if (w.set) {
+        if (w.set.item.kind === 'basket') {
+          const fill = w.work === 'reap' ? 'basket-grain' : w.work === 'fish' ? 'basket-fish' : w.work === 'gather' ? 'basket-berries' : null;
+          if (fill) w.set.item = { kind: fill, full: true };
+        }
+        w.dir = dirOf(w.set.x - w.x, w.set.y - w.y, w.dir);
+        this.stoop(w, now, false);
+        w.waitUntil = now + STOOP_MS + 150;
+        continue;
+      }
+      if (w.work === 'wood' && !w.load) {
+        this.stoop(w, now, false, { gives: { kind: 'wood-bundle', full: true } });
+        w.waitUntil = now + STOOP_MS + 150;
+        w.work = undefined;
+        continue;
+      }
+      w.work = undefined;
+      if (w.load?.full && w.load.kind !== 'water-jar' && w.load.kind !== 'basket') {
+        const to = this.haulTo(s, w.load, home);
+        w.haul = to.id;
+        if (!this.go(s, w, this.doorFor(s, to), now)) arrive();
+        continue;
+      }
+      // (An empty basket that found no use is put away when they next set out elsewhere.)
 
       // The next leg: home, then work, then somewhere social, then home again.
       // In the cold or the wet, most people keep indoors; those whose work is outside still go.
@@ -178,12 +305,24 @@ export class Walkers {
       if (leg === 'social' && roll < this.indoor * 100) w.next = 'home';
       const going = w.next;
       let target: { x: number; y: number; end?: { x: number; y: number } } | null = going === 'work' ? this.workTarget(s, p, home) : going === 'social' ? this.socialTarget(s, p, now) : door;
-      // Instead of idling, a grown-up sometimes fetches water from the nearest well.
+      // Instead of idling, a grown-up sometimes fetches water from the nearest well, with a jar.
       w.errand = undefined;
-      if (going === 'social' && ageOf(s, p) >= 12 && hashString(`water${p.id}:${Math.floor(now / 30000)}`) % 100 < 30) {
+      w.work = undefined;
+      if (going === 'social' && ageOf(s, p) >= 12 && hashString(`water${p.id}:${Math.floor(now / 30000)}`) % 100 < 25) {
         const well = this.nearestWell(s, home);
-        if (well) { w.errand = { kind: 'water', well: well.id }; target = { x: well.x, y: well.y, end: doorstep(well) }; }
+        if (well && (atWell.get(well.id) ?? 0) < 3) {
+          atWell.set(well.id, (atWell.get(well.id) ?? 0) + 1);
+          w.errand = { kind: 'water', well: well.id };
+          target = { x: well.x, y: well.y, end: doorstep(well) };
+          if (!w.load) w.load = { kind: 'water-jar', full: false };
+        }
       }
+      // Out to work: some take a basket for what they'll bring back.
+      if (going === 'work' && target) {
+        w.work = this.workOf(s, p, home);
+        if ((w.work === 'reap' || w.work === 'fish' || w.work === 'gather') && !w.load) w.load = { kind: 'basket', full: false };
+      }
+      if (going !== 'work' && w.load?.kind === 'basket' && !w.load.full) w.load = undefined;
       w.next = going === 'work' ? 'social' : going === 'social' ? 'home' : 'work';
       if (!target || !this.go(s, w, target, now)) arrive();
     }
@@ -211,6 +350,7 @@ export class Walkers {
       w.seg = 0;
       w.moving = false;
       w.vx = 0; w.vy = 0;
+      w.load = undefined; w.set = undefined; w.act = undefined; w.work = undefined; w.haul = undefined; w.task = undefined; w.errand = undefined;
       if (at) {
         ({ x: w.x, y: w.y } = this.obstacles.pushOut(at.x + 0.5 + w.offX, at.y + 0.5 + w.offY, BODY));
         w.inside = false; w.alpha = 1;
@@ -221,6 +361,61 @@ export class Walkers {
         w.waitUntil = now + 1000 + ((h >> 4) % 8000);
       }
     }
+    this.dropped.length = 0;
+  }
+
+  /**
+   * Bend to the ground: to put down what they're holding (beside them, to pick up again, or
+   * left where it is if `drop`), or to pick up what they set down, or something new (`gives`),
+   * or `only` to bend to their work (picking berries, gathering sticks).
+   */
+  private stoop(w: Walker, now: number, put: boolean, o: { at?: { x: number; y: number }; drop?: boolean; gives?: Item; only?: boolean } = {}) {
+    w.act = { kind: 'stoop', start: now, put, ...o };
+    w.facing = facesRight(w.dir) ? 1 : -1;
+    w.vx = 0; w.vy = 0;
+  }
+
+  /** The ground a little way in front of someone (where their hands reach when they bend). */
+  private ahead(w: Walker, d: number): { x: number; y: number } {
+    const [ax, ay] = AHEAD[w.dir];
+    return { x: w.x + ax * d, y: w.y + ay * d };
+  }
+
+  /** Put down what they're carrying a quarter turn from the way they'll work, so it's out of the way. */
+  private setAside(w: Walker, now: number, workDir: Dir) {
+    w.dir = turn(workDir, 2);
+    this.stoop(w, now, true);
+  }
+
+  /** Where the day's work is taken: barley to the granary, everything else home. */
+  private haulTo(s: GameState, item: Item, home: Building): Building {
+    if (item.kind === 'basket-grain') {
+      let best: Building | undefined, bd = 30;
+      for (const b of s.buildings) {
+        if (b.kind !== 'granary' || !b.built || b.removed) continue;
+        const d = Math.hypot(b.x - home.x, b.y - home.y);
+        if (d < bd) { bd = d; best = b; }
+      }
+      if (best) return best;
+    }
+    return home;
+  }
+
+  /** What someone's work today will look like, as they set out. */
+  private workOf(s: GameState, p: Person, _home: Building): Walker['work'] {
+    if (p.job === 'fisher' && !this.frozen) return 'fish';
+    if (p.job === 'gatherer' && !this.fieldsAsleep) return 'gather';
+    if (p.job === 'woodcutter') return 'wood';
+    if (p.job === 'farmer' && !this.fieldsAsleep) {
+      const field = s.buildings.find((b) => b.kind === 'field' && !b.removed && b.worker === p.id);
+      if (!field) return undefined;
+      const cut = harvestOf(s, field);
+      if (cut > 0 && cut < 1) return 'reap';
+      const season = seasonIndex(s.day);
+      if (season === 0 || (season === 1 && seasonProgress(s.day) < 0.55)) return 'hoe';
+    }
+    if (p.job === 'farmer' && this.fieldsAsleep) return 'wood';
+    return undefined;
   }
 
   private stay(p: Person, w: Walker, atHome: boolean): number {
@@ -299,8 +494,15 @@ export class Walkers {
     return best;
   }
 
-  /** Arrived: at the well, draw water (or wait a turn); at the water, cast a line. */
+  /**
+   * Arrived: at the well, set the jar down and draw water (or wait a turn); at the water, set the
+   * basket down and cast a line; at the harvest or the bushes, set the basket down and get to work.
+   */
   private beginTask(s: GameState, p: Person, w: Walker, now: number) {
+    if (w.next === 'social' && (w.work === 'reap' || w.work === 'gather') && w.load?.kind === 'basket') {
+      this.setAside(w, now, w.work === 'reap' ? 'se' : w.dir);
+      w.waitUntil += STOOP_MS;
+    }
     if (w.errand?.kind === 'water') {
       const well = w.errand.well;
       w.errand = undefined;
@@ -328,9 +530,17 @@ export class Walkers {
         const n = hashString(`cast${p.id}:${s.day}`);
         const fx = best.x + ((n % 100) / 100 - 0.5) * 0.6, fy = best.y + (((n >> 8) % 100) / 100 - 0.5) * 0.6;
         w.task = { kind: 'fish', fx, fy };
-        w.dir = dirOf(fx - w.x, fy - w.y, w.dir);
-        w.facing = fx - fy - (w.x - w.y) >= 0 ? 1 : -1;
+        const toward = dirOf(fx - w.x, fy - w.y, w.dir);
         w.waitUntil = Math.max(w.waitUntil, now + 12000);
+        // The basket by their side first (away from the water), then the line.
+        if (w.load?.kind === 'basket') {
+          w.dir = turn(toward, 2);
+          const [ax, ay] = AHEAD[w.dir];
+          if (this.open(s, w.x + ax * 0.2, w.y + ay * 0.2, -1)) this.stoop(w, now, true);
+          else { w.dir = turn(toward, -2); this.stoop(w, now, true); }
+        }
+        w.dir = w.act?.kind === 'stoop' ? w.dir : toward;
+        w.facing = fx - fy - (w.x - w.y) >= 0 ? 1 : -1;
       }
     }
   }
@@ -346,10 +556,17 @@ export class Walkers {
     // They stand at the step if it's free, facing the well.
     if (Math.hypot(spot.x - w.x, spot.y - w.y) < 0.8) { w.x = spot.x; w.y = spot.y; }
     const sx = (w.x - w.y) - (p.cx - p.cy);
-    this.wells.set(wellId, { walker: w.id, start: now, toward: sx >= 0 ? 1 : -1 });
-    w.task = { kind: 'water', well: wellId, start: now };
     w.dir = dirOf(p.cx - w.x, p.cy - w.y, w.dir);
-    w.waitUntil = now + DRAW_MS + 200;
+    // The jar goes down at the well's foot first, for the bucket to be tipped into.
+    let start = now;
+    if (w.load?.kind === 'water-jar') {
+      const d = Math.hypot(p.cx - w.x, p.cy - w.y) || 1;
+      this.stoop(w, now, true, { at: { x: w.x + ((p.cx - w.x) / d) * 0.2, y: w.y + ((p.cy - w.y) / d) * 0.2 } });
+      start = now + STOOP_MS;
+    }
+    this.wells.set(wellId, { walker: w.id, start, toward: sx >= 0 ? 1 : -1 });
+    w.task = { kind: 'water', well: wellId, start };
+    w.waitUntil = start + DRAW_MS + 200;
     return true;
   }
 

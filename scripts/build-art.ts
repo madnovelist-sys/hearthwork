@@ -1,7 +1,7 @@
 // Art pipeline: turns ChatGPT images in art/ into game-ready sprites in
 // public/art/, plus a manifest the game reads at startup. Ground textures in
-// art/terrain/ (ter_<surface>.png), villagers' walk sheets in art/people/ and
-// animals in art/animals/ are copied as they are.
+// art/terrain/ (ter_<surface>.png) and animals in art/animals/ are copied as they
+// are; villagers' sheets (art/people/) and carried things (art/items/) are cleaned.
 //
 //   npm run art                 build sprites
 //   npm run art -- --check DIR  also write images showing the footprint each
@@ -60,21 +60,118 @@ async function textures(problems: string[]): Promise<Record<string, string>> {
   return out;
 }
 
-/** Villagers (art/people/<frame size>/<role>_walk.png): walk sheets, copied as they are. */
-async function people(): Promise<Record<string, Record<string, string>>> {
-  const dir = path.join(SRC, 'people');
-  const out: Record<string, Record<string, string>> = {};
+/**
+ * Villagers (art/people/96/<role>_<sheet>.png): walk, carry and stoop sheets (5 rows: S, SE, E,
+ * NE, N) and work loops (2 rows: SE, NE), in 96 px frames. Each is cleaned (the white matte some
+ * were cut out with, and slivers of neighbouring figures), then also made at 64 and 32 px.
+ */
+async function people(problems: string[]): Promise<Record<string, Record<string, Record<string, string>>>> {
+  const dir = path.join(SRC, 'people', '96');
+  const out: Record<string, Record<string, Record<string, string>>> = {};
   if (!fs.existsSync(dir)) return out;
-  for (const size of fs.readdirSync(dir).filter((d) => /^\d+$/.test(d)).sort()) {
-    fs.mkdirSync(path.join(OUT, 'people', size), { recursive: true });
-    for (const name of fs.readdirSync(path.join(dir, size)).sort()) {
-      const m = name.match(/^([a-z-]+)_walk\.png$/);
-      if (!m) continue;
-      await sharp(path.join(dir, size, name)).png({ compressionLevel: 9 }).toFile(path.join(OUT, 'people', size, name));
-      (out[m[1]] ??= {})[size] = `people/${size}/${name}`;
+  for (const size of [96, 64, 32]) fs.mkdirSync(path.join(OUT, 'people', String(size)), { recursive: true });
+  for (const name of fs.readdirSync(dir).sort()) {
+    const m = name.match(/^([a-z-]+?)_([a-z-]+)\.png$/);
+    if (!m) { if (name.endsWith('.png')) problems.push(`people/96/${name}: sheets are named <role>_<sheet>.png`); continue; }
+    const raw = await sharp(path.join(dir, name)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    const { width: W, height: H } = raw.info;
+    if (W % 96 || H % 96) { problems.push(`people/96/${name}: ${W}×${H} isn't a whole number of 96 px frames`); continue; }
+    cleanSheet(raw.data, W, H, 96);
+    for (const size of [96, 64, 32]) {
+      const file = `people/${size}/${name}`;
+      let img = sharp(raw.data, { raw: { width: W, height: H, channels: 4 } });
+      if (size !== 96) img = img.resize(Math.round(W * size / 96), Math.round(H * size / 96), { kernel: 'lanczos3' });
+      await img.png({ compressionLevel: 9 }).toFile(path.join(OUT, file));
+      ((out[m[1]] ??= {})[m[2]] ??= {})[size] = file;
     }
   }
-  console.log(`✓ people: ${Object.keys(out).join(', ')}`);
+  console.log(`✓ people: ${Object.entries(out).map(([role, sheets]) => `${role} (${Object.keys(sheets).join(', ')})`).join('; ')}`);
+  return out;
+}
+
+/**
+ * A sheet cut out of a bigger painting: in each frame, clear the white matte round the figure
+ * (near-white, colourless pixels joined to the outside, up to 10 px deep) and any small islands
+ * apart from the figure (bits of the next figure along).
+ */
+function cleanSheet(data: Buffer, W: number, H: number, cell: number) {
+  const matte = (i: number) => {
+    const r = data[i * 4], g = data[i * 4 + 1], b = data[i * 4 + 2];
+    const mn = Math.min(r, g, b), mx = Math.max(r, g, b);
+    return data[i * 4 + 3] > 0 && mn >= 196 && mx - mn <= 30;
+  };
+  const dist = new Int16Array(W * H).fill(-1);
+  const q: number[] = [];
+  for (let i = 0; i < W * H; i++) if (data[i * 4 + 3] <= 20) { dist[i] = 0; q.push(i); }
+  for (let qi = 0; qi < q.length; qi++) {
+    const i = q[qi], d = dist[i];
+    if (d >= 10) continue;
+    const x = i % W, y = (i / W) | 0;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      if (((nx / cell) | 0) !== ((x / cell) | 0) || ((ny / cell) | 0) !== ((y / cell) | 0)) continue;
+      const j = ny * W + nx;
+      if (dist[j] >= 0 || !matte(j)) continue;
+      dist[j] = d + 1;
+      data[j * 4 + 3] = 0;
+      q.push(j);
+    }
+  }
+  // Islands: keep each frame's biggest piece and anything at least an eighth its size.
+  const label = new Int32Array(W * H);
+  for (let cy = 0; cy < H; cy += cell) for (let cx = 0; cx < W; cx += cell) {
+    const pieces: number[][] = [];
+    for (let y = cy; y < cy + cell; y++) for (let x = cx; x < cx + cell; x++) {
+      const i = y * W + x;
+      if (data[i * 4 + 3] <= 20 || label[i]) continue;
+      const piece: number[] = [i];
+      label[i] = 1;
+      for (let k = 0; k < piece.length; k++) {
+        const px = piece[k] % W, py = (piece[k] / W) | 0;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const nx = px + dx, ny = py + dy;
+          if (nx < cx || ny < cy || nx >= cx + cell || ny >= cy + cell) continue;
+          const j = ny * W + nx;
+          if (label[j] || data[j * 4 + 3] <= 20) continue;
+          label[j] = 1;
+          piece.push(j);
+        }
+      }
+      pieces.push(piece);
+    }
+    const big = Math.max(0, ...pieces.map((p) => p.length));
+    for (const p of pieces) if (p.length < big * 0.12) for (const i of p) data[i * 4 + 3] = 0;
+  }
+}
+
+/**
+ * Things people carry and set down (art/items/<era>/prop_<thing>_<era>[_full|_empty].png): single
+ * objects on 64 px canvases standing at y = 58, cleaned of their white rim and trimmed.
+ */
+async function items(): Promise<Record<string, { file: string; ax: number; ay: number; h: number }>> {
+  const dir = path.join(SRC, 'items');
+  const out: Record<string, { file: string; ax: number; ay: number; h: number }> = {};
+  if (!fs.existsSync(dir)) return out;
+  for (const era of fs.readdirSync(dir).sort()) {
+    if (!fs.statSync(path.join(dir, era)).isDirectory()) continue;
+    fs.mkdirSync(path.join(OUT, 'items', era), { recursive: true });
+    for (const name of fs.readdirSync(path.join(dir, era)).sort()) {
+      const m = name.match(/^prop_([a-z-]+)_([a-z]+)(?:_(full|empty))?\.png$/);
+      if (!m) continue;
+      const raw = await sharp(path.join(dir, era, name)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+      const { width: W, height: H } = raw.info;
+      defringe(raw.data, W, H, false);
+      let x0 = W, y0 = H, x1 = -1, y1 = -1;
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (raw.data[(y * W + x) * 4 + 3] > 8) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+      if (x1 < 0) continue;
+      const file = `items/${era}/${name}`;
+      await sharp(raw.data, { raw: { width: W, height: H, channels: 4 } }).extract({ left: x0, top: y0, width: x1 - x0 + 1, height: y1 - y0 + 1 }).png({ compressionLevel: 9 }).toFile(path.join(OUT, file));
+      // Where it stands (the middle of its foot), and how tall it is, in its own pixels.
+      out[`${m[1]}${m[3] ? `:${m[3]}` : ''}`] = { file, ax: W / 2 - x0, ay: Math.min(y1, 58) - y0 + 1, h: y1 - y0 + 1 };
+    }
+  }
+  console.log(`✓ items: ${Object.keys(out).join(', ')}`);
   return out;
 }
 
@@ -147,19 +244,23 @@ async function build() {
   const manifest: {
     sprites: Record<string, Entry>;
     textures?: Record<string, string>;
-    people?: Record<string, Record<string, string>>;
+    people?: Record<string, Record<string, Record<string, string>>>;
     animals?: Record<string, Record<string, Record<string, string>>>;
+    items?: Record<string, { file: string; ax: number; ay: number; h: number }>;
   } = { sprites: {} };
   const problems: string[] = [];
   if (CHECK) fs.mkdirSync(CHECK, { recursive: true });
+  // Clear out what earlier builds made of the villagers (old layouts would linger otherwise).
+  fs.rmSync(path.join(OUT, 'people'), { recursive: true, force: true });
   manifest.textures = await textures(problems);
-  manifest.people = await people();
+  manifest.people = await people(problems);
   manifest.animals = await animals();
+  manifest.items = await items();
   for (const file of walk(SRC).sort()) {
     const rel = path.relative(SRC, file);
-    // Textures, villagers and animals are copied as they are (above); citizens/ holds the
-    // single paintings scripts/make-walks.ts turns into walk sheets.
-    if (['terrain', 'people', 'animals', 'citizens'].some((d) => rel.startsWith(`${d}${path.sep}`))) continue;
+    // Textures, villagers, animals and carried things are handled above; citizens/ holds the
+    // single standing paintings the first walk sheets were made from (kept for reference).
+    if (['terrain', 'people', 'animals', 'citizens', 'items'].some((d) => rel.startsWith(`${d}${path.sep}`))) continue;
     const base = path.basename(file, '.png');
     const m = base.match(NAME);
     if (!m) { problems.push(`${rel}: name doesn't follow kind_subject_era_WxH_vNN[_state].png`); continue; }

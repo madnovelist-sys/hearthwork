@@ -25,7 +25,7 @@ export function Figure({ s, p }: { s: GameState; p: Person }) {
     g.imageSmoothingEnabled = true;
     g.imageSmoothingQuality = 'high';
     // The painted villager, facing you, standing still; or the drawn one until the art has loaded.
-    const painted = citizensReady() && drawCitizen(g, W / 2, H - 5, 72, dpr, roleFor(p, age, roles), 'down', 1, p.look.skin);
+    const painted = citizensReady() && drawCitizen(g, W / 2, H - 5, 72, dpr, roleFor(p, age, roles), 's', 1, p.look.skin);
     if (!painted) drawFigure(g, W / 2, H - 6, 3.9 * sizeFor(age), p, costume, { frame: 1, facing: 1, moving: false, age });
   });
   return <canvas ref={ref} class="figure" style={{ width: `${W}px`, height: `${H}px` }} aria-hidden="true" />;

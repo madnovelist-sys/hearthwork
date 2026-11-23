@@ -76,9 +76,10 @@ export function bucketAt(t: number): { drop: number; tilt: number; full: boolean
 /**
  * Draw the bucket and rope of a well whose bucketless art has just been drawn at (x, y) (the
  * art's anchor on screen) and scale, mid-draw at time t (or hanging still if t < 0).
- * `toward` is which way the one drawing water stands (+1 right, -1 left).
+ * `toward` is which way the one drawing water stands (+1 right, -1 left); `into`, the mouth of the
+ * jar it's tipped into, on screen, if there is one.
  */
-export function drawBucket(g: CanvasRenderingContext2D, parts: WellArt, sp: Sprite, x: number, y: number, scale: number, t: number, toward: number) {
+export function drawBucket(g: CanvasRenderingContext2D, parts: WellArt, sp: Sprite, x: number, y: number, scale: number, t: number, toward: number, into?: { x: number; y: number }) {
   const { drop, tilt, full } = t < 0 ? { drop: 0, tilt: 0, full: false } : bucketAt(t);
   const left = x - sp.ax * scale, top = y - sp.ay * scale;
   const px = (v: number) => left + (v - parts.ox) * scale, py = (v: number) => top + (v - parts.oy) * scale;
@@ -105,9 +106,18 @@ export function drawBucket(g: CanvasRenderingContext2D, parts: WellArt, sp: Spri
   if (tilt > 0.3) {
     g.strokeStyle = 'rgba(160,210,235,0.85)'; g.lineWidth = Math.max(1, 3 * scale);
     g.beginPath();
-    g.moveTo(cx + toward * 18 * scale, cy + 18 * scale);
-    g.quadraticCurveTo(cx + toward * 30 * scale, cy + 26 * scale, cx + toward * 34 * scale, cy + 58 * scale);
-    g.stroke();
+    const lipX = cx + toward * 18 * scale, lipY = cy + 18 * scale;
+    g.moveTo(lipX, lipY);
+    if (into) {
+      // An arc of water over the rim, into the jar's mouth, and a splash of light where it lands.
+      g.quadraticCurveTo(lipX + (into.x - lipX) * 0.8, lipY, into.x, into.y);
+      g.stroke();
+      g.fillStyle = 'rgba(220,240,250,0.7)';
+      g.beginPath(); g.ellipse(into.x, into.y, 2.2 * scale + 0.8, 0.9 * scale + 0.4, 0, 0, Math.PI * 2); g.fill();
+    } else {
+      g.quadraticCurveTo(cx + toward * 30 * scale, cy + 26 * scale, cx + toward * 34 * scale, cy + 58 * scale);
+      g.stroke();
+    }
   }
   g.lineCap = 'butt';
 }

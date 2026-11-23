@@ -7,6 +7,7 @@ import type { BuildingKind, Era } from '../sim/types';
 import { addTexture } from './ground';
 import { addCitizenSheet, type Role } from './citizens';
 import { addAnimalArt } from './animal-art';
+import { addItemArt } from './items';
 
 export interface Sprite {
   img: CanvasImageSource;
@@ -84,8 +85,9 @@ export async function loadManifest(base = './art/'): Promise<void> {
   let manifest: {
     sprites: Record<string, ManifestEntry>;
     textures?: Record<string, string>;
-    people?: Record<string, Record<string, string>>;
+    people?: Record<string, Record<string, Record<string, string>>>;
     animals?: Record<string, Record<string, Record<string, string>>>;
+    items?: Record<string, { file: string; ax: number; ay: number; h: number }>;
   };
   try {
     const res = await fetch(`${base}manifest.json`);
@@ -104,9 +106,11 @@ export async function loadManifest(base = './art/'): Promise<void> {
     } catch { /* missing file: keep the placeholder */ }
   }), ...Object.entries(manifest.textures ?? {}).map(async ([name, file]) => {
     try { addTexture(name, await loadImage(base + file)); } catch { /* the ground stays flat colour */ }
-  }), ...Object.entries(manifest.people ?? {}).flatMap(([role, sizes]) => Object.entries(sizes).map(async ([size, file]) => {
-    try { addCitizenSheet(role as Role, Number(size), await loadImage(base + file)); } catch { /* drawn in code instead */ }
-  })), ...Object.entries(manifest.animals ?? {}).flatMap(([kind, states]) => Object.entries(states).flatMap(([state, sizes]) => Object.entries(sizes).map(async ([size, file]) => {
+  }), ...Object.entries(manifest.people ?? {}).flatMap(([role, kinds]) => Object.entries(kinds).flatMap(([kind, sizes]) => Object.entries(sizes).map(async ([size, file]) => {
+    try { addCitizenSheet(role as Role, kind, Number(size), await loadImage(base + file)); } catch { /* drawn in code instead */ }
+  }))), ...Object.entries(manifest.items ?? {}).map(async ([key, e]) => {
+    try { addItemArt(key, await loadImage(base + e.file), e.ax, e.ay, e.h); } catch { /* not drawn */ }
+  }), ...Object.entries(manifest.animals ?? {}).flatMap(([kind, states]) => Object.entries(states).flatMap(([state, sizes]) => Object.entries(sizes).map(async ([size, file]) => {
     try { addAnimalArt(kind, state, Number(size), await loadImage(base + file)); } catch { /* drawn in code instead */ }
   })))]);
   artChanged();
@@ -1038,8 +1042,34 @@ function placeholderTree(type: number, season: number, v: number): Sprite {
   return c.sprite();
 }
 
-export function treeSprite(type: number, season: number, variant: number): Sprite {
-  const key = TREE_KEY[type];
+/**
+ * The kinds of broadleaf tree in the woods, as many as have art: how common each is, and whether
+ * it keeps to the water's edge. (Each is painted at its own height against the people.)
+ */
+const BROADLEAVES: { key: string; weight: number; wet?: boolean }[] = [
+  { key: 'nat_broadleaf_any_1x1', weight: 6 },
+  { key: 'nat_oak_any_1x1', weight: 3 },
+  { key: 'nat_birch_any_1x1', weight: 2 },
+  { key: 'nat_hazel_any_1x1', weight: 1 },
+  { key: 'nat_young-tree_any_1x1', weight: 1 },
+  { key: 'nat_old-tree_any_1x1', weight: 0.4 },
+  { key: 'nat_snag_any_1x1', weight: 0.3 },
+  { key: 'nat_willow_any_1x1', weight: 5, wet: true },
+  { key: 'nat_alder_any_1x1', weight: 4, wet: true },
+];
+
+/** Which kind of broadleaf tree stands here (by its number, and whether it's by the water). */
+export function broadleafKind(h: number, wet: boolean): string {
+  const kinds = BROADLEAVES.filter((k) => (!k.wet || wet) && variantsOf(k.key).length);
+  if (kinds.length <= 1) return TREE_KEY[1];
+  const total = kinds.reduce((t, k) => t + k.weight, 0);
+  let r = ((h >>> 11) % 1000) / 1000 * total;
+  for (const k of kinds) { r -= k.weight; if (r < 0) return k.key; }
+  return kinds[0].key;
+}
+
+export function treeSprite(type: number, season: number, variant: number, kind?: string): Sprite {
+  const key = kind ?? TREE_KEY[type];
   const state = ['spring', undefined, 'autumn', 'winter'][season];
   const real = key ? realSprite(key, variant, state) : undefined;
   if (real) return real;

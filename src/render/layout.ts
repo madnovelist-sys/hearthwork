@@ -79,6 +79,28 @@ export function doorstep(b: Building): { x: number; y: number } {
   return { x: p.cx, y: p.cy + p.hy + 0.12 };
 }
 
+/** Homes that may keep a storage jar outside, and how many the granary keeps. */
+const JAR_HOMES = new Set<BuildingKind>(['hut', 'house', 'bighouse', 'townhouse', 'leanto']);
+
+/**
+ * Where a building's big storage jars stand, against its front wall to one side of the door
+ * (two at the granary; one outside some homes). Each has its own number, for whether it's full.
+ */
+export function jarsOf(b: Building): { x: number; y: number; n: number }[] {
+  if (!b.built || b.removed) return [];
+  const h = hashString(`jar${b.id}`);
+  const count = b.kind === 'granary' ? 2 : JAR_HOMES.has(b.kind) && h % 100 < 40 ? 1 : 0;
+  if (!count) return [];
+  const p = placement(b);
+  const side = h & 1 ? 1 : -1;
+  const out: { x: number; y: number; n: number }[] = [];
+  for (let i = 0; i < count; i++) {
+    const s = i ? -side : side;
+    out.push({ x: p.cx + s * p.hx * 0.66, y: p.cy + p.hy * 0.92 + 0.13, n: (h >>> 4) + i * 37 });
+  }
+  return out;
+}
+
 /** Where a tree stands within its patch of ground (trees aren't on a grid either). */
 export function treeSpot(x: number, y: number): { x: number; y: number; h: number } {
   const h = hashString(`${x},${y}`);

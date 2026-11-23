@@ -64,6 +64,8 @@ Trees stand with the foot of the trunk at the middle of their tile. Each season 
 
 A winter (or other) version painted on a different canvas from its summer one is lined up with it by hand in its sidecar, so it stands in the same place at the same size.
 
+The broadleaf woods can hold several kinds of tree: `nat_broadleaf`, `nat_oak`, `nat_birch`, `nat_hazel`, `nat_young-tree`, `nat_old-tree` and `nat_snag` mixed through them, and `nat_willow` and `nat_alder` near the water (the mix is `BROADLEAVES` in `src/render/sprites.ts`). Any kind with art in `nature/` is used. Each new kind is sized by its sidecar (`tilePx` sets its height against the people); `nat_broadleaf` itself is scaled up in the game. The batch 23 drafts of the other kinds, with sidecars ready, wait in `_drafts/trees/` for a painted version (see BRIEFS.md); moving them into `nature/` puts them in the woods.
+
 Small things (bushes, flowers, reeds, rocks, logs, the props by the doors) stand the same way, at the middle of their tile, and are sized by hand in their sidecars against the people: a person is about a fifth of a tile tall, a berry bush a little taller, a stump a little shorter, wildflowers about knee height. Scenery is placed by the game, a little off-centre and sometimes mirrored, so it never lines up on the grid.
 
 A barley field is drawn as one 2×2 sprite that changes with the year: sprouts and then green barley in spring, ripening through summer, cut one field at a time in autumn, and stubble (under snow, when there is some) in winter.
@@ -100,7 +102,17 @@ In the game, **Settings → Art test scene** lets you drop in an image, see it o
 
 ## People
 
-Villagers are painted walk sheets in `people/<frame size>/<role>_walk.png` (32, 64 and 96 px frames): four steps across, and down, left, right and up from the top, feet at the bottom centre. The game picks the sheet size that's sharp at the current zoom, steps every 170 ms (slower for elders), and faces people the way they walk: front or back for most steps, the side views only for walking nearly straight across.
+Villagers are painted sheets in `people/96/<role>_<sheet>.png`, four frames across in 96 px cells, everyone facing right with their feet at (48, 89–90) and a grown-up 77 px tall:
+
+| Sheet | Rows | What it's for |
+| --- | --- | --- |
+| `walk` | S, SE, E, NE, N | Walking empty-handed. |
+| `carry` | S, SE, E, NE, N | Walking with both hands held out in front; the game draws what's in them (`items/`). |
+| `stoop` | S, SE, E, NE, N | Standing, bending, hands at the ground, halfway up: putting something down or picking it up, and bending to gather. |
+| `reap`, `hoe` | SE, NE | Work loops: cutting barley with a sickle at harvest; hoeing in spring and early summer. |
+| `draw-water` | SE, NE | Hauling the well rope while the bucket goes down and comes up. |
+
+The rows are S (facing you), SE (three-quarter front), E (side), NE (three-quarter back) and N (back); facing left is the right-facing row mirrored, so people face eight ways. Walking along a street shows a three-quarter view; straight across the screen, the side; straight up or down, the back or front. The build cleans each sheet (the white matte some were cut out with, and slivers of neighbouring figures) and makes 64 and 32 px copies; the game uses the smallest that's sharp at the current zoom, and takes a step for every few pixels walked so feet don't slide.
 
 | Who | Woman or girl | Man or boy |
 | --- | --- | --- |
@@ -112,13 +124,26 @@ Villagers are painted walk sheets in `people/<frame size>/<role>_walk.png` (32, 
 | Potters and smiths | `crafter` | `crafter-man` |
 | Everyone else | `farmer-woman` | `farmer` |
 
-The `guard` waits for the town to have a watch.
+The `guard` waits for the town to have a watch. A villager without a `stoop` sheet dips a little to the ground instead; one without a work loop stands at the work.
 
-A villager painted only once, standing and facing you (`citizens/<era>/chr_<role>_<era>_idle_v01_96.png`), is given a walk sheet by `npx vite-node scripts/make-walks.ts`: steps made by moving the painting's legs, the sides a narrowed three-quarter view, and the back borrowed from the nearest villager with one (the list is in the script). A painted back view, or a full walk sheet, can replace it any time: put it in `people/` as `<role>_walk.png`.
+Where the hands are in each `carry` sheet is measured in `src/render/citizens.ts` (`CARRY`): a new carry sheet whose hands sit somewhere else needs its own line there.
+
+Notes on the current sheets (batches 16 and 23):
+
+- The farmers' (both) walk, carry, stoop, reap and hoe sheets are painted throughout; so are the leader's and the merchant's carry sheets.
+- The leader's and the merchant's walk sheets were cut off down one side, so they walk in their carry sheets (hands folded in front), copied as `leader_walk.png` and `merchant_walk.png`. The cut-off sheets are in `_drafts/people/`.
+- The priest's first step in the SE, E and NE rows was cut off too, and is the other contact step instead; the farmer's last hoe frame was cut off, and swings back through the second.
+- The other carry sheets have forearms added to the walk, and the other stoop sheets squash the walk rather than bend it: they pass at a distance (what's carried covers the hands), but want painting properly.
+- The fishing, net, hunting, chopping and hammering loops in `_drafts/people/` are tools laid over walking frames, so they aren't used.
+- `draw-water` is painted on a man in a blue tunic rather than the crafter's apron, so it's only used for `crafter-man`.
 
 Skin is the person's own, one of the costume sheet's seven tones: the game finds each sheet's painted skin (the face by its hue, hands and legs by their close colour) and shifts it to the person's tone, keeping the painting's warm light.
 
-Each person's card shows them a size bigger, facing you, with their family's mark. Until the sheets load, the code-drawn figures after the costume sheet stand in.
+Each person's card shows them a size bigger, facing you, with their family's mark. Until the sheets load, the code-drawn figures after the costume sheet stand in. The old four-direction sheets are in `_retired/people-4dir/`.
+
+## Things people carry
+
+`items/<era>/prop_<thing>_<era>[_full|_empty].png`: single objects on 64 px canvases, standing at y = 58. Baskets (`basket` empty; `basket-grain`, `basket-fish`, `basket-berries` full), the `water-jar` and `well-bucket` (full and empty), the big `storage-jar` (full with its lid tied on; empty with the lid off) and the `wood-bundle`. The game sizes each against a grown-up (a basket or water jar about a third of their height, a storage jar about two thirds) from its empty version, so filling a basket doesn't shrink it.
 
 ## Animals
 

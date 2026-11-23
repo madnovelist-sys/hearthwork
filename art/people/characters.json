@@ -1,0 +1,492 @@
+{
+  "farmer": {
+    "assets": {
+      "walk": "art/people/96/farmer_walk.png",
+      "carry": "art/people/96/farmer_carry.png",
+      "stoop": "art/people/96/farmer_stoop.png"
+    },
+    "frameSize": [
+      96,
+      96
+    ],
+    "sheetSize": [
+      384,
+      480
+    ],
+    "directions": [
+      "S",
+      "SE",
+      "E",
+      "NE",
+      "N"
+    ],
+    "columns": [
+      "contact-near",
+      "passing",
+      "contact-far",
+      "passing"
+    ],
+    "anchorPx": [
+      48,
+      90
+    ],
+    "nominalHeightPx": 77,
+    "mirrorLeft": true,
+    "remarks": "Only two carry poses (leader and merchant) are separately painted in this addition; stoop placeholders require redraw."
+  },
+  "farmer-woman": {
+    "assets": {
+      "walk": "art/people/96/farmer-woman_walk.png",
+      "carry": "art/people/96/farmer-woman_carry.png",
+      "stoop": "art/people/96/farmer-woman_stoop.png"
+    },
+    "frameSize": [
+      96,
+      96
+    ],
+    "sheetSize": [
+      384,
+      480
+    ],
+    "directions": [
+      "S",
+      "SE",
+      "E",
+      "NE",
+      "N"
+    ],
+    "columns": [
+      "contact-near",
+      "passing",
+      "contact-far",
+      "passing"
+    ],
+    "anchorPx": [
+      48,
+      90
+    ],
+    "nominalHeightPx": 77,
+    "mirrorLeft": true,
+    "remarks": "Only two carry poses (leader and merchant) are separately painted in this addition; stoop placeholders require redraw."
+  },
+  "crafter": {
+    "assets": {
+      "walk": "art/people/96/crafter_walk.png",
+      "carry": "art/people/96/crafter_carry.png",
+      "stoop": "art/people/96/crafter_stoop.png"
+    },
+    "frameSize": [
+      96,
+      96
+    ],
+    "sheetSize": [
+      384,
+      480
+    ],
+    "directions": [
+      "S",
+      "SE",
+      "E",
+      "NE",
+      "N"
+    ],
+    "columns": [
+      "contact-near",
+      "passing",
+      "contact-far",
+      "passing"
+    ],
+    "anchorPx": [
+      48,
+      90
+    ],
+    "nominalHeightPx": 77,
+    "mirrorLeft": true,
+    "remarks": "Only two carry poses (leader and merchant) are separately painted in this addition; stoop placeholders require redraw."
+  },
+  "crafter-man": {
+    "assets": {
+      "walk": "art/people/96/crafter-man_walk.png",
+      "carry": "art/people/96/crafter-man_carry.png",
+      "stoop": "art/people/96/crafter-man_stoop.png"
+    },
+    "frameSize": [
+      96,
+      96
+    ],
+    "sheetSize": [
+      384,
+      480
+    ],
+    "directions": [
+      "S",
+      "SE",
+      "E",
+      "NE",
+      "N"
+    ],
+    "columns": [
+      "contact-near",
+      "passing",
+      "contact-far",
+      "passing"
+    ],
+    "anchorPx": [
+      48,
+      90
+    ],
+    "nominalHeightPx": 77,
+    "mirrorLeft": true,
+    "remarks": "Only two carry poses (leader and merchant) are separately painted in this addition; stoop placeholders require redraw."
+  },
+  "child": {
+    "assets": {
+      "walk": "art/people/96/child_walk.png",
+      "carry": "art/people/96/child_carry.png",
+      "stoop": "art/people/96/child_stoop.png"
+    },
+    "frameSize": [
+      96,
+      96
+    ],
+    "sheetSize": [
+      384,
+      480
+    ],
+    "directions": [
+      "S",
+      "SE",
+      "E",
+      "NE",
+      "N"
+    ],
+    "columns": [
+      "contact-near",
+      "passing",
+      "contact-far",
+      "passing"
+    ],
+    "anchorPx": [
+      48,
+      90
+    ],
+    "nominalHeightPx": 62,
+    "mirrorLeft": true,
+    "remarks": "Only two carry poses (leader and merchant) are separately painted in this addition; stoop placeholders require redraw."
+  },
+  "girl": {
+    "assets": {
+      "walk": "art/people/96/girl_walk.png",
+      "carry": "art/people/96/girl_carry.png",
+      "stoop": "art/people/96/girl_stoop.png"
+    },
+    "frameSize": [
+      96,
+      96
+    ],
+    "sheetSize": [
+      384,
+      480
+    ],
+    "directions": [
+      "S",
+      "SE",
+      "E",
+      "NE",
+      "N"
+    ],
+    "columns": [
+      "contact-near",
+      "passing",
+      "contact-far",
+      "passing"
+    ],
+    "anchorPx": [
+      48,
+      90
+    ],
+    "nominalHeightPx": 62,
+    "mirrorLeft": true,
+    "remarks": "Only two carry poses (leader and merchant) are separately painted in this addition; stoop placeholders require redraw."
+  },
+  "elder": {
+    "assets": {
+      "walk": "art/people/96/elder_walk.png",
+      "carry": "art/people/96/elder_carry.png",
+      "stoop": "art/people/96/elder_stoop.png"
+    },
+    "frameSize": [
+      96,
+      96
+    ],
+    "sheetSize": [
+      384,
+      480
+    ],
+    "directions": [
+      "S",
+      "SE",
+      "E",
+      "NE",
+      "N"
+    ],
+    "columns": [
+      "contact-near",
+      "passing",
+      "contact-far",
+      "passing"
+    ],
+    "anchorPx": [
+      48,
+      90
+    ],
+    "nominalHeightPx": 77,
+    "mirrorLeft": true,
+    "remarks": "Only two carry poses (leader and merchant) are separately painted in this addition; stoop placeholders require redraw."
+  },
+  "elder-woman": {
+    "assets": {
+      "walk": "art/people/96/elder-woman_walk.png",
+      "carry": "art/people/96/elder-woman_carry.png",
+      "stoop": "art/people/96/elder-woman_stoop.png"
+    },
+    "frameSize": [
+      96,
+      96
+    ],
+    "sheetSize": [
+      384,
+      480
+    ],
+    "directions": [
+      "S",
+      "SE",
+      "E",
+      "NE",
+      "N"
+    ],
+    "columns": [
+      "contact-near",
+      "passing",
+      "contact-far",
+      "passing"
+    ],
+    "anchorPx": [
+      48,
+      90
+    ],
+    "nominalHeightPx": 77,
+    "mirrorLeft": true,
+    "remarks": "Only two carry poses (leader and merchant) are separately painted in this addition; stoop placeholders require redraw."
+  },
+  "leader": {
+    "assets": {
+      "walk": "art/people/96/leader_walk.png",
+      "carry": "art/people/96/leader_carry.png",
+      "stoop": "art/people/96/leader_stoop.png"
+    },
+    "frameSize": [
+      96,
+      96
+    ],
+    "sheetSize": [
+      384,
+      480
+    ],
+    "directions": [
+      "S",
+      "SE",
+      "E",
+      "NE",
+      "N"
+    ],
+    "columns": [
+      "contact-near",
+      "passing",
+      "contact-far",
+      "passing"
+    ],
+    "anchorPx": [
+      48,
+      90
+    ],
+    "nominalHeightPx": 77,
+    "mirrorLeft": true,
+    "remarks": "Only two carry poses (leader and merchant) are separately painted in this addition; stoop placeholders require redraw."
+  },
+  "leader-man": {
+    "assets": {
+      "walk": "art/people/96/leader-man_walk.png",
+      "carry": "art/people/96/leader-man_carry.png",
+      "stoop": "art/people/96/leader-man_stoop.png"
+    },
+    "frameSize": [
+      96,
+      96
+    ],
+    "sheetSize": [
+      384,
+      480
+    ],
+    "directions": [
+      "S",
+      "SE",
+      "E",
+      "NE",
+      "N"
+    ],
+    "columns": [
+      "contact-near",
+      "passing",
+      "contact-far",
+      "passing"
+    ],
+    "anchorPx": [
+      48,
+      90
+    ],
+    "nominalHeightPx": 77,
+    "mirrorLeft": true,
+    "remarks": "Only two carry poses (leader and merchant) are separately painted in this addition; stoop placeholders require redraw."
+  },
+  "priest": {
+    "assets": {
+      "walk": "art/people/96/priest_walk.png",
+      "carry": "art/people/96/priest_carry.png",
+      "stoop": "art/people/96/priest_stoop.png"
+    },
+    "frameSize": [
+      96,
+      96
+    ],
+    "sheetSize": [
+      384,
+      480
+    ],
+    "directions": [
+      "S",
+      "SE",
+      "E",
+      "NE",
+      "N"
+    ],
+    "columns": [
+      "contact-near",
+      "passing",
+      "contact-far",
+      "passing"
+    ],
+    "anchorPx": [
+      48,
+      90
+    ],
+    "nominalHeightPx": 77,
+    "mirrorLeft": true,
+    "remarks": "Only two carry poses (leader and merchant) are separately painted in this addition; stoop placeholders require redraw."
+  },
+  "priest-man": {
+    "assets": {
+      "walk": "art/people/96/priest-man_walk.png",
+      "carry": "art/people/96/priest-man_carry.png",
+      "stoop": "art/people/96/priest-man_stoop.png"
+    },
+    "frameSize": [
+      96,
+      96
+    ],
+    "sheetSize": [
+      384,
+      480
+    ],
+    "directions": [
+      "S",
+      "SE",
+      "E",
+      "NE",
+      "N"
+    ],
+    "columns": [
+      "contact-near",
+      "passing",
+      "contact-far",
+      "passing"
+    ],
+    "anchorPx": [
+      48,
+      90
+    ],
+    "nominalHeightPx": 77,
+    "mirrorLeft": true,
+    "remarks": "Only two carry poses (leader and merchant) are separately painted in this addition; stoop placeholders require redraw."
+  },
+  "merchant": {
+    "assets": {
+      "walk": "art/people/96/merchant_walk.png",
+      "carry": "art/people/96/merchant_carry.png",
+      "stoop": "art/people/96/merchant_stoop.png"
+    },
+    "frameSize": [
+      96,
+      96
+    ],
+    "sheetSize": [
+      384,
+      480
+    ],
+    "directions": [
+      "S",
+      "SE",
+      "E",
+      "NE",
+      "N"
+    ],
+    "columns": [
+      "contact-near",
+      "passing",
+      "contact-far",
+      "passing"
+    ],
+    "anchorPx": [
+      48,
+      90
+    ],
+    "nominalHeightPx": 77,
+    "mirrorLeft": true,
+    "remarks": "Only two carry poses (leader and merchant) are separately painted in this addition; stoop placeholders require redraw."
+  },
+  "merchant-woman": {
+    "assets": {
+      "walk": "art/people/96/merchant-woman_walk.png",
+      "carry": "art/people/96/merchant-woman_carry.png",
+      "stoop": "art/people/96/merchant-woman_stoop.png"
+    },
+    "frameSize": [
+      96,
+      96
+    ],
+    "sheetSize": [
+      384,
+      480
+    ],
+    "directions": [
+      "S",
+      "SE",
+      "E",
+      "NE",
+      "N"
+    ],
+    "columns": [
+      "contact-near",
+      "passing",
+      "contact-far",
+      "passing"
+    ],
+    "anchorPx": [
+      48,
+      90
+    ],
+    "nominalHeightPx": 77,
+    "mirrorLeft": true,
+    "remarks": "Only two carry poses (leader and merchant) are separately painted in this addition; stoop placeholders require redraw."
+  }
+}

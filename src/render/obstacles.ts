@@ -3,7 +3,7 @@
 // the pens. Shapes on the ground, in map coordinates, looked up by tile.
 import { TREE, type GameState } from '../sim/types';
 import { DECOR, type Decor } from './decor';
-import { placement, treeSpot } from './layout';
+import { jarsOf, placement, treeSpot } from './layout';
 
 export type Shape = { kind: 'circle'; x: number; y: number; r: number } | { kind: 'box'; x0: number; y0: number; x1: number; y1: number };
 
@@ -42,6 +42,7 @@ export class Obstacles {
       const p = placement(b);
       if (b.kind === 'hearth') { this.add({ kind: 'circle', x: p.cx, y: p.cy, r: Math.max(p.hx, p.hy) * 0.8 }); continue; }
       this.add({ kind: 'box', x0: p.cx - p.hx * 0.92, y0: p.cy - p.hy * 0.92, x1: p.cx + p.hx * 0.92, y1: p.cy + p.hy * 0.92 });
+      for (const j of jarsOf(b)) this.add({ kind: 'circle', x: j.x, y: j.y, r: 0.11 });
     }
   }
 

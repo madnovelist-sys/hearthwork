@@ -5,9 +5,10 @@ import { seasonIndex, seasonProgress } from '../sim/world';
 import { hashString } from '../sim/rng';
 import { C, GRASS_BY_SEASON, mix, shade } from './palette';
 import { costumeOf, drawFigure, rolesOf, sizeFor } from './figures';
-import { citizensReady, drawCitizen, roleFor } from './citizens';
-import { buildingSprite, graveSprite, hasBuildingArt, onArtChange, realSprite, scaffoldSprite, treeSprite, type Sprite } from './sprites';
-import { Walkers } from './walkers';
+import { citizensReady, drawCitizen, facesUs, handsOf, hasSheet, roleFor, type SheetKind } from './citizens';
+import { drawItem, itemHeight, type Item } from './items';
+import { TREE_KEY, broadleafKind, buildingSprite, graveSprite, hasBuildingArt, onArtChange, realSprite, scaffoldSprite, treeSprite, type Sprite } from './sprites';
+import { STOOP_MS, Walkers, type Walker } from './walkers';
 import { fieldsAsleep, indoorShare, snowOnGround } from '../sim/weather';
 import { Fauna, drawAnimal, drawBirds } from './fauna';
 import { drawAnimalArt } from './animal-art';
@@ -16,7 +17,8 @@ import { DECOR, DECOR_KEY, Decor } from './decor';
 import { blobAt } from '../sim/shore';
 import { DRAW_MS, drawBucket, drawLine, wellParts } from './work';
 import { barleyState, harvestOf } from './harvest';
-import { PERSON_PX, placement, resetPlacements, treeSpot } from './layout';
+import { PERSON_PX, jarsOf, placement, resetPlacements, treeSpot } from './layout';
+import { consumption } from '../sim/economy';
 import { sway, windStrength } from './wind';
 import type { Selection } from '../game/store';
 
@@ -32,7 +34,11 @@ type Drawable =
   | { depth: number; kind: 'wall'; x: number; y: number }
   | { depth: number; kind: 'deck'; x: number; y: number; alongX: boolean }
   | { depth: number; kind: 'walker'; id: number }
+  | { depth: number; kind: 'item'; item: Item; x: number; y: number; alpha: number }
   | { depth: number; kind: 'animal'; key: string };
+
+/** How long each frame of a work loop shows (ms). */
+const WORK_FRAME: Record<string, number> = { reap: 260, hoe: 290, 'draw-water': 320 };
 
 const BARLEY = 'nat_barley_any_2x2';
 /** Grass tufts by season: [shaded blades, lit blades]. */
@@ -82,7 +88,7 @@ export class Renderer {
   constructor(readonly canvas: HTMLCanvasElement) {
     this.g = canvas.getContext('2d')!;
     this.resize();
-    onArtChange(() => { this.groundKey = ''; resetPlacements(); this.tinted = new WeakMap(); });
+    onArtChange(() => { this.groundKey = ''; resetPlacements(); this.tinted = new WeakMap(); this.kindsKey = ''; });
   }
 
   /** Sparks flying up from the hearth (positions in px at zoom 1 from the fire). */
@@ -606,6 +612,16 @@ export class Renderer {
    * looking as if they walked through the wall): anyone beside a building on those sides is drawn
    * after it.
    */
+  /** How many days the village's food would last (worked out once a day). */
+  private food = { day: -1, days: 0 };
+  private foodDays(s: GameState): number {
+    if (this.food.day !== s.day) {
+      const need = s.people.reduce((t, p) => t + (p.alive && p.away === undefined ? consumption(s, p) : 0), 0);
+      this.food = { day: s.day, days: s.stores.food / Math.max(1, need) };
+    }
+    return this.food.days;
+  }
+
   private standingDepth(s: GameState, x: number, y: number, bias: number): number {
     let depth = x + y + bias;
     const { map } = s;
@@ -703,6 +719,28 @@ export class Renderer {
     }
   }
 
+  /** Which kind of broadleaf stands on each tile (worked out once; by the water, willows and alders). */
+  private kinds = new Map<number, string>();
+  private kindsKey = '';
+  private broadleafAt(s: GameState, x: number, y: number, h: number): string {
+    const key = `${s.seed}:${s.map.w}`;
+    if (key !== this.kindsKey) { this.kinds.clear(); this.kindsKey = key; }
+    const i = y * s.map.w + x;
+    let k = this.kinds.get(i);
+    if (k === undefined) {
+      let wet = false;
+      for (let dy = -2; dy <= 2 && !wet; dy++) for (let dx = -2; dx <= 2 && !wet; dx++) {
+        const tx = x + dx, ty = y + dy;
+        if (tx < 0 || ty < 0 || tx >= s.map.w || ty >= s.map.h) continue;
+        const tr = s.map.terrain[ty * s.map.w + tx];
+        wet = tr === TERRAIN.WATER || tr === TERRAIN.DEEP;
+      }
+      k = broadleafKind(h, wet);
+      this.kinds.set(i, k);
+    }
+    return k;
+  }
+
   private collect(s: GameState, season: number, winter: boolean, now: number) {
     const list: Drawable[] = [];
     const r = this.visibleRange(s);
@@ -722,10 +760,13 @@ export class Renderer {
         const young = t !== TREE.STUMP && g < 1 ? 0.3 + 0.7 * g : 1;
         // Every tree its own: taller or shorter, mirrored or not, a shade lighter or darker.
         // (In five steps, so each picture is only ever shrunk to a few sizes.)
-        const size = (TREE_SIZE[t] ?? 1) * (0.84 + (((h >>> 20) % 5) / 4) * 0.34);
+        // Broadleaf woods of several kinds (willows and alders by the water), each painted at its
+        // own height; the first broadleaf art is scaled up to stand above the houses.
+        const kind = t === TREE.BROADLEAF ? this.broadleafAt(s, x, y, h) : undefined;
+        const size = (kind && kind !== TREE_KEY[TREE.BROADLEAF] ? 1 : TREE_SIZE[t] ?? 1) * (0.84 + (((h >>> 20) % 5) / 4) * 0.34);
         const fit = young * size;
         const bend = (TREE_BEND[t] ?? 0) * (young < 1 ? 1.6 - young * 0.6 : 1) * sway(x, y, now, ((h >>> 18) % 100) / 100);
-        const sprite = this.treeTintImpl(treeSprite(t, winter ? 3 : season, v), (h >>> 26) % 4);
+        const sprite = this.treeTintImpl(treeSprite(t, winter ? 3 : season, v, kind), (h >>> 26) % 4);
         list.push({ depth: x + y + 2 + ox + oy, kind: 'sprite', sprite, gx: x + 1 + ox, gy: y + 1 + oy, fit, bend, flip: ((h >>> 9) & 1) === 1 });
       }
     }
@@ -773,6 +814,12 @@ export class Renderer {
       const gx = at.cx + (b.w / 2) * at.scale, gy = at.cy + (b.h / 2) * at.scale;
       const depth = b.kind === 'graveyard' || b.kind === 'pen' ? b.x + b.y + 0.5 : gx + gy; // low enclosures sit under what's inside them
       list.push({ depth, kind: 'sprite', sprite, gx, gy, b, fit: fit === 1 ? undefined : fit });
+      // Big storage jars by the door: full, lids tied on, while there's food put by; as the stores
+      // run down, one after another stands open and empty.
+      for (const j of jarsOf(b)) {
+        const full = this.foodDays(s) >= 25 + (j.n % 100) * 1.4;
+        list.push({ depth: this.standingDepth(s, j.x, j.y, 0.45), kind: 'item', item: { kind: 'storage-jar', full }, x: j.x, y: j.y, alpha: 1 });
+      }
     }
     // The town wall, where it's been built so far.
     const wl = map.walls;
@@ -789,8 +836,17 @@ export class Renderer {
       list.push({ depth: gr.x + gr.y + 0.9, kind: 'sprite', sprite: graveSprite(gr.id), gx: gr.x + 0.45, gy: gr.y + 0.45 });
     }
     for (const w of this.walkers.list.values()) {
-      if (w.alpha <= 0.02) continue;
-      list.push({ depth: this.standingDepth(s, w.x, w.y, 0.5), kind: 'walker', id: w.id });
+      if (w.alpha <= 0.02 && !w.set) continue;
+      const depth = this.standingDepth(s, w.x, w.y, 0.5);
+      if (w.alpha > 0.02) list.push({ depth, kind: 'walker', id: w.id });
+      // What they've set down beside them sits just in front of or behind them, as it lies.
+      if (w.set) {
+        const front = w.set.x + w.set.y >= w.x + w.y;
+        list.push({ depth: depth + (front ? 0.002 : -0.002), kind: 'item', item: w.set.item, x: w.set.x, y: w.set.y, alpha: 1 });
+      }
+    }
+    for (const d of this.walkers.dropped) {
+      list.push({ depth: this.standingDepth(s, d.x, d.y, 0.45), kind: 'item', item: d.item, x: d.x, y: d.y, alpha: Math.min(1, (d.until - performance.now()) / 1500) });
     }
     for (const a of this.fauna.list.values()) {
       if (!a.visible) continue;
@@ -828,6 +884,37 @@ export class Renderer {
     if (alpha < 1) g.globalAlpha = 1;
   }
 
+  /**
+   * How someone stands this moment: which sheet and frame (walking, carrying, bending to the
+   * ground, or a work loop), how far down their hands reach, and what's in them.
+   */
+  private poseOf(w: Walker, role: ReturnType<typeof roleFor>, now: number): { kind: SheetKind; frame: number; dip: number; reach: number; held?: Item } {
+    // A step for every few pixels walked, so the feet keep pace with the ground.
+    const step = w.moving ? Math.floor(w.stride / (4.3 * PERSON_PX / 20)) % 4 : 1;
+    const held = w.load;
+    const act = w.act;
+    if (act?.kind === 'stoop') {
+      const t = Math.min(1, Math.max(0, (now - act.start) / STOOP_MS));
+      // Down to the ground, a moment there, and back up.
+      const reach = t < 0.45 ? t / 0.45 : t < 0.6 ? 1 : Math.max(0, 1 - (t - 0.6) / 0.35);
+      if (!hasSheet(role, 'stoop')) return { kind: held && hasSheet(role, 'carry') ? 'carry' : 'walk', frame: 1, dip: Math.sin(Math.PI * t), reach, held };
+      // Holding something as they start down (or once they're up again), the carrying pose.
+      if (held && (t < 0.12 || t > 0.9)) return { kind: 'carry', frame: 1, dip: 0, reach: 0, held };
+      const frame = t < 0.15 ? 0 : t < 0.32 ? 1 : t < 0.62 ? 2 : t < 0.88 ? 3 : 0;
+      return { kind: 'stoop', frame, dip: 0, reach, held };
+    }
+    if (act?.kind === 'work' && hasSheet(role, act.sheet)) {
+      return { kind: act.sheet, frame: Math.floor((now - act.start) / WORK_FRAME[act.sheet]) % 4, dip: 0, reach: 0 };
+    }
+    // Hauling the well rope hand over hand while the bucket goes down and comes up.
+    if (w.task?.kind === 'water' && hasSheet(role, 'draw-water')) {
+      const t = now - w.task.start;
+      if (t >= 0 && t < 4700) return { kind: 'draw-water', frame: Math.floor(t / WORK_FRAME['draw-water']) % 4, dip: 0, reach: 0 };
+    }
+    if (held && hasSheet(role, 'carry')) return { kind: 'carry', frame: step, dip: 0, reach: 0, held };
+    return { kind: 'walk', frame: step, dip: 0, reach: 0, held };
+  }
+
   /** A well, its bucket on the rope: hanging still, or going down for water while someone waits. */
   private wellSprites = new WeakMap<Sprite, Sprite>();
   private drawWell(b: Building, sp: Sprite, gx: number, gy: number, fit: number, now: number) {
@@ -839,7 +926,14 @@ export class Renderer {
     const use = this.walkers.wells.get(b.id);
     const t = use ? now - use.start : -1;
     const a = this.toScreen(gx, gy);
-    drawBucket(this.g, parts, sp, a.x, a.y, (this.tw / sp.tilePx) * fit, t >= 0 && t < DRAW_MS ? t : -1, use?.toward ?? -1);
+    // The jar waiting at the well's foot, which the bucket is tipped into.
+    const jar = use ? this.walkers.list.get(use.walker)?.set : undefined;
+    let into: { x: number; y: number } | undefined;
+    if (jar && jar.item.kind === 'water-jar') {
+      const j = this.toScreen(jar.x, jar.y);
+      into = { x: j.x, y: j.y - itemHeight(jar.item, this.tw / 64 * PERSON_PX) * 0.9 };
+    }
+    drawBucket(this.g, parts, sp, a.x, a.y, (this.tw / sp.tilePx) * fit, t >= 0 && t < DRAW_MS ? t : -1, use?.toward ?? -1, into);
   }
 
   /** A field part-way through its harvest: stubble behind the cutting line, barley still standing beyond it. */
@@ -979,6 +1073,12 @@ export class Renderer {
         if (d.b?.burning !== undefined) this.drawFlames(d.b, now);
         continue;
       }
+      if (d.kind === 'item') {
+        const c = this.toScreen(d.x, d.y);
+        if (c.x < -30 || c.x > this.w + 30 || c.y < -40 || c.y > this.h + 30) continue;
+        drawItem(g, d.item, c.x, c.y, tw / 64 * PERSON_PX, this.dpr, Math.max(0, d.alpha));
+        continue;
+      }
       if (d.kind === 'animal') {
         const a = this.fauna.list.get(d.key);
         if (!a) continue;
@@ -1007,9 +1107,20 @@ export class Renderer {
       if (citizensReady()) {
         g.fillStyle = 'rgba(62,58,79,0.28)';
         g.beginPath(); g.ellipse(c.x, c.y, 4.2 * k, 1.9 * k, 0, 0, Math.PI * 2); g.fill();
-        // A step for every few pixels walked, so the feet keep pace with the ground.
-        const frame = w.moving ? Math.floor(w.stride / (4.3 * PERSON_PX / 20)) % 4 : 1;
-        painted = drawCitizen(g, c.x, c.y, height, this.dpr, roleFor(p, age, roles), w.dir, frame, p.look.skin);
+        const role = roleFor(p, age, roles);
+        const pose = this.poseOf(w, role, now);
+        // What they hold in front of them: in front of them on screen if they face us, else behind.
+        const held = pose.held && (hasSheet(role, 'carry') || pose.reach > 0) ? pose.held : undefined;
+        const drawHeld = () => {
+          if (!held) return;
+          const hands = handsOf(role, w.dir, pose.reach);
+          const kk = height / 77;
+          const ih = itemHeight(held, tw / 64 * PERSON_PX);
+          drawItem(g, held, c.x + hands.x * kk, c.y + hands.y * kk + ih * 0.45 * (1 - pose.reach) + 1.5 * kk * pose.reach, tw / 64 * PERSON_PX, this.dpr);
+        };
+        if (held && !facesUs(w.dir)) drawHeld();
+        painted = drawCitizen(g, c.x, c.y, height, this.dpr, role, w.dir, pose.frame, p.look.skin, pose.kind, pose.dip);
+        if (held && facesUs(w.dir)) drawHeld();
       }
       if (!painted) {
         const frame = Math.floor(now / (age >= 60 ? 190 : 135) + d.id * 0.37) % 4;

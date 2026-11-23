@@ -1032,79 +1032,264 @@
   },
   "people": {
     "child": {
-      "32": "people/32/child_walk.png",
-      "64": "people/64/child_walk.png",
-      "96": "people/96/child_walk.png"
+      "carry": {
+        "32": "people/32/child_carry.png",
+        "64": "people/64/child_carry.png",
+        "96": "people/96/child_carry.png"
+      },
+      "stoop": {
+        "32": "people/32/child_stoop.png",
+        "64": "people/64/child_stoop.png",
+        "96": "people/96/child_stoop.png"
+      },
+      "walk": {
+        "32": "people/32/child_walk.png",
+        "64": "people/64/child_walk.png",
+        "96": "people/96/child_walk.png"
+      }
     },
     "crafter-man": {
-      "32": "people/32/crafter-man_walk.png",
-      "64": "people/64/crafter-man_walk.png",
-      "96": "people/96/crafter-man_walk.png"
+      "carry": {
+        "32": "people/32/crafter-man_carry.png",
+        "64": "people/64/crafter-man_carry.png",
+        "96": "people/96/crafter-man_carry.png"
+      },
+      "draw-water": {
+        "32": "people/32/crafter-man_draw-water.png",
+        "64": "people/64/crafter-man_draw-water.png",
+        "96": "people/96/crafter-man_draw-water.png"
+      },
+      "stoop": {
+        "32": "people/32/crafter-man_stoop.png",
+        "64": "people/64/crafter-man_stoop.png",
+        "96": "people/96/crafter-man_stoop.png"
+      },
+      "walk": {
+        "32": "people/32/crafter-man_walk.png",
+        "64": "people/64/crafter-man_walk.png",
+        "96": "people/96/crafter-man_walk.png"
+      }
     },
     "crafter": {
-      "32": "people/32/crafter_walk.png",
-      "64": "people/64/crafter_walk.png",
-      "96": "people/96/crafter_walk.png"
+      "carry": {
+        "32": "people/32/crafter_carry.png",
+        "64": "people/64/crafter_carry.png",
+        "96": "people/96/crafter_carry.png"
+      },
+      "stoop": {
+        "32": "people/32/crafter_stoop.png",
+        "64": "people/64/crafter_stoop.png",
+        "96": "people/96/crafter_stoop.png"
+      },
+      "walk": {
+        "32": "people/32/crafter_walk.png",
+        "64": "people/64/crafter_walk.png",
+        "96": "people/96/crafter_walk.png"
+      }
     },
     "elder-woman": {
-      "32": "people/32/elder-woman_walk.png",
-      "64": "people/64/elder-woman_walk.png",
-      "96": "people/96/elder-woman_walk.png"
+      "carry": {
+        "32": "people/32/elder-woman_carry.png",
+        "64": "people/64/elder-woman_carry.png",
+        "96": "people/96/elder-woman_carry.png"
+      },
+      "stoop": {
+        "32": "people/32/elder-woman_stoop.png",
+        "64": "people/64/elder-woman_stoop.png",
+        "96": "people/96/elder-woman_stoop.png"
+      },
+      "walk": {
+        "32": "people/32/elder-woman_walk.png",
+        "64": "people/64/elder-woman_walk.png",
+        "96": "people/96/elder-woman_walk.png"
+      }
     },
     "elder": {
-      "32": "people/32/elder_walk.png",
-      "64": "people/64/elder_walk.png",
-      "96": "people/96/elder_walk.png"
+      "carry": {
+        "32": "people/32/elder_carry.png",
+        "64": "people/64/elder_carry.png",
+        "96": "people/96/elder_carry.png"
+      },
+      "stoop": {
+        "32": "people/32/elder_stoop.png",
+        "64": "people/64/elder_stoop.png",
+        "96": "people/96/elder_stoop.png"
+      },
+      "walk": {
+        "32": "people/32/elder_walk.png",
+        "64": "people/64/elder_walk.png",
+        "96": "people/96/elder_walk.png"
+      }
     },
     "farmer-woman": {
-      "32": "people/32/farmer-woman_walk.png",
-      "64": "people/64/farmer-woman_walk.png",
-      "96": "people/96/farmer-woman_walk.png"
+      "carry": {
+        "32": "people/32/farmer-woman_carry.png",
+        "64": "people/64/farmer-woman_carry.png",
+        "96": "people/96/farmer-woman_carry.png"
+      },
+      "hoe": {
+        "32": "people/32/farmer-woman_hoe.png",
+        "64": "people/64/farmer-woman_hoe.png",
+        "96": "people/96/farmer-woman_hoe.png"
+      },
+      "reap": {
+        "32": "people/32/farmer-woman_reap.png",
+        "64": "people/64/farmer-woman_reap.png",
+        "96": "people/96/farmer-woman_reap.png"
+      },
+      "stoop": {
+        "32": "people/32/farmer-woman_stoop.png",
+        "64": "people/64/farmer-woman_stoop.png",
+        "96": "people/96/farmer-woman_stoop.png"
+      },
+      "walk": {
+        "32": "people/32/farmer-woman_walk.png",
+        "64": "people/64/farmer-woman_walk.png",
+        "96": "people/96/farmer-woman_walk.png"
+      }
     },
     "farmer": {
-      "32": "people/32/farmer_walk.png",
-      "64": "people/64/farmer_walk.png",
-      "96": "people/96/farmer_walk.png"
+      "carry": {
+        "32": "people/32/farmer_carry.png",
+        "64": "people/64/farmer_carry.png",
+        "96": "people/96/farmer_carry.png"
+      },
+      "hoe": {
+        "32": "people/32/farmer_hoe.png",
+        "64": "people/64/farmer_hoe.png",
+        "96": "people/96/farmer_hoe.png"
+      },
+      "reap": {
+        "32": "people/32/farmer_reap.png",
+        "64": "people/64/farmer_reap.png",
+        "96": "people/96/farmer_reap.png"
+      },
+      "stoop": {
+        "32": "people/32/farmer_stoop.png",
+        "64": "people/64/farmer_stoop.png",
+        "96": "people/96/farmer_stoop.png"
+      },
+      "walk": {
+        "32": "people/32/farmer_walk.png",
+        "64": "people/64/farmer_walk.png",
+        "96": "people/96/farmer_walk.png"
+      }
     },
     "girl": {
-      "32": "people/32/girl_walk.png",
-      "64": "people/64/girl_walk.png",
-      "96": "people/96/girl_walk.png"
+      "carry": {
+        "32": "people/32/girl_carry.png",
+        "64": "people/64/girl_carry.png",
+        "96": "people/96/girl_carry.png"
+      },
+      "stoop": {
+        "32": "people/32/girl_stoop.png",
+        "64": "people/64/girl_stoop.png",
+        "96": "people/96/girl_stoop.png"
+      },
+      "walk": {
+        "32": "people/32/girl_walk.png",
+        "64": "people/64/girl_walk.png",
+        "96": "people/96/girl_walk.png"
+      }
     },
     "guard": {
-      "32": "people/32/guard_walk.png",
-      "64": "people/64/guard_walk.png",
-      "96": "people/96/guard_walk.png"
+      "walk": {
+        "32": "people/32/guard_walk.png",
+        "64": "people/64/guard_walk.png",
+        "96": "people/96/guard_walk.png"
+      }
     },
     "leader-man": {
-      "32": "people/32/leader-man_walk.png",
-      "64": "people/64/leader-man_walk.png",
-      "96": "people/96/leader-man_walk.png"
+      "carry": {
+        "32": "people/32/leader-man_carry.png",
+        "64": "people/64/leader-man_carry.png",
+        "96": "people/96/leader-man_carry.png"
+      },
+      "stoop": {
+        "32": "people/32/leader-man_stoop.png",
+        "64": "people/64/leader-man_stoop.png",
+        "96": "people/96/leader-man_stoop.png"
+      },
+      "walk": {
+        "32": "people/32/leader-man_walk.png",
+        "64": "people/64/leader-man_walk.png",
+        "96": "people/96/leader-man_walk.png"
+      }
     },
     "leader": {
-      "32": "people/32/leader_walk.png",
-      "64": "people/64/leader_walk.png",
-      "96": "people/96/leader_walk.png"
+      "carry": {
+        "32": "people/32/leader_carry.png",
+        "64": "people/64/leader_carry.png",
+        "96": "people/96/leader_carry.png"
+      },
+      "walk": {
+        "32": "people/32/leader_walk.png",
+        "64": "people/64/leader_walk.png",
+        "96": "people/96/leader_walk.png"
+      }
     },
     "merchant-woman": {
-      "32": "people/32/merchant-woman_walk.png",
-      "64": "people/64/merchant-woman_walk.png",
-      "96": "people/96/merchant-woman_walk.png"
+      "carry": {
+        "32": "people/32/merchant-woman_carry.png",
+        "64": "people/64/merchant-woman_carry.png",
+        "96": "people/96/merchant-woman_carry.png"
+      },
+      "stoop": {
+        "32": "people/32/merchant-woman_stoop.png",
+        "64": "people/64/merchant-woman_stoop.png",
+        "96": "people/96/merchant-woman_stoop.png"
+      },
+      "walk": {
+        "32": "people/32/merchant-woman_walk.png",
+        "64": "people/64/merchant-woman_walk.png",
+        "96": "people/96/merchant-woman_walk.png"
+      }
     },
     "merchant": {
-      "32": "people/32/merchant_walk.png",
-      "64": "people/64/merchant_walk.png",
-      "96": "people/96/merchant_walk.png"
+      "carry": {
+        "32": "people/32/merchant_carry.png",
+        "64": "people/64/merchant_carry.png",
+        "96": "people/96/merchant_carry.png"
+      },
+      "walk": {
+        "32": "people/32/merchant_walk.png",
+        "64": "people/64/merchant_walk.png",
+        "96": "people/96/merchant_walk.png"
+      }
     },
     "priest-man": {
-      "32": "people/32/priest-man_walk.png",
-      "64": "people/64/priest-man_walk.png",
-      "96": "people/96/priest-man_walk.png"
+      "carry": {
+        "32": "people/32/priest-man_carry.png",
+        "64": "people/64/priest-man_carry.png",
+        "96": "people/96/priest-man_carry.png"
+      },
+      "stoop": {
+        "32": "people/32/priest-man_stoop.png",
+        "64": "people/64/priest-man_stoop.png",
+        "96": "people/96/priest-man_stoop.png"
+      },
+      "walk": {
+        "32": "people/32/priest-man_walk.png",
+        "64": "people/64/priest-man_walk.png",
+        "96": "people/96/priest-man_walk.png"
+      }
     },
     "priest": {
-      "32": "people/32/priest_walk.png",
-      "64": "people/64/priest_walk.png",
-      "96": "people/96/priest_walk.png"
+      "carry": {
+        "32": "people/32/priest_carry.png",
+        "64": "people/64/priest_carry.png",
+        "96": "people/96/priest_carry.png"
+      },
+      "stoop": {
+        "32": "people/32/priest_stoop.png",
+        "64": "people/64/priest_stoop.png",
+        "96": "people/96/priest_stoop.png"
+      },
+      "walk": {
+        "32": "people/32/priest_walk.png",
+        "64": "people/64/priest_walk.png",
+        "96": "people/96/priest_walk.png"
+      }
     }
   },
   "animals": {
@@ -1171,6 +1356,74 @@
         "64": "animals/bronze/ani_sheep_bronze_idle_64.png",
         "96": "animals/bronze/ani_sheep_bronze_idle_96.png"
       }
+    }
+  },
+  "items": {
+    "basket-berries:full": {
+      "file": "items/bronze/prop_basket-berries_bronze_full.png",
+      "ax": 24,
+      "ay": 43,
+      "h": 43
+    },
+    "basket-fish:full": {
+      "file": "items/bronze/prop_basket-fish_bronze_full.png",
+      "ax": 24,
+      "ay": 47,
+      "h": 47
+    },
+    "basket-grain:full": {
+      "file": "items/bronze/prop_basket-grain_bronze_full.png",
+      "ax": 24,
+      "ay": 45,
+      "h": 45
+    },
+    "basket:empty": {
+      "file": "items/bronze/prop_basket_bronze_empty.png",
+      "ax": 24,
+      "ay": 44,
+      "h": 44
+    },
+    "storage-jar:empty": {
+      "file": "items/bronze/prop_storage-jar_bronze_empty.png",
+      "ax": 25,
+      "ay": 38,
+      "h": 38
+    },
+    "storage-jar:full": {
+      "file": "items/bronze/prop_storage-jar_bronze_full.png",
+      "ax": 25,
+      "ay": 40,
+      "h": 40
+    },
+    "water-jar:empty": {
+      "file": "items/bronze/prop_water-jar_bronze_empty.png",
+      "ax": 23,
+      "ay": 50,
+      "h": 50
+    },
+    "water-jar:full": {
+      "file": "items/bronze/prop_water-jar_bronze_full.png",
+      "ax": 25,
+      "ay": 50,
+      "h": 50
+    },
+    "well-bucket:empty": {
+      "file": "items/bronze/prop_well-bucket_bronze_empty.png",
+      "ax": 24,
+      "ay": 43,
+      "h": 43
+    },
+    "well-bucket:full": {
+      "file": "items/bronze/prop_well-bucket_bronze_full.png",
+      "ax": 22,
+      "ay": 48,
+      "h": 48
+    },
+    "wood-bundle": {
+      "file": "items/bronze/prop_wood-bundle_bronze.png",
+      "ax": 25,
+      "ay": 29,
+      "h": 29
     }
   }
 }
