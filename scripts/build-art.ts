@@ -91,8 +91,10 @@ async function people(problems: string[]): Promise<Record<string, Record<string,
 
 /**
  * A sheet cut out of a bigger painting: in each frame, clear the white matte round the figure
- * (near-white, colourless pixels joined to the outside, up to 10 px deep) and any small islands
- * apart from the figure (bits of the next figure along).
+ * (near-white, colourless pixels joined to the outside, up to 10 px deep), then, where there was
+ * one, the pale speckle it leaves along the edge (colourless white within 2 px of the outside;
+ * cream cloth is warmer than that and stays), and any small islands apart from the figure (bits
+ * of the next figure along).
  */
 function cleanSheet(data: Buffer, W: number, H: number, cell: number) {
   const matte = (i: number) => {
@@ -116,6 +118,25 @@ function cleanSheet(data: Buffer, W: number, H: number, cell: number) {
       dist[j] = d + 1;
       data[j * 4 + 3] = 0;
       q.push(j);
+    }
+  }
+  // (Only on sheets that had a matte: more than a couple of hundred pixels of it.)
+  if (q.filter((i) => dist[i] > 0).length > 200) {
+    for (let pass = 0; pass < 2; pass++) {
+      const kill: number[] = [];
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const i = y * W + x, a = data[i * 4 + 3];
+        if (a <= 20) continue;
+        const edge = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => {
+          const nx = x + dx, ny = y + dy;
+          return nx >= 0 && ny >= 0 && nx < W && ny < H && data[(ny * W + nx) * 4 + 3] <= 20;
+        });
+        if (!edge) continue;
+        const r = data[i * 4], g = data[i * 4 + 1], b = data[i * 4 + 2];
+        const mn = Math.min(r, g, b), mx = Math.max(r, g, b);
+        if ((mn >= 180 && mx - mn <= 28) || (a < 200 && mn >= 160 && mx - mn <= 40)) kill.push(i);
+      }
+      for (const i of kill) data[i * 4 + 3] = 0;
     }
   }
   // Islands: keep each frame's biggest piece and anything at least an eighth its size.

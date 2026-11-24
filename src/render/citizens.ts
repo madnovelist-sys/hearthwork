@@ -138,8 +138,16 @@ const CARRY: Partial<Record<Role, [number, number][]>> = {
   'farmer-woman': [[51, 55], [47, 56], [56, 56], [69, 54]],
   leader: [[53, 50], [58, 51], [63, 51], [65, 50]],
   merchant: [[49, 52], [55, 51], [65, 51], [62, 52]],
+  crafter: [[48, 55], [58, 51], [63, 50], [62, 49]],
+  'crafter-man': [[49, 55], [60, 51], [65, 53], [64, 52]],
+  child: [[49, 62], [57, 61], [59, 64], [59, 59]],
+  girl: [[49, 60], [61, 61], [63, 60], [61, 59]],
+  elder: [[48, 58], [57, 57], [60, 55], [62, 55]],
+  'elder-woman': [[49, 58], [57, 59], [62, 55], [62, 55]],
+  'leader-man': [[49, 55], [59, 54], [67, 53], [67, 51]],
+  'merchant-woman': [[49, 53], [63, 51], [66, 54], [64, 52]],
 };
-/** The carry sheets with forearms added to the walk: the hands are lower, at the belt. */
+/** The carry sheets with forearms added to the walk (the priests'): the hands are lower, at the belt. */
 const CARRY_ADDED: [number, number][] = [[48, 61], [48, 61], [70, 64], [62, 64]];
 /** Where the hands reach the ground when stooping (rows S, SE, E, NE, N). */
 const GROUND: [number, number][] = [[48, 86], [53, 86], [62, 86], [69, 87], [48, 84]];

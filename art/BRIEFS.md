@@ -4,23 +4,18 @@ Briefs ready to paste to the artist. Everything is a transparent PNG with no bac
 
 Sizes are given against a grown-up villager, who is 77 px tall in a 96 px frame.
 
-**In the game already (batches 16 and 23):** five-direction walk sheets for all fifteen villagers; the farmers' walk, carry, stoop, reap and hoe sheets; the leader's and merchant's carry sheets; a draw-water loop; all the containers. What's below is what's still missing or needs painting properly.
+**In the game already (batches 16, 23 and 24):** five-direction walk sheets for all fifteen villagers; painted carry sheets for everyone but the priests; painted stoop sheets for the farmers, crafters, children and elders; the farmers' reap and hoe loops; a draw-water loop; all the containers; and all ten new kinds of tree. What's below is what's still missing or needs painting properly.
 
 ---
 
-## 1. Carrying and bending, painted properly
+## 1. Carrying and bending, the last few
 
-The farmers' `carry` and `stoop` sheets are just right. For the other villagers, the carry sheets have forearms laid over the walk, and the stoop sheets squash the walk rather than bend it. Please paint them the way the farmers' are, in the same five-direction layout (384 × 480 px: 4 frames across, 96 px cells; rows S, SE, E, NE, N; feet at x = 48, y = 89–90; everyone faces right):
+Same five-direction layout as before (384 × 480 px: 4 frames across, 96 px cells; rows S, SE, E, NE, N; feet at x = 48, y = 89–90; a grown-up 77 px tall; everyone faces right), drawn like the farmers' and crafters' batch 24 sheets:
 
-- **`<character>_carry.png`**: the walk, with both forearms held forward at waist-to-chest height, hands together, as if holding a basket or jar in front, with **nothing in the hands**. Keep the hands at the same spot in every frame of a row. In the N (back) row the hands are hidden by the body.
-- **`<character>_stoop.png`**: standing, bending at hips and knees, hands at the ground in front of the feet, and halfway back up. Same five rows. Hands empty.
-
-Characters, in order of need: `crafter`, `crafter-man`, `elder`, `elder-woman`, `girl`, `child`, `merchant-woman`, `leader-man`, `priest`, `priest-man`, and a `stoop` for `leader` and `merchant` (drawn on their carry sheets' figures).
-
-Also wanted:
-
-- **`leader_walk.png` and `merchant_walk.png`** drawn whole: the ones in batch 23 were cut off down one side, so for now they walk in their carry sheets, hands folded in front.
-- **`crafter-man_walk.png` empty-handed**: he carries a pot in every frame.
+- **`priest_carry.png`, `priest-man_carry.png`**: the walk, both forearms held forward at waist-to-chest height, hands together, nothing in them.
+- **`leader_stoop.png`, `leader-man_stoop.png`, `merchant_stoop.png`, `merchant-woman_stoop.png`, `priest_stoop.png`, `priest-man_stoop.png`**: standing, bending at hips and knees, hands at the ground in front of the feet, halfway back up.
+- **`leader_walk.png`** whole and empty-handed, the same figure as her carry sheet at the same size (77 px tall, feet at y = 89–90), on a transparent background. Batch 24's was smaller, higher in the frame and on a pale backdrop.
+- **`merchant_walk.png`** whole and empty-handed, the same man as his carry sheet (red cloak, patterned turban, satchel). Batch 24's was a different man.
 
 ---
 
@@ -35,22 +30,3 @@ Each work loop is one sheet of 4 frames across and **2 rows**: SE (three-quarter
 | `farmer_hunt.png` | Drawing a short bow and loosing (nock, draw, hold, loose), for the winter hunt. |
 | `farmer_chop.png` | Felling with a bronze axe: raise, swing, strike, recover. |
 | `crafter-man_hammer.png`, `crafter_hammer.png` | At the furnace or on a building: hammering. |
-
----
-
-## 3. More trees, painted like the broadleaf trees
-
-The batch 23 trees (oak, birch, willow, alder, hazel, old tree, young tree, snag) are in `art/_drafts/trees/`, and the game is ready for them (willows and alders by the water, the rest mixed through the woods), but beside the painted broadleaf trees they look flat: canopies of even leaf-dabs with no branches showing through, straight stick trunks, and winter branches drawn as straight lines. Please repaint them to match `nat_broadleaf_any_1x1_v01`: modelled bark and roots, branches that fork and thin, clumps of leaves catching the light, and the same tree in every season (`_spring`, summer with no suffix, `_autumn`, `_winter`, the snag in one version for all seasons), one tree on a 256 px canvas with the foot of the trunk at (128, 228).
-
-| File name | Tree | Height (in grown-ups) |
-| --- | --- | --- |
-| `nat_oak_any_1x1_v01`, `v02` | Broad, spreading oak, rough bark | 4–4.5 |
-| `nat_birch_any_1x1_v01`, `v02` | Slender birch, white trunk, small leaves, yellow in autumn | 3.5–4 |
-| `nat_willow_any_1x1_v01` | Willow with hanging branches (grows by the water) | 3.5 |
-| `nat_alder_any_1x1_v01` | Alder, dark and narrow (by the water) | 3.5 |
-| `nat_hazel_any_1x1_v01` | Hazel thicket, many thin stems | 1.5 |
-| `nat_old-tree_any_1x1_v01` | An old, hollow, half-dead giant | 4.5 |
-| `nat_young-tree_any_1x1_v01` | A sapling a few years old | 1.5–2 |
-| `nat_snag_any_1x1_v01` | A dead standing trunk, no leaves | 3 |
-
-The game varies every tree's size and shade a little and mirrors half of them, so each new tree goes a long way.

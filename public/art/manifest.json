@@ -373,6 +373,62 @@
         ]
       ]
     },
+    "nat_alder_any_1x1_v01": {
+      "file": "nature/nat_alder_any_1x1_v01.png",
+      "tilePx": 147.7,
+      "anchor": [
+        72,
+        219
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_alder_any_1x1_v01_autumn": {
+      "file": "nature/nat_alder_any_1x1_v01_autumn.png",
+      "tilePx": 147.7,
+      "anchor": [
+        72,
+        219
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_alder_any_1x1_v01_spring": {
+      "file": "nature/nat_alder_any_1x1_v01_spring.png",
+      "tilePx": 147.7,
+      "anchor": [
+        72,
+        219
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_alder_any_1x1_v01_winter": {
+      "file": "nature/nat_alder_any_1x1_v01_winter.png",
+      "tilePx": 147.7,
+      "anchor": [
+        89,
+        212
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
     "nat_barley_any_2x2_v01_growing": {
       "file": "nature/nat_barley_any_2x2_v01_growing.png",
       "tilePx": 236,
@@ -519,6 +575,118 @@
       "anchor": [
         56.3,
         137.1
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_birch_any_1x1_v01": {
+      "file": "nature/nat_birch_any_1x1_v01.png",
+      "tilePx": 139.9,
+      "anchor": [
+        67,
+        219
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_birch_any_1x1_v01_autumn": {
+      "file": "nature/nat_birch_any_1x1_v01_autumn.png",
+      "tilePx": 139.9,
+      "anchor": [
+        67,
+        219
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_birch_any_1x1_v01_spring": {
+      "file": "nature/nat_birch_any_1x1_v01_spring.png",
+      "tilePx": 139.9,
+      "anchor": [
+        67,
+        219
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_birch_any_1x1_v01_winter": {
+      "file": "nature/nat_birch_any_1x1_v01_winter.png",
+      "tilePx": 139.9,
+      "anchor": [
+        79,
+        212
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_birch_any_1x1_v02": {
+      "file": "nature/nat_birch_any_1x1_v02.png",
+      "tilePx": 139.9,
+      "anchor": [
+        60,
+        219
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_birch_any_1x1_v02_autumn": {
+      "file": "nature/nat_birch_any_1x1_v02_autumn.png",
+      "tilePx": 139.9,
+      "anchor": [
+        60,
+        219
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_birch_any_1x1_v02_spring": {
+      "file": "nature/nat_birch_any_1x1_v02_spring.png",
+      "tilePx": 139.9,
+      "anchor": [
+        60,
+        219
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_birch_any_1x1_v02_winter": {
+      "file": "nature/nat_birch_any_1x1_v02_winter.png",
+      "tilePx": 139.9,
+      "anchor": [
+        73,
+        212
       ],
       "footprint": [
         1,
@@ -709,12 +877,236 @@
       "lights": [],
       "smoke": []
     },
+    "nat_hazel_any_1x1_v01": {
+      "file": "nature/nat_hazel_any_1x1_v01.png",
+      "tilePx": 183.1,
+      "anchor": [
+        85,
+        122
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_hazel_any_1x1_v01_autumn": {
+      "file": "nature/nat_hazel_any_1x1_v01_autumn.png",
+      "tilePx": 183.1,
+      "anchor": [
+        85,
+        122
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_hazel_any_1x1_v01_spring": {
+      "file": "nature/nat_hazel_any_1x1_v01_spring.png",
+      "tilePx": 183.1,
+      "anchor": [
+        85,
+        122
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_hazel_any_1x1_v01_winter": {
+      "file": "nature/nat_hazel_any_1x1_v01_winter.png",
+      "tilePx": 183.1,
+      "anchor": [
+        85,
+        122
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
     "nat_log-pile_any_1x1_v01": {
       "file": "nature/nat_log-pile_any_1x1_v01.png",
       "tilePx": 256,
       "anchor": [
         53.2,
         130.5
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_oak_any_1x1_v01": {
+      "file": "nature/nat_oak_any_1x1_v01.png",
+      "tilePx": 126,
+      "anchor": [
+        110,
+        217
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_oak_any_1x1_v01_autumn": {
+      "file": "nature/nat_oak_any_1x1_v01_autumn.png",
+      "tilePx": 126,
+      "anchor": [
+        110,
+        217
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_oak_any_1x1_v01_spring": {
+      "file": "nature/nat_oak_any_1x1_v01_spring.png",
+      "tilePx": 126,
+      "anchor": [
+        110,
+        217
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_oak_any_1x1_v01_winter": {
+      "file": "nature/nat_oak_any_1x1_v01_winter.png",
+      "tilePx": 126,
+      "anchor": [
+        117,
+        212
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_oak_any_1x1_v02": {
+      "file": "nature/nat_oak_any_1x1_v02.png",
+      "tilePx": 127.8,
+      "anchor": [
+        123,
+        220
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_oak_any_1x1_v02_autumn": {
+      "file": "nature/nat_oak_any_1x1_v02_autumn.png",
+      "tilePx": 127.8,
+      "anchor": [
+        123,
+        220
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_oak_any_1x1_v02_spring": {
+      "file": "nature/nat_oak_any_1x1_v02_spring.png",
+      "tilePx": 127.8,
+      "anchor": [
+        123,
+        220
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_oak_any_1x1_v02_winter": {
+      "file": "nature/nat_oak_any_1x1_v02_winter.png",
+      "tilePx": 127.8,
+      "anchor": [
+        116,
+        212
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_old-tree_any_1x1_v01": {
+      "file": "nature/nat_old-tree_any_1x1_v01.png",
+      "tilePx": 120.3,
+      "anchor": [
+        110,
+        217
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_old-tree_any_1x1_v01_autumn": {
+      "file": "nature/nat_old-tree_any_1x1_v01_autumn.png",
+      "tilePx": 120.3,
+      "anchor": [
+        110,
+        217
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_old-tree_any_1x1_v01_spring": {
+      "file": "nature/nat_old-tree_any_1x1_v01_spring.png",
+      "tilePx": 120.3,
+      "anchor": [
+        110,
+        217
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_old-tree_any_1x1_v01_winter": {
+      "file": "nature/nat_old-tree_any_1x1_v01_winter.png",
+      "tilePx": 120.3,
+      "anchor": [
+        117,
+        212
       ],
       "footprint": [
         1,
@@ -919,6 +1311,20 @@
       "lights": [],
       "smoke": []
     },
+    "nat_snag_any_1x1_v01": {
+      "file": "nature/nat_snag_any_1x1_v01.png",
+      "tilePx": 152.8,
+      "anchor": [
+        79,
+        183
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
     "nat_stump_any_1x1_v01": {
       "file": "nature/nat_stump_any_1x1_v01.png",
       "tilePx": 256,
@@ -981,6 +1387,118 @@
       "anchor": [
         51.4,
         129.2
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_willow_any_1x1_v01": {
+      "file": "nature/nat_willow_any_1x1_v01.png",
+      "tilePx": 153.3,
+      "anchor": [
+        106,
+        220
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_willow_any_1x1_v01_autumn": {
+      "file": "nature/nat_willow_any_1x1_v01_autumn.png",
+      "tilePx": 153.3,
+      "anchor": [
+        106,
+        220
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_willow_any_1x1_v01_spring": {
+      "file": "nature/nat_willow_any_1x1_v01_spring.png",
+      "tilePx": 153.3,
+      "anchor": [
+        106,
+        220
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_willow_any_1x1_v01_winter": {
+      "file": "nature/nat_willow_any_1x1_v01_winter.png",
+      "tilePx": 153.3,
+      "anchor": [
+        101,
+        212
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_young-tree_any_1x1_v01": {
+      "file": "nature/nat_young-tree_any_1x1_v01.png",
+      "tilePx": 176.4,
+      "anchor": [
+        40,
+        132
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_young-tree_any_1x1_v01_autumn": {
+      "file": "nature/nat_young-tree_any_1x1_v01_autumn.png",
+      "tilePx": 176.4,
+      "anchor": [
+        40,
+        132
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_young-tree_any_1x1_v01_spring": {
+      "file": "nature/nat_young-tree_any_1x1_v01_spring.png",
+      "tilePx": 176.4,
+      "anchor": [
+        40,
+        132
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "lights": [],
+      "smoke": []
+    },
+    "nat_young-tree_any_1x1_v01_winter": {
+      "file": "nature/nat_young-tree_any_1x1_v01_winter.png",
+      "tilePx": 176.4,
+      "anchor": [
+        67,
+        123
       ],
       "footprint": [
         1,

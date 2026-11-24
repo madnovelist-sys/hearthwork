@@ -64,7 +64,7 @@ Trees stand with the foot of the trunk at the middle of their tile. Each season 
 
 A winter (or other) version painted on a different canvas from its summer one is lined up with it by hand in its sidecar, so it stands in the same place at the same size.
 
-The broadleaf woods can hold several kinds of tree: `nat_broadleaf`, `nat_oak`, `nat_birch`, `nat_hazel`, `nat_young-tree`, `nat_old-tree` and `nat_snag` mixed through them, and `nat_willow` and `nat_alder` near the water (the mix is `BROADLEAVES` in `src/render/sprites.ts`). Any kind with art in `nature/` is used. Each new kind is sized by its sidecar (`tilePx` sets its height against the people); `nat_broadleaf` itself is scaled up in the game. The batch 23 drafts of the other kinds, with sidecars ready, wait in `_drafts/trees/` for a painted version (see BRIEFS.md); moving them into `nature/` puts them in the woods.
+The broadleaf woods can hold several kinds of tree: `nat_broadleaf`, `nat_oak`, `nat_birch`, `nat_hazel`, `nat_young-tree`, `nat_old-tree` and `nat_snag` mixed through them, and `nat_willow` and `nat_alder` near the water (the mix is `BROADLEAVES` in `src/render/sprites.ts`). Any kind with art in `nature/` is used. Each new kind is sized by its sidecar (`tilePx` sets its height against the people: an oak about four grown-ups, a birch or alder a little less, hazel and saplings under two); `nat_broadleaf` itself is scaled up in the game. All of them are in the woods now (batch 24).
 
 Small things (bushes, flowers, reeds, rocks, logs, the props by the doors) stand the same way, at the middle of their tile, and are sized by hand in their sidecars against the people: a person is about a fifth of a tile tall, a berry bush a little taller, a stump a little shorter, wildflowers about knee height. Scenery is placed by the game, a little off-centre and sometimes mirrored, so it never lines up on the grid.
 
@@ -128,12 +128,12 @@ The `guard` waits for the town to have a watch. A villager without a `stoop` she
 
 Where the hands are in each `carry` sheet is measured in `src/render/citizens.ts` (`CARRY`): a new carry sheet whose hands sit somewhere else needs its own line there.
 
-Notes on the current sheets (batches 16 and 23):
+Notes on the current sheets (batches 16, 23 and 24):
 
-- The farmers' (both) walk, carry, stoop, reap and hoe sheets are painted throughout; so are the leader's and the merchant's carry sheets.
-- The leader's and the merchant's walk sheets were cut off down one side, so they walk in their carry sheets (hands folded in front), copied as `leader_walk.png` and `merchant_walk.png`. The cut-off sheets are in `_drafts/people/`.
+- Painted throughout: every villager's carry sheet but the priests'; the stoop sheets of the farmers, crafters, children and elders; and the crafter-man's walk (empty-handed now, hands loosely together in front).
+- The leader's and the merchant's walk sheets were cut off down one side, so they walk in their carry sheets (hands folded in front), copied as `leader_walk.png` and `merchant_walk.png`. The cut-off sheets are in `_drafts/people/`, with batch 24's replacements, which weren't used: the leader's is a smaller figure standing higher in its frame, on a pale backdrop, and the merchant's is a different man (cap, waistcoat and trousers, not the cloak and turban of his carry sheet).
 - The priest's first step in the SE, E and NE rows was cut off too, and is the other contact step instead; the farmer's last hoe frame was cut off, and swings back through the second.
-- The other carry sheets have forearms added to the walk, and the other stoop sheets squash the walk rather than bend it: they pass at a distance (what's carried covers the hands), but want painting properly.
+- The priests' carry sheets have forearms added to the walk; the leaders', merchants' and priests' stoop sheets squash the walk rather than bend it. They pass at a distance (what's carried covers the hands), but want painting properly.
 - The fishing, net, hunting, chopping and hammering loops in `_drafts/people/` are tools laid over walking frames, so they aren't used.
 - `draw-water` is painted on a man in a blue tunic rather than the crafter's apron, so it's only used for `crafter-man`.
 
