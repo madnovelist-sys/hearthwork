@@ -85,9 +85,17 @@ export function dirOf(dx: number, dy: number, was: Dir): Dir {
   const a = (Math.atan2(sy, sx) * 180) / Math.PI; // 0 = right, 90 = down the screen
   const now = sector(a);
   if (now === was) return was;
-  // Only turn once well into the new view's range.
+  // A real turn (more than to the next view round) is taken at once, so nobody walks backwards.
+  const steps = Math.abs(ORDER.indexOf(now) - ORDER.indexOf(was));
+  if (Math.min(steps, 8 - steps) > 1) return now;
+  // Into the next view round, only once well into its range.
   return sector(a - 6) === now && sector(a + 6) === now ? now : was;
 }
+/** The eight ways of facing, clockwise round the screen. */
+const ORDER: Dir[] = ['e', 'se', 's', 'sw', 'w', 'nw', 'n', 'ne'];
+/** Which way to face something (exactly: for turning to it on purpose, not while walking). */
+export const faceTo = (dx: number, dy: number, was: Dir): Dir =>
+  Math.hypot(dx - dy, (dx + dy) / 2) < 1e-4 ? was : sector((Math.atan2((dx + dy) / 2, dx - dy) * 180) / Math.PI);
 function sector(deg: number): Dir {
   const d = ((deg + 540) % 360) - 180;
   if (d >= -12 && d < 12) return 'e';
@@ -147,6 +155,9 @@ const CARRY: Partial<Record<Role, [number, number][]>> = {
   'leader-man': [[49, 55], [59, 54], [67, 53], [67, 51]],
   'merchant-woman': [[49, 53], [63, 51], [66, 54], [64, 52]],
 };
+/** How far the art build moved each carry row sideways (from the manifest), by role. */
+const carryShift = new Map<string, number[]>();
+export function setCarryShift(role: string, shifts: number[]) { carryShift.set(role, shifts); }
 /** The carry sheets with forearms added to the walk (the priests'): the hands are lower, at the belt. */
 const CARRY_ADDED: [number, number][] = [[48, 61], [48, 61], [70, 64], [62, 64]];
 /** Where the hands reach the ground when stooping (rows S, SE, E, NE, N). */
@@ -160,7 +171,9 @@ const GROUND: [number, number][] = [[48, 86], [53, 86], [62, 86], [69, 87], [48,
 export function handsOf(role: Role, dir: Dir, reach = 0): { x: number; y: number } {
   role = drawnAs(role);
   const [row, flip] = ROW5[dir];
-  const held = row === 4 ? [48, 58] : (CARRY[role] ?? CARRY_ADDED)[row];
+  const painted = row === 4 ? [48, 58] : (CARRY[role] ?? CARRY_ADDED)[row];
+  // (The art build steadies each row, moving its frames a few pixels sideways.)
+  const held = [painted[0] + (carryShift.get(role)?.[row] ?? 0), painted[1]];
   const low = GROUND[row];
   const hx = held[0] + (low[0] - held[0]) * reach, hy = held[1] + (low[1] - held[1]) * reach;
   return { x: (flip ? 96 - hx : hx) - 48, y: hy - 89.5 };

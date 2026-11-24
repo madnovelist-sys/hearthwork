@@ -17,7 +17,7 @@ import { DECOR, DECOR_KEY, Decor } from './decor';
 import { blobAt } from '../sim/shore';
 import { DRAW_MS, drawBucket, drawLine, wellParts } from './work';
 import { barleyState, harvestOf } from './harvest';
-import { PERSON_PX, jarsOf, placement, resetPlacements, treeSpot } from './layout';
+import { PERSON_PX, decideFacing, jarsOf, placement, resetPlacements, treeSpot } from './layout';
 import { consumption } from '../sim/economy';
 import { sway, windStrength } from './wind';
 import type { Selection } from '../game/store';
@@ -392,7 +392,7 @@ export class Renderer {
       this.groundCache = c;
       this.groundKey = '';
     }
-    const key = [this.cam.zoom, this.w, this.h, this.dpr, s.seed, s.day, s.map.w, !!s.weather?.ice, snow, season, blend].join(',');
+    const key = [this.cam.zoom, this.w, this.h, this.dpr, s.seed, s.day, s.map.w, !!s.weather?.ice, snow, season, blend, s.buildings.length].join(',');
     const o = this.toScreen(0, 0);
     let dx = o.x - this.groundAt.x, dy = o.y - this.groundAt.y;
     if (key !== this.groundKey || Math.abs(dx) > M || Math.abs(dy) > M) {
@@ -406,7 +406,7 @@ export class Renderer {
       // Paint a view M bigger on every side (the camera stays at its centre).
       const w = this.w, h = this.h;
       this.g = off; this.w = w + 2 * M; this.h = h + 2 * M;
-      try { this.drawTexturedGround(s, season, blend, snow); } finally { this.g = main; this.w = w; this.h = h; }
+      try { this.drawTexturedGround(s, season, blend, snow); this.drawFootings(s); } finally { this.g = main; this.w = w; this.h = h; }
       this.groundKey = key;
       this.groundAt = o;
       dx = 0; dy = 0;
@@ -809,11 +809,13 @@ export class Renderer {
       // Art made for a different footprint (e.g. a 2×2 granary in an older city's 1×1 spot) is scaled
       // to fit, and every building is drawn at its true size against the people, standing where
       // it stands in its plot (see layout.ts). Scaffolding fills the plot.
+      // Some face the other way (door on the east wall), so a street isn't a row of copies.
+      const east = b.built && decideFacing(s, b);
       const at = b.built ? placement(b) : { scale: 1, cx: b.x + b.w / 2, cy: b.y + b.h / 2 };
       const fit = (sprite.tiles && sprite.tiles !== b.w ? b.w / sprite.tiles : 1) * at.scale;
       const gx = at.cx + (b.w / 2) * at.scale, gy = at.cy + (b.h / 2) * at.scale;
       const depth = b.kind === 'graveyard' || b.kind === 'pen' ? b.x + b.y + 0.5 : gx + gy; // low enclosures sit under what's inside them
-      list.push({ depth, kind: 'sprite', sprite, gx, gy, b, fit: fit === 1 ? undefined : fit });
+      list.push({ depth, kind: 'sprite', sprite, gx, gy, b, fit: fit === 1 ? undefined : fit, flip: east || undefined });
       // Big storage jars by the door: full, lids tied on, while there's food put by; as the stores
       // run down, one after another stands open and empty.
       for (const j of jarsOf(b)) {
@@ -911,6 +913,8 @@ export class Renderer {
       const t = now - w.task.start;
       if (t >= 0 && t < 4700) return { kind: 'draw-water', frame: Math.floor(t / WORK_FRAME['draw-water']) % 4, dip: 0, reach: 0 };
     }
+    // Crouched by the fire (the bending sheet's lowest frame), until there's a painting of sitting.
+    if (w.task?.kind === 'sit' && w.task.seated && w.task.crouch && !w.moving && hasSheet(role, 'stoop')) return { kind: 'stoop', frame: 2, dip: 0, reach: 0 };
     if (held && hasSheet(role, 'carry')) return { kind: 'carry', frame: step, dip: 0, reach: 0, held };
     return { kind: 'walk', frame: step, dip: 0, reach: 0, held };
   }
@@ -1049,6 +1053,49 @@ export class Renderer {
     return hit.img;
   }
 
+  /**
+   * Under every building, a soft patch of shade and trodden earth with rounded corners, a little
+   * wider than its walls: buildings settle into the ground instead of standing on a sharp diamond.
+   * (Painted with the ground, which is kept: a blurred shape drawn slanted is slow to draw.)
+   */
+  private footing: HTMLCanvasElement | null = null;
+  private drawFootings(s: GameState) {
+    if (!this.footing) {
+      // A rounded square, its edge blurred (by a shadow cast from a shape drawn off the canvas).
+      const N = 96, c = document.createElement('canvas');
+      c.width = N; c.height = N;
+      const fg = c.getContext('2d')!;
+      fg.shadowColor = 'rgba(58,42,28,1)';
+      fg.shadowBlur = 14;
+      fg.shadowOffsetX = N * 2;
+      fg.fillStyle = '#000';
+      const r = 22, x0 = 18 - N * 2, y0 = 18, w = N - 36;
+      fg.beginPath();
+      fg.moveTo(x0 + r, y0); fg.arcTo(x0 + w, y0, x0 + w, y0 + w, r); fg.arcTo(x0 + w, y0 + w, x0, y0 + w, r);
+      fg.arcTo(x0, y0 + w, x0, y0, r); fg.arcTo(x0, y0, x0 + w, y0, r); fg.closePath();
+      fg.fill();
+      this.footing = c;
+    }
+    const g = this.g;
+    const o = this.toScreen(0, 0), ex = this.toScreen(1, 0), ey = this.toScreen(0, 1);
+    for (const b of s.buildings) {
+      if (b.removed || !b.built || b.burned) continue;
+      decideFacing(s, b);
+      if (b.kind === 'field' || b.kind === 'pen' || b.kind === 'graveyard' || b.kind === 'bridge' || b.kind === 'dock' || b.kind === 'landing' || b.kind === 'hearth') continue;
+      const p = placement(b);
+      // A ground rectangle a little bigger than the walls (the blurred edge eats into it).
+      const pad = 0.2;
+      const x0 = p.cx - p.hx - pad, y0 = p.cy - p.hy - pad, w = 2 * (p.hx + pad), h = 2 * (p.hy + pad);
+      const a = this.toScreen(x0, y0);
+      if (a.x < -this.tw * 4 || a.x > this.w + this.tw * 4 || a.y < -this.tw * 3 || a.y > this.h + this.tw * 3) continue;
+      g.save();
+      g.globalAlpha = 0.32;
+      g.transform((ex.x - o.x) * w / 96, (ex.y - o.y) * w / 96, (ey.x - o.x) * h / 96, (ey.y - o.y) * h / 96, a.x, a.y);
+      g.drawImage(this.footing, 0, 0);
+      g.restore();
+    }
+  }
+
   private drawObjects(s: GameState, now: number, selection: Selection) {
     const g = this.g;
     const tw = this.tw;
@@ -1062,7 +1109,7 @@ export class Renderer {
         if (d.b && d.b.id === selB) this.outlineFootprint(d.b);
         if (d.b?.burned) {
           // A charred shell.
-          this.drawSprite(this.charred(d.sprite), d.gx, d.gy, d.alpha, d.fit);
+          this.drawSprite(this.charred(d.sprite), d.gx, d.gy, d.alpha, d.fit, d.flip);
         } else if (d.cut && d.b) {
           this.drawCutField(d.b, d.sprite, d.cut.under, d.cut.at, d.gx, d.gy, d.bend ?? 0);
         } else if (d.b?.kind === 'well' && d.b.built) {
@@ -1126,8 +1173,10 @@ export class Renderer {
         const frame = Math.floor(now / (age >= 60 ? 190 : 135) + d.id * 0.37) % 4;
         drawFigure(g, c.x, c.y, k, p, costumeOf(p, age, roles), { frame, facing: w.facing, moving: w.moving, age });
       }
+      // Talking: a little speech bubble, passed back and forth between them (close up only).
+      if (w.task?.kind === 'chat' && !w.moving && tw >= 70) this.drawTalk(c.x, c.y - height * 1.02, w.id, w.task.with, now, tw / 64);
       // A fisher's line, out to a float on the water.
-      if (w.task?.kind === 'fish') {
+      if (w.task?.kind === 'fish' && w.act?.kind !== 'stoop') {
         const f = this.toScreen(w.task.fx, w.task.fy);
         const side = f.x >= c.x ? 1 : -1;
         drawLine(g, c.x + side * height * 0.18, c.y - height * 0.5, f.x, f.y, tw / 64 * (PERSON_PX / 20), now, d.id);
@@ -1139,6 +1188,30 @@ export class Renderer {
       }
       g.globalAlpha = 1;
     }
+  }
+
+  /** A small speech bubble over whoever's talking just now (they take turns). */
+  private drawTalk(x: number, y: number, id: number, other: number, now: number, k: number) {
+    const turn = 2600;
+    const t = (now + (hashString(`talk${Math.min(id, other)}`) % 1000) * 7) % (turn * 2);
+    const mine = (id < other) === t < turn;
+    const u = (t % turn) / turn;
+    if (!mine || u > 0.7) return;
+    const a = Math.min(1, u / 0.1, (0.7 - u) / 0.1) * 0.9;
+    const g = this.g;
+    const w = 9 * k, h = 5.5 * k, bx = x + 2 * k, by = y - h - 2 * k;
+    const was = g.globalAlpha;
+    g.globalAlpha = was * a;
+    g.fillStyle = '#FBF6EA';
+    g.strokeStyle = 'rgba(70,55,40,0.55)';
+    g.lineWidth = Math.max(0.6, 0.5 * k);
+    g.beginPath();
+    g.moveTo(bx + 1.5 * k, by + h); g.lineTo(bx + 0.5 * k, by + h + 2 * k); g.lineTo(bx + 3.5 * k, by + h);
+    g.arcTo(bx + w, by + h, bx + w, by, 2 * k); g.arcTo(bx + w, by, bx, by, 2 * k); g.arcTo(bx, by, bx, by + h, 2 * k); g.arcTo(bx, by + h, bx + w, by + h, 2 * k);
+    g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = 'rgba(70,55,40,0.8)';
+    for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(bx + (2.4 + i * 2.1) * k, by + h / 2, 0.55 * k, 0, Math.PI * 2); g.fill(); }
+    g.globalAlpha = was;
   }
 
   /** Stakes (or stonework) of the town wall that fall within one tile. */
@@ -1370,8 +1443,8 @@ export class Renderer {
         if (this.puffs.length > 260) break;
         if (hashString(`${d.b.id}:${Math.floor(now / 260)}`) % 3) continue;
         const [sx, sy] = d.sprite.smoke[0];
-        // offset in tiles-at-zoom-1 pixels from the anchor
-        const ox = (sx - d.sprite.ax) / d.sprite.tilePx * BASE_TW * (d.fit ?? 1);
+        // offset in tiles-at-zoom-1 pixels from the anchor (mirrored with the building)
+        const ox = (sx - d.sprite.ax) / d.sprite.tilePx * BASE_TW * (d.fit ?? 1) * (d.flip ? -1 : 1);
         const oy = (sy - d.sprite.ay) / d.sprite.tilePx * BASE_TW * (d.fit ?? 1);
         this.puffs.push({ x: d.gx, y: d.gy, z: 0, age: 0, life: 2600 + Math.random() * 1600, drift: ox, size: oy });
       }
@@ -1431,7 +1504,7 @@ export class Renderer {
       const scale = (this.tw / d.sprite.tilePx) * (d.fit ?? 1);
       const a = this.toScreen(d.gx, d.gy);
       for (const [lx, ly] of d.sprite.lights) {
-        const x = a.x + (lx - d.sprite.ax) * scale;
+        const x = a.x + (lx - d.sprite.ax) * scale * (d.flip ? -1 : 1);
         const y = a.y + (ly - d.sprite.ay) * scale;
         const flick = 0.85 + Math.sin(now / 300 + lx) * 0.08;
         const r = 9 * k;

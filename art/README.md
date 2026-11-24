@@ -82,6 +82,8 @@ Buildings don't need to be painted to any particular scale: the game draws each 
 
 Plants, rocks, props and places cut out of a white background (`nature/`, `props/`, `landmarks/`) are cleaned up by `npm run art`: the white blended into their edge pixels is taken out, pale haze at the edge is cleared, and soft see-through edges are made crisp. Winter versions keep their white edges (that's snow).
 
+
+Plants, props and landmarks also lose leftover pale, half-clear background anywhere inside them (between leaves and twigs), and, at the game's size, pale specks along their edges where the paint just inside is darker (bark and grass edges); snow is left alone. A painting with a pale grey shadow or ground painted round it can ask for that to be cleared too, with `"clearPale": true` in its sidecar (the logs, stump and dead wood do); it's only where asked, since white bark and white flowers are pale too.
 ## Night lights and smoke
 
 To make windows glow at night or a chimney smoke, or to set the footprint by hand, add a JSON file with the same name next to the image, with points in the image's own pixels:
@@ -112,7 +114,7 @@ Villagers are painted sheets in `people/96/<role>_<sheet>.png`, four frames acro
 | `reap`, `hoe` | SE, NE | Work loops: cutting barley with a sickle at harvest; hoeing in spring and early summer. |
 | `draw-water` | SE, NE | Hauling the well rope while the bucket goes down and comes up. |
 
-The rows are S (facing you), SE (three-quarter front), E (side), NE (three-quarter back) and N (back); facing left is the right-facing row mirrored, so people face eight ways. Walking along a street shows a three-quarter view; straight across the screen, the side; straight up or down, the back or front. The build cleans each sheet (the white matte some were cut out with, and slivers of neighbouring figures) and makes 64 and 32 px copies; the game uses the smallest that's sharp at the current zoom, and takes a step for every few pixels walked so feet don't slide.
+The rows are S (facing you), SE (three-quarter front), E (side), NE (three-quarter back) and N (back); facing left is the right-facing row mirrored, so people face eight ways. Walking along a street shows a three-quarter view; straight across the screen, the side; straight up or down, the back or front. The build cleans each sheet (the white matte some were cut out with, a cream outline round the figure, and slivers of neighbouring figures), steadies the walk and carry rows (each frame moved sideways so the head and shoulders stay put, then the row centred on its feet: painted walks that drift across their frames sway when played on the spot), and makes 64 and 32 px copies; the game uses the smallest that's sharp at the current zoom, and takes a step for every few pixels walked so feet don't slide. How far each carry frame was moved is written to the manifest, so the hand positions (`CARRY`) stay measured on the art as painted.
 
 | Who | Woman or girl | Man or boy |
 | --- | --- | --- |
@@ -146,5 +148,7 @@ Each person's card shows them a size bigger, facing you, with their family's mar
 `items/<era>/prop_<thing>_<era>[_full|_empty].png`: single objects on 64 px canvases, standing at y = 58. Baskets (`basket` empty; `basket-grain`, `basket-fish`, `basket-berries` full), the `water-jar` and `well-bucket` (full and empty), the big `storage-jar` (full with its lid tied on; empty with the lid off) and the `wood-bundle`. The game sizes each against a grown-up (a basket or water jar about a third of their height, a storage jar about two thirds) from its empty version, so filling a basket doesn't shrink it.
 
 ## Animals
+
+The build cleans the animal sheets the same way as the villagers' (the white they were cut out of, any cream outline, stray bits).
 
 `animals/<era>/ani_<kind>_<era>_<state>_<size>.png`: goats, sheep, dogs, cats, deer and ducks, each standing (`idle`), breathing (`ambient`, four frames across) and, for ducks, `swimming`, in 64 and 96 px frames with the feet at (32, 59) and (48, 88). They face right and are mirrored to face left; walking, they bob (there's no painted gait yet). Coats vary a little from animal to animal (a darker or paler dog or goat, a grey or dark cat, the odd black sheep).

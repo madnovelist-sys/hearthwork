@@ -9,7 +9,7 @@ import { parseSave } from '../src/game/save';
 import { expandMap, growMap, isWater } from '../src/sim/mapgen';
 import { DISCOVERIES, agesYear, beginSideAge, boost, discover, discovery, discoveryThreshold, drawDifficulty, loreDay } from '../src/sim/ages';
 import { actCost, inspire } from '../src/sim/acts';
-import { addBuilding, findSite, settlementRegion } from '../src/sim/planner';
+import { addBuilding, findSite, repairOcc, settlementRegion } from '../src/sim/planner';
 import { describeArms, grantCharter, planBridge, planWalls, progressWalls } from '../src/sim/town';
 import { tileCost } from '../src/sim/path';
 import { run } from './helpers';
@@ -240,5 +240,28 @@ describe('arrivals, calling and sacred places', () => {
     expect(back.buildings[stone.id].removed).toBe(true);
     expect(back.map.occ[stone.y * back.map.w + stone.x]).toBe(0);
     expect(back.sparks).toBe(s.sparks);
+  });
+});
+
+describe('the ground under buildings', () => {
+  it('a building rebuilt in a new style holds its ground, and older saves are put right', () => {
+    const s = run(17, 12);
+    const old = s.buildings.find((b) => b.kind === 'house' && b.built && !b.removed)!;
+    expect(old).toBeTruthy();
+    // How older versions left a house rebuilt as a house: the old one gone, but still on the map.
+    const rebuilt = addBuilding(s, 'house', old.x, old.y, { replaces: old.id });
+    rebuilt.built = true;
+    old.removed = true;
+    const at = old.y * s.map.w + old.x;
+    expect(s.map.occ[at]).toBe(old.id + 1);
+    expect(tileCost(s.map, s.buildings, at)).toBeLessThan(Infinity); // people would walk through it
+    repairOcc(s);
+    expect(s.map.occ[at]).toBe(rebuilt.id + 1);
+    expect(tileCost(s.map, s.buildings, at)).toBe(Infinity);
+    // And every standing building holds all of its ground.
+    for (const b of s.buildings) {
+      if (b.removed || (!b.built && b.replaces !== undefined)) continue;
+      for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) expect(s.buildings[s.map.occ[y * s.map.w + x] - 1]?.id).toBe(b.id);
+    }
   });
 });

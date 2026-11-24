@@ -1,7 +1,7 @@
 // The animals you see: herds in their pens, dogs following their people,
 // cats on doorsteps, deer at the edge of the woods, ducks on the river and
 // the odd flock of birds. Cosmetic, driven by the simulation's counts.
-import { doorOf } from '../sim/planner';
+import { decideFacing, frontOf } from './layout';
 import { hashString } from '../sim/rng';
 import { TERRAIN, TREE, type GameState } from '../sim/types';
 import type { Walkers } from './walkers';
@@ -71,7 +71,8 @@ export class Fauna {
       const home = s.buildings[owner.home];
       if (!home || home.removed) continue;
       const key = `pet${pet.id}`;
-      const door = doorOf(home);
+      decideFacing(s, home);
+      const door = frontOf(home);
       const a = this.get(key, pet.kind, door.x + 0.5, door.y + 0.3, pet.id);
       seen.add(key);
       const w = walkers.list.get(owner.id);

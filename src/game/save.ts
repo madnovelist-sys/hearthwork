@@ -5,6 +5,7 @@ import { DAYS_PER_YEAR } from '../sim/types';
 import type { GameState } from '../sim/types';
 import { SAVE_VERSION } from '../sim/sim';
 import { ensureForest } from '../sim/forest';
+import { repairOcc } from '../sim/planner';
 import { saveTextFile } from './files';
 
 const DB_NAME = 'hearthwork';
@@ -120,6 +121,7 @@ function migrate(s: GameState): GameState {
   s.goals.track ??= 'time';
   s.settings.awayMinutes ??= 15;
   ensureForest(s.map);
+  repairOcc(s);
   s.laws ??= [];
   s.faiths ??= [];
   s.fortunes ??= [];

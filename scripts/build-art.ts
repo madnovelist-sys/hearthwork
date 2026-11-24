@@ -13,7 +13,8 @@
 //
 // Optional sidecar JSON next to an image (same name, .json) can override
 // { "anchorPx": [x, y], "tilePx": n, "lights": [[x, y], ...], "smoke": [[x, y], ...] }
-// in the image's own pixels.
+// in the image's own pixels, and ask for "clearPale": true (a pale grey shadow or ground
+// painted round the thing is cleared).
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -65,6 +66,9 @@ async function textures(problems: string[]): Promise<Record<string, string>> {
  * NE, N) and work loops (2 rows: SE, NE), in 96 px frames. Each is cleaned (the white matte some
  * were cut out with, and slivers of neighbouring figures), then also made at 64 and 32 px.
  */
+/** How far the build moved each carry row's second frame sideways (96 px frame), by role. */
+const shifts: Record<string, number[]> = {};
+
 async function people(problems: string[]): Promise<Record<string, Record<string, Record<string, string>>>> {
   const dir = path.join(SRC, 'people', '96');
   const out: Record<string, Record<string, Record<string, string>>> = {};
@@ -77,6 +81,12 @@ async function people(problems: string[]): Promise<Record<string, Record<string,
     const { width: W, height: H } = raw.info;
     if (W % 96 || H % 96) { problems.push(`people/96/${name}: ${W}×${H} isn't a whole number of 96 px frames`); continue; }
     cleanSheet(raw.data, W, H, 96);
+    outlinePass(raw.data, W, H);
+    if (m[2] === 'walk' || m[2] === 'carry' || m[2] === 'stoop') {
+      const moved = steadySheet(raw.data, W, H, 96, m[2] !== 'stoop');
+      // Where the hands are is measured on the second frame of each carry row, as painted.
+      if (m[2] === 'carry') shifts[m[1]] = moved.map((row) => row[1] ?? 0);
+    }
     for (const size of [96, 64, 32]) {
       const file = `people/${size}/${name}`;
       let img = sharp(raw.data, { raw: { width: W, height: H, channels: 4 } });
@@ -167,6 +177,123 @@ function cleanSheet(data: Buffer, W: number, H: number, cell: number) {
 }
 
 /**
+ * For paintings whose sidecar asks for it ("clearPale": true): a pale grey shadow or ground
+ * painted round the thing (the white it was painted on, greyed), cleared wherever it joins the
+ * outside. Only where asked, as white bark and white flowers are pale too.
+ */
+function clearPale(data: Buffer, W: number, H: number) {
+  const pale = (i: number) => {
+    const r = data[i * 4], g = data[i * 4 + 1], b = data[i * 4 + 2];
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    return data[i * 4 + 3] > 8 && mx > 160 && (mx - mn) / mx < 0.24;
+  };
+  const q: number[] = [];
+  const seen = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) if (data[i * 4 + 3] <= 8) { seen[i] = 1; q.push(i); }
+  for (let qi = 0; qi < q.length; qi++) {
+    const i = q[qi], x = i % W, y = (i / W) | 0;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      const j = ny * W + nx;
+      if (seen[j] || !pale(j)) continue;
+      seen[j] = 1;
+      data[j * 4 + 3] = 0;
+      q.push(j);
+    }
+  }
+}
+
+/**
+ * Some figures were cut out with a thin cream outline round them, the same colours as cream
+ * cloth. The outline is pale with darker paint just inside it; cloth is pale all the way in. So
+ * an outline pixel is a pale one on the edge whose neighbours a couple of pixels further in are
+ * much darker. Cleared in two passes (outlines are a pixel or two thick).
+ */
+function outlinePass(data: Buffer, W: number, H: number) {
+  const lum = (i: number) => 0.3 * data[i * 4] + 0.59 * data[i * 4 + 1] + 0.11 * data[i * 4 + 2];
+  const clear = (i: number) => data[i * 4 + 3] <= 20;
+  for (let pass = 0; pass < 2; pass++) {
+    const edge = new Uint8Array(W * H);
+    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+      const i = y * W + x;
+      if (!clear(i) && (clear(i - 1) || clear(i + 1) || clear(i - W) || clear(i + W))) edge[i] = 1;
+    }
+    const kill: number[] = [];
+    for (let y = 2; y < H - 2; y++) for (let x = 2; x < W - 2; x++) {
+      const i = y * W + x;
+      if (!edge[i]) continue;
+      const r = data[i * 4], g = data[i * 4 + 1], b = data[i * 4 + 2];
+      const mn = Math.min(r, g, b), mx = Math.max(r, g, b), L = lum(i);
+      if (L < 165 || mn < 140 || mx - mn > 70) continue;
+      let sum = 0, n = 0;
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+        const j = i + dy * W + dx;
+        if (edge[j] || data[j * 4 + 3] < 200) continue;
+        sum += lum(j); n++;
+      }
+      if (n >= 3 && sum / n < L - 50) kill.push(i);
+    }
+    for (const i of kill) data[i * 4 + 3] = 0;
+  }
+}
+
+/**
+ * A walk painted as a figure moving across its frames sways from side to side when it's played on
+ * the spot. Hold the head and shoulders still: each frame is moved sideways (whole pixels) so the
+ * top third of the figure sits where it does in the row's middle frame; the legs and arms still
+ * swing beneath. The small rise and fall of a step is kept. Then the whole row is moved so the
+ * feet are, on average, over the middle of the frame (where the game stands them), so nobody
+ * jumps sideways turning round. Returns how far each frame moved, by row.
+ */
+function steadySheet(data: Buffer, W: number, H: number, cell: number, still = true): number[][] {
+  const moved: number[][] = [];
+  const shiftFrame = (cx: number, cy: number, shift: number) => {
+    for (let y = cy; y < cy + cell; y++) {
+      const row = Buffer.from(data.subarray((y * W + cx) * 4, (y * W + cx + cell) * 4));
+      for (let x = 0; x < cell; x++) {
+        const from = x - shift;
+        const k = (y * W + cx + x) * 4;
+        if (from < 0 || from >= cell) { data[k] = data[k + 1] = data[k + 2] = data[k + 3] = 0; continue; }
+        row.copy(data, k, from * 4, from * 4 + 4);
+      }
+    }
+  };
+  for (let cy = 0; cy < H; cy += cell) {
+    const rowMoved: number[] = [];
+    moved.push(rowMoved);
+    const heads: number[] = [];
+    for (let cx = 0; cx < W; cx += cell) {
+      let top = -1, bottom = -1;
+      for (let y = cy; y < cy + cell && top < 0; y++) for (let x = cx; x < cx + cell; x++) if (data[(y * W + x) * 4 + 3] > 100) { top = y; break; }
+      for (let y = cy + cell - 1; y >= cy && bottom < 0; y--) for (let x = cx; x < cx + cell; x++) if (data[(y * W + x) * 4 + 3] > 100) { bottom = y; break; }
+      if (top < 0) { heads.push(NaN); continue; }
+      let sum = 0, n = 0;
+      for (let y = top; y < top + (bottom - top) * 0.3; y++) for (let x = cx; x < cx + cell; x++) if (data[(y * W + x) * 4 + 3] > 100) { sum += x - cx; n++; }
+      heads.push(n ? sum / n : NaN);
+    }
+    const known = heads.filter((h) => !isNaN(h)).sort((a, b) => a - b);
+    const mid = known[known.length >> 1];
+    heads.forEach((h, f) => {
+      const shift = !still || isNaN(h) || known.length < 2 ? 0 : Math.max(-14, Math.min(14, Math.round(mid - h)));
+      rowMoved.push(shift);
+      if (shift) shiftFrame(f * cell, cy, shift);
+    });
+    // The feet (the lowest few pixels of each frame), on average over the middle.
+    let sum = 0, n = 0;
+    for (let cx = 0; cx < W; cx += cell) {
+      let bottom = -1;
+      for (let y = cy + cell - 1; y >= cy && bottom < 0; y--) for (let x = cx; x < cx + cell; x++) if (data[(y * W + x) * 4 + 3] > 100) { bottom = y; break; }
+      if (bottom < 0) continue;
+      for (let y = bottom - 7; y <= bottom; y++) for (let x = cx; x < cx + cell; x++) if (data[(y * W + x) * 4 + 3] > 100) { sum += x - cx; n++; }
+    }
+    const centre = n ? Math.max(-10, Math.min(10, Math.round(cell / 2 - sum / n))) : 0;
+    if (centre) for (let f = 0; f * cell < W; f++) { shiftFrame(f * cell, cy, centre); rowMoved[f] += centre; }
+  }
+  return moved;
+}
+
+/**
  * Things people carry and set down (art/items/<era>/prop_<thing>_<era>[_full|_empty].png): single
  * objects on 64 px canvases standing at y = 58, cleaned of their white rim and trimmed.
  */
@@ -183,6 +310,7 @@ async function items(): Promise<Record<string, { file: string; ax: number; ay: n
       const raw = await sharp(path.join(dir, era, name)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
       const { width: W, height: H } = raw.info;
       defringe(raw.data, W, H, false);
+      outlinePass(raw.data, W, H);
       let x0 = W, y0 = H, x1 = -1, y1 = -1;
       for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (raw.data[(y * W + x) * 4 + 3] > 8) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
       if (x1 < 0) continue;
@@ -196,7 +324,7 @@ async function items(): Promise<Record<string, { file: string; ax: number; ay: n
   return out;
 }
 
-/** Animals (art/animals/<era>/ani_<kind>_<era>_<state>_<size>.png): copied as they are. */
+/** Animals (art/animals/<era>/ani_<kind>_<era>_<state>_<size>.png): cleaned of their white. */
 async function animals(): Promise<Record<string, Record<string, Record<string, string>>>> {
   const dir = path.join(SRC, 'animals');
   const out: Record<string, Record<string, Record<string, string>>> = {};
@@ -207,7 +335,12 @@ async function animals(): Promise<Record<string, Record<string, Record<string, s
     for (const name of fs.readdirSync(path.join(dir, era)).sort()) {
       const m = name.match(/^ani_([a-z-]+)_([a-z-]+)_([a-z-]+)_(\d+)\.png$/);
       if (!m) continue;
-      await sharp(path.join(dir, era, name)).png({ compressionLevel: 9 }).toFile(path.join(OUT, 'animals', era, name));
+      // Cleaned like the villagers: the white they were cut out of, its outline, and stray bits.
+      const raw = await sharp(path.join(dir, era, name)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+      const { width: W, height: H } = raw.info;
+      const cell = Number(m[4]);
+      if (W % cell === 0 && H % cell === 0) { cleanSheet(raw.data, W, H, cell); outlinePass(raw.data, W, H); }
+      await sharp(raw.data, { raw: { width: W, height: H, channels: 4 } }).png({ compressionLevel: 9 }).toFile(path.join(OUT, 'animals', era, name));
       ((out[m[1]] ??= {})[m[3]] ??= {})[m[4]] = `animals/${era}/${name}`;
     }
   }
@@ -218,7 +351,8 @@ async function animals(): Promise<Record<string, Record<string, Record<string, s
 /**
  * Art cut out of a white background keeps a pale rim: edge pixels part-blended with white, and
  * a faint whitish haze. Take the white back out of the blended pixels, and clear pale, half-clear
- * haze within a few pixels of the outside (but not on winter art, where white edges are snow).
+ * haze within a few pixels of the outside, and leftover pale, half-clear background anywhere
+ * inside (but not on winter art, where white edges are snow).
  */
 function defringe(data: Buffer, W: number, H: number, winter: boolean) {
   // Distance (in px, up to 12) from the outside, for every pixel.
@@ -237,10 +371,16 @@ function defringe(data: Buffer, W: number, H: number, winter: boolean) {
     }
   }
   for (let i = 0; i < W * H; i++) {
-    if (dist[i] === 0 || dist[i] > 12) continue;
+    if (dist[i] === 0) continue;
     const k = i * 4;
     const a = data[k + 3] / 255;
     let r = data[k], g = data[k + 1], b = data[k + 2];
+    // Deeper in, leftover background between the leaves or twigs: a pale grey, part see-through.
+    if (dist[i] > 12) {
+      const omx = Math.max(r, g, b), omn = Math.min(r, g, b);
+      if (!winter && a < 0.88 && omx > 165 && (omx - omn) / omx < 0.22) data[k + 3] = 0;
+      continue;
+    }
     // Whitish haze, as painted (before taking the white out): gone.
     const omx = Math.max(r, g, b), omn = Math.min(r, g, b);
     if (!winter && a < 0.9 && omx > 195 && (omx - omn) / omx < 0.18) { data[k + 3] = 0; continue; }
@@ -268,6 +408,7 @@ async function build() {
     people?: Record<string, Record<string, Record<string, string>>>;
     animals?: Record<string, Record<string, Record<string, string>>>;
     items?: Record<string, { file: string; ax: number; ay: number; h: number }>;
+    carryShift?: Record<string, number[]>;
   } = { sprites: {} };
   const problems: string[] = [];
   if (CHECK) fs.mkdirSync(CHECK, { recursive: true });
@@ -275,6 +416,7 @@ async function build() {
   fs.rmSync(path.join(OUT, 'people'), { recursive: true, force: true });
   manifest.textures = await textures(problems);
   manifest.people = await people(problems);
+  manifest.carryShift = shifts;
   manifest.animals = await animals();
   manifest.items = await items();
   for (const file of walk(SRC).sort()) {
@@ -308,6 +450,7 @@ async function build() {
       if (extra.tilePx) tilePx = extra.tilePx;
       lights = extra.lights ?? [];
       smoke = extra.smoke ?? [];
+      if (extra.clearPale && !/_winter/.test(base)) clearPale(raw.data, W, H);
     }
 
     // Scale down to the game's resolution, then trim empty margins.
@@ -316,6 +459,8 @@ async function build() {
     const sh = Math.max(1, Math.round(H * scale));
     const { data, info } = await sharp(raw.data, { raw: { width: W, height: H, channels: 4 } })
       .resize(sw, sh, { kernel: 'lanczos3' }).raw().toBuffer({ resolveWithObject: true });
+    // At the game's size, the pale specks left along grass and bark edges (not on snow).
+    if (/^(nature|props|landmarks)[\\/]/.test(rel) && !/_winter/.test(base)) outlinePass(data, info.width, info.height);
     let x0 = info.width, y0 = info.height, x1 = -1, y1 = -1;
     for (let y = 0; y < info.height; y++) {
       for (let x = 0; x < info.width; x++) {

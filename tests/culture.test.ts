@@ -6,7 +6,7 @@ import { ageOf } from '../src/sim/world';
 import { parseSave } from '../src/game/save';
 import { actCost } from '../src/sim/acts';
 import { CUSTOM_BY_ID, nudgeWay, waysHere } from '../src/sim/culture';
-import { dirOf, facesUs, handsOf } from '../src/render/citizens';
+import { dirOf, faceTo, facesUs, handsOf } from '../src/render/citizens';
 import { looksWet } from '../src/sim/shore';
 import { harvestOf } from '../src/render/harvest';
 import { addBuilding } from '../src/sim/planner';
@@ -165,6 +165,18 @@ describe('culture, and walking', () => {
     expect(dirOf(1, -0.12, 'se')).toBe('se');
     // Standing still keeps the way they last faced.
     expect(dirOf(0, 0, 'w')).toBe('w');
+    // Turning right round never leaves them facing the way they came, even when the new way lies
+    // right on the edge between two views (walking backwards, or fishing facing away from the
+    // water, before).
+    const way = (deg: number) => { const sx = Math.cos((deg * Math.PI) / 180), sy = Math.sin((deg * Math.PI) / 180); return [(sx + 2 * sy) / 2, (2 * sy - sx) / 2] as const; };
+    for (const edge of [12, 68, 112, 168, -12, -68, -112, -168]) for (const nudge of [-3, 0, 3]) {
+      const [dx, dy] = way(edge + nudge);
+      const back = way(edge + nudge + 180);
+      const was = dirOf(back[0], back[1], 'e');
+      const now = dirOf(dx, dy, was);
+      expect(now).not.toBe(was);
+      expect(faceTo(dx, dy, was)).not.toBe(was);
+    }
   });
 
   it('what people carry is held in front of them, and goes down to the ground when they bend', () => {

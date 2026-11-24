@@ -5,7 +5,7 @@
 import { C, mix, shade } from './palette';
 import type { BuildingKind, Era } from '../sim/types';
 import { addTexture } from './ground';
-import { addCitizenSheet, type Role } from './citizens';
+import { addCitizenSheet, setCarryShift, type Role } from './citizens';
 import { addAnimalArt } from './animal-art';
 import { addItemArt } from './items';
 
@@ -24,6 +24,8 @@ export interface Sprite {
   /** Chimney points, in image pixels. */
   smoke: [number, number][];
   real?: boolean;
+  /** The painting's name (real art only), e.g. bld_home_bronze_1x1_v02. */
+  key?: string;
 }
 
 /** Asset names from the art document, minus variant and state. */
@@ -88,6 +90,7 @@ export async function loadManifest(base = './art/'): Promise<void> {
     people?: Record<string, Record<string, Record<string, string>>>;
     animals?: Record<string, Record<string, Record<string, string>>>;
     items?: Record<string, { file: string; ax: number; ay: number; h: number }>;
+    carryShift?: Record<string, number[]>;
   };
   try {
     const res = await fetch(`${base}manifest.json`);
@@ -96,12 +99,13 @@ export async function loadManifest(base = './art/'): Promise<void> {
   } catch {
     return;
   }
+  for (const [role, shifts] of Object.entries(manifest.carryShift ?? {})) setCarryShift(role, shifts);
   await Promise.all([...Object.entries(manifest.sprites).map(async ([key, e]) => {
     try {
       const img = await loadImage(base + e.file);
       realArt.set(key, withDefaultLights(key, {
         img, w: img.naturalWidth, h: img.naturalHeight, ax: e.anchor[0], ay: e.anchor[1], tilePx: e.tilePx,
-        tiles: e.footprint?.[0], lights: e.lights ?? [], smoke: e.smoke ?? [], real: true,
+        tiles: e.footprint?.[0], lights: e.lights ?? [], smoke: e.smoke ?? [], real: true, key,
       }));
     } catch { /* missing file: keep the placeholder */ }
   }), ...Object.entries(manifest.textures ?? {}).map(async ([name, file]) => {
@@ -1086,12 +1090,31 @@ export function graveSprite(variant: number): Sprite {
   const c = new Canvas(1, 1, 40);
   const p = c.pt(0.5, 0.5);
   const g = c.g;
-  g.fillStyle = mix(C.dirt, C.summerGrass, 0.3);
-  g.beginPath(); g.ellipse(p.x, p.y, 20, 9, 0, 0, Math.PI * 2); g.fill();
-  g.fillStyle = shade(C.stone, 0.05);
-  const w = [9, 7, 11][variant % 3];
-  g.fillRect(p.x - w / 2 - 10, p.y - 22, w, 20);
-  g.strokeStyle = edge(C.stone); g.lineWidth = 1; g.strokeRect(p.x - w / 2 - 10, p.y - 22, w, 20);
+  // A low mound of earth, grassing over, and a small weathered stone at its head (rounded on top,
+  // lit from above, a little dark lichen), knee high to a grown-up.
+  g.fillStyle = mix(C.dirt, C.summerGrass, 0.45);
+  g.beginPath(); g.ellipse(p.x + 2, p.y - 1, 13, 5.5, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = 'rgba(255,255,255,0.12)';
+  g.beginPath(); g.ellipse(p.x + 1, p.y - 2.5, 9, 3, 0, 0, Math.PI * 2); g.fill();
+  const w = [7, 6, 8][variant % 3], h = [10, 9, 12][variant % 3];
+  const x = p.x - 9 - w / 2, top = p.y - 6 - h;
+  const stone = shade(C.stone, -0.18);
+  g.fillStyle = 'rgba(40,34,30,0.3)';
+  g.beginPath(); g.ellipse(x + w / 2 + 1, p.y - 5.5, w * 0.75, 1.8, 0, 0, Math.PI * 2); g.fill();
+  g.beginPath();
+  g.moveTo(x, p.y - 5);
+  g.lineTo(x, top + w / 2);
+  g.arc(x + w / 2, top + w / 2, w / 2, Math.PI, 0);
+  g.lineTo(x + w, p.y - 5);
+  g.closePath();
+  const grad = g.createLinearGradient(x, 0, x + w, 0);
+  grad.addColorStop(0, shade(stone, 0.12));
+  grad.addColorStop(1, shade(stone, -0.12));
+  g.fillStyle = grad;
+  g.fill();
+  g.strokeStyle = edge(stone); g.lineWidth = 0.8; g.stroke();
+  g.fillStyle = 'rgba(88,104,70,0.45)';
+  g.beginPath(); g.ellipse(x + w * 0.35, p.y - 6.5, w * 0.3, 1.6, 0, 0, Math.PI * 2); g.fill();
   s = c.sprite();
   cache.set(ck, s);
   return s;

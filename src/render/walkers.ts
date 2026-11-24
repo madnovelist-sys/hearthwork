@@ -6,15 +6,16 @@
 // drawing water, fishing, gathering).
 import { buildCostGrid, findPath } from '../sim/path';
 import { currentTarget } from '../sim/forest';
-import { doorOf, workSite } from '../sim/planner';
+import { workSite } from '../sim/planner';
 import { hashString } from '../sim/rng';
 import { TERRAIN, TREE, type Building, type GameState, type Person } from '../sim/types';
 import { ageOf } from '../sim/world';
-import { dirOf, facesRight, type Dir } from './citizens';
+import { dirOf, faceTo, facesRight, roleFor, type Dir } from './citizens';
+import { rolesOf } from './figures';
 import type { Item } from './items';
 import { Obstacles } from './obstacles';
 import { looksWet } from '../sim/shore';
-import { doorstep, placement } from './layout';
+import { decideFacing, doorstep, frontOf, placement } from './layout';
 import { DRAW_MS } from './work';
 import { harvestOf } from './harvest';
 import { seasonIndex, seasonProgress } from '../sim/world';
@@ -43,16 +44,28 @@ export interface Walker {
   /** Their velocity, in tiles a second (they turn smoothly rather than snapping). */
   vx: number;
   vy: number;
+  /** The way they've actually been moving, smoothed (what they face while walking). */
+  hx?: number;
+  hy?: number;
   /** How far they've walked, in screen px at zoom 1: their steps follow it, so feet don't slide. */
   stride: number;
   /** Where they're going (to find a new way if they get stuck), and for how long they've been stuck. */
-  goal?: { x: number; y: number };
+  goal?: { x: number; y: number; end?: { x: number; y: number } };
   stuck: number;
   /** Going indoors: the doorstep they step up to before they're gone. */
   doorstep?: { x: number; y: number };
   /** What this walk is for (water from a well), and what they're doing now they're there. */
   errand?: { kind: 'water'; well: number };
-  task?: { kind: 'water'; well: number; start: number } | { kind: 'queue'; well: number } | { kind: 'fish'; fx: number; fy: number };
+  task?: { kind: 'water'; well: number; start: number } | { kind: 'queue'; well: number } | { kind: 'fish'; fx: number; fy: number }
+    // Leisure: a word with someone (stopped in the street, or standing about), a place at the fire
+    // (crouched once they're there), a children's game.
+    | { kind: 'chat'; with: number; until: number }
+    | { kind: 'sit'; fx: number; fy: number; seated: boolean; crouch: boolean }
+    | { kind: 'play'; game: number };
+  /** When they last stopped for a word (so they don't stop for every passer-by). */
+  lastChat?: number;
+  /** Where a playing child is running to, and until when. */
+  playTo?: { x: number; y: number; until: number };
   /** What they're holding, and what they've set down by them (theirs, to pick up again). */
   load?: Item;
   set?: { item: Item; x: number; y: number };
@@ -80,6 +93,10 @@ export interface Walker {
 }
 
 const MAX_WALKERS = 450;
+/** A children's game: tag (one is it, the rest run) or a ring dance round a middle. */
+export interface Game { id: number; kind: 'tag' | 'ring'; cx: number; cy: number; members: number[]; it: number; frozen: number; start: number }
+/** Villagers whose bending art is still the rough placeholder: they stand at the fire. */
+const ROUGH_STOOP = new Set(['leader', 'leader-man', 'merchant', 'merchant-woman', 'priest', 'priest-man']);
 /** Where people meet, besides the fire. */
 const GATHER = new Set(['well', 'stall', 'alehouse', 'temple', 'shrine', 'guildhall', 'hall']);
 /** How much room someone takes up, in tiles (half a shoulder-width, more or less). */
@@ -96,10 +113,15 @@ export class Walkers {
   private crowd = new Map<number, Walker[]>();
   /** Who is drawing water at each well, since when, and which side they stand (+1 right, -1 left on screen). */
   readonly wells = new Map<number, { walker: number; start: number; toward: number }>();
+  /** Children's games going on. */
+  readonly games = new Map<number, Game>();
+  private nextGame = 1;
   /** Things set down at doors (a basket of barley at the granary), until they're taken in. */
   readonly dropped: { item: Item; x: number; y: number; until: number }[] = [];
   /** What people walk around (buildings as drawn, trees, rocks, props). */
   readonly obstacles = new Obstacles();
+  /** How often people got stuck and had to find another way, or gave up where they stood (for testing). */
+  readonly stats = { replans: 0, gaveUp: 0, detours: 0 };
 
   /** How much people keep indoors (0..1, from the weather), and whether the fields lie fallow. */
   indoor = 0;
@@ -121,10 +143,11 @@ export class Walkers {
     if (now - this.treesAt > 10_000) this.collectTrees(s, now);
     for (let i = this.dropped.length - 1; i >= 0; i--) if (now > this.dropped[i].until) this.dropped.splice(i, 1);
 
-    // Who's walking where, so people can step around each other.
+    // Who's where, so people can step around each other.
+    // (Everyone who's out, walking or standing: people step round a group chatting too.)
     this.crowd.clear();
     for (const w of this.list.values()) {
-      if (!w.path || w.alpha < 0.3) continue;
+      if (w.inside || w.alpha < 0.3) continue;
       const k = Math.floor(w.x) * 4096 + Math.floor(w.y);
       const cell = this.crowd.get(k);
       if (cell) cell.push(w); else this.crowd.set(k, [w]);
@@ -170,7 +193,7 @@ export class Walkers {
           w!.inside = false;
           if (to) {
             const at = placement(to);
-            w!.dir = dirOf(at.cx - w!.x, at.cy - w!.y, w!.dir);
+            w!.dir = faceTo(at.cx - w!.x, at.cy - w!.y, w!.dir);
           }
           this.stoop(w!, now, true, { drop: true });
           w!.waitUntil = now + STOOP_MS + 300;
@@ -179,7 +202,7 @@ export class Walkers {
         const atHome = w!.next === 'work';
         w!.path = null;
         w!.inside = atHome;
-        w!.doorstep = atHome ? doorstep(home) : undefined;
+        w!.doorstep = atHome ? this.stepFor(s, home) : undefined;
         w!.waitUntil = now + this.stay(p, w!, atHome);
         if (!atHome) this.beginTask(s, p, w!, now);
       };
@@ -204,7 +227,7 @@ export class Walkers {
         if (t < 1) { w.moving = false; w.vx = 0; w.vy = 0; continue; }
         w.act = undefined;
         // Back to the line, if they're fishing.
-        if (w.task?.kind === 'fish') { w.dir = dirOf(w.task.fx - w.x, w.task.fy - w.y, w.dir); w.facing = facesRight(w.dir) ? 1 : -1; }
+        if (w.task?.kind === 'fish') { w.dir = faceTo(w.task.fx - w.x, w.task.fy - w.y, w.dir); w.facing = facesRight(w.dir) ? 1 : -1; }
       }
 
       // Night falls (or they're unwell): head home, taking whatever they'd set down.
@@ -216,6 +239,29 @@ export class Walkers {
       }
 
       w.moving = false;
+      // Stopped in the street for a word: they stand, facing each other, then walk on.
+      if (w.task?.kind === 'chat' && w.path && w.seg < w.path.length) {
+        const o = this.list.get(w.task.with);
+        if (now < w.task.until && o && !o.inside && !stayIn) {
+          w.vx = 0; w.vy = 0;
+          w.dir = faceTo(o.x - w.x, o.y - w.y, w.dir);
+          continue;
+        }
+        w.task = undefined;
+        w.stuck = 0;
+      }
+      // Meeting someone they know on the way (both out for leisure or heading home, empty-handed):
+      // now and then they stop for a word.
+      if (w.path && w.seg < w.path.length && !stayIn && w.next !== 'social' && !w.load && !w.errand && age >= 12 && now - (w.lastChat ?? -1e9) > 45_000
+        && s.buildings[s.map.occ[Math.floor(w.y) * s.map.w + Math.floor(w.x)] - 1]?.kind !== 'field') {
+        const o = this.passerBy(s, w, now);
+        if (o) {
+          const until = now + 4000 + (hashString(`talk${w.id}:${o.id}`) % 6000);
+          w.task = { kind: 'chat', with: o.id, until }; o.task = { kind: 'chat', with: w.id, until };
+          w.lastChat = o.lastChat = now;
+          continue;
+        }
+      }
       if (w.path && w.seg < w.path.length) {
         if (this.walk(s, w, speed, dt)) arrive();
         else {
@@ -258,12 +304,19 @@ export class Walkers {
           continue;
         }
       }
+      // Playing: running about in the game, until it's time to go.
+      if (w.task?.kind === 'play') {
+        const game = this.games.get(w.task.game);
+        if (game && now < w.waitUntil && !stayIn && !w.inside) { this.play(s, w, game, speed, dt, now); continue; }
+        this.leaveGame(w);
+      }
       // Waiting a turn at the well.
       if (w.task?.kind === 'queue' && now >= w.waitUntil && !stayIn) {
         if (this.claimWell(s, w, w.task.well, now)) continue;
         w.task = undefined;
       }
       if (now < w.waitUntil || stayIn) continue;
+      if (w.task?.kind === 'play') this.leaveGame(w);
       w.task = undefined;
       if (w.act?.kind === 'work') w.act = undefined;
 
@@ -274,7 +327,7 @@ export class Walkers {
           const fill = w.work === 'reap' ? 'basket-grain' : w.work === 'fish' ? 'basket-fish' : w.work === 'gather' ? 'basket-berries' : null;
           if (fill) w.set.item = { kind: fill, full: true };
         }
-        w.dir = dirOf(w.set.x - w.x, w.set.y - w.y, w.dir);
+        w.dir = faceTo(w.set.x - w.x, w.set.y - w.y, w.dir);
         this.stoop(w, now, false);
         w.waitUntil = now + STOOP_MS + 150;
         continue;
@@ -326,7 +379,7 @@ export class Walkers {
       w.next = going === 'work' ? 'social' : going === 'social' ? 'home' : 'work';
       if (!target || !this.go(s, w, target, now)) arrive();
     }
-    for (const id of [...this.list.keys()]) if (!seen.has(id)) this.list.delete(id);
+    for (const id of [...this.list.keys()]) if (!seen.has(id)) { this.leaveGame(this.list.get(id)!); this.list.delete(id); }
   }
 
   /**
@@ -362,6 +415,190 @@ export class Walkers {
       }
     }
     this.dropped.length = 0;
+    this.games.clear();
+  }
+
+  // -------------------------------------------------------------------------------------------
+  // Free time
+
+  /** Where the hearth's fire is (the middle of the hearth as it's drawn). */
+  private fire(s: GameState): { x: number; y: number } {
+    const hb = s.buildings.find((b) => b.kind === 'hearth' && !b.removed);
+    if (!hb) return { x: s.hearth.x + 0.5, y: s.hearth.y + 0.5 };
+    const p = placement(hb);
+    return { x: p.cx, y: p.cy };
+  }
+
+  /** Someone walking toward them, close by, free for a word (and who'd stop for one, today). */
+  private passerBy(s: GameState, w: Walker, now: number): Walker | null {
+    const cx = Math.floor(w.x), cy = Math.floor(w.y);
+    for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++) {
+      for (const o of this.crowd.get((cx + ox) * 4096 + cy + oy) ?? []) {
+        if (o === w || !o.path || o.seg >= o.path.length || o.task || o.load || o.errand || o.next === 'social') continue;
+        if (now - (o.lastChat ?? -1e9) < 45_000) continue;
+        const dx = o.x - w.x, dy = o.y - w.y, d = Math.hypot(dx, dy);
+        if (d > 0.75 || d < 0.2) continue;
+        // Coming the other way, or at least not walking away.
+        if (dx * w.vx + dy * w.vy <= 0) continue;
+        const op = s.people[o.id];
+        if (!op || ageOf(s, op) < 12) continue;
+        if (hashString(`meet${Math.min(w.id, o.id)}:${Math.max(w.id, o.id)}:${Math.floor(now / 20_000)}`) % 100 >= 22) continue;
+        return o;
+      }
+    }
+    return null;
+  }
+
+  /** Free time by the fire: a place in the ring round it, facing it. False if it's not here. */
+  private atFire(s: GameState, w: Walker, age: number): boolean {
+    const f = this.fire(s);
+    if (Math.hypot(w.x - f.x, w.y - f.y) > 3.4) return false;
+    let n = 0;
+    for (const o of this.list.values()) if (o.task?.kind === 'sit' && !o.inside) n++;
+    if (n >= 22) return false;
+    const h = hashString(`fire${w.id}:${s.day}`);
+    const a = Math.atan2(w.y - f.y, w.x - f.x) + (((h % 100) / 100) - 0.5) * 0.6;
+    for (let k = 0; k < 6; k++) {
+      const r = 1.05 + ((n + k) % 3) * 0.3;
+      const t = a + k * 0.5 * (k % 2 ? 1 : -1);
+      const spot = this.obstacles.pushOut(f.x + Math.cos(t) * r, f.y + Math.sin(t) * r, BODY);
+      if (!this.open(s, spot.x, spot.y, -1) || this.taken(w, spot)) continue;
+      const role = roleFor(s.people[w.id], age, rolesOf(s));
+      const crouch = !ROUGH_STOOP.has(role) && (h >>> 8) % 100 < (age >= 60 ? 75 : 45);
+      w.task = { kind: 'sit', fx: f.x, fy: f.y, seated: false, crouch };
+      w.path = [spot]; w.seg = 0; w.goal = { x: Math.floor(spot.x), y: Math.floor(spot.y) };
+      w.inside = false;
+      return true;
+    }
+    return false;
+  }
+
+  /** At a gathering place: join someone standing about, for a word. */
+  private standAbout(w: Walker, now: number) {
+    let best: Walker | null = null, bd = 1.7;
+    const cx = Math.floor(w.x), cy = Math.floor(w.y);
+    for (let ox = -2; ox <= 2; ox++) for (let oy = -2; oy <= 2; oy++) {
+      for (const o of this.crowd.get((cx + ox) * 4096 + cy + oy) ?? []) {
+        if (o === w || o.moving || o.inside || o.next !== 'home' || (o.task && o.task.kind !== 'chat')) continue;
+        const d = Math.hypot(o.x - w.x, o.y - w.y);
+        if (d < bd) { bd = d; best = o; }
+      }
+    }
+    if (!best) return;
+    const o = best;
+    const ux = (w.x - o.x) / (bd || 1), uy = (w.y - o.y) / (bd || 1);
+    const spot = this.obstacles.pushOut(o.x + ux * 0.5, o.y + uy * 0.5, BODY);
+    w.task = { kind: 'chat', with: o.id, until: w.waitUntil };
+    if (!o.task) { o.task = { kind: 'chat', with: w.id, until: o.waitUntil }; o.dir = faceTo(w.x - o.x, w.y - o.y, o.dir); }
+    w.lastChat = o.lastChat = now;
+    if (bd > 0.62) { w.path = [spot]; w.seg = 0; w.goal = { x: Math.floor(spot.x), y: Math.floor(spot.y) }; }
+    else w.dir = faceTo(o.x - w.x, o.y - w.y, w.dir);
+  }
+
+  /** A child arrives to play: joins a game close by, or starts one. */
+  private joinGame(s: GameState, w: Walker, now: number) {
+    let game: Game | undefined;
+    for (const g of this.games.values()) {
+      if (g.members.length < (g.kind === 'ring' ? 6 : 5) && Math.hypot(g.cx - w.x, g.cy - w.y) < 3.5) { game = g; break; }
+    }
+    if (!game) {
+      const c = this.obstacles.pushOut(w.x, w.y, BODY);
+      // A ring needs a clear patch of ground; tag can be played anywhere.
+      let clear = 0;
+      for (let k = 0; k < 8; k++) {
+        const x = c.x + Math.cos((k * Math.PI) / 4) * 0.9, y = c.y + Math.sin((k * Math.PI) / 4) * 0.9;
+        if (this.open(s, x, y, -1) && !this.obstacles.blocked(x, y, BODY)) clear++;
+      }
+      const kind = clear === 8 && hashString(`game${w.id}:${s.day}`) % 3 === 0 ? 'ring' : 'tag';
+      game = { id: this.nextGame++, kind, cx: c.x, cy: c.y, members: [], it: w.id, frozen: 0, start: now };
+      this.games.set(game.id, game);
+    }
+    game.members.push(w.id);
+    w.task = { kind: 'play', game: game.id };
+    w.waitUntil = now + 24_000 + (hashString(`play${w.id}:${s.day}`) % 30_000);
+  }
+
+  private leaveGame(w: Walker) {
+    if (w.task?.kind !== 'play') return;
+    const game = this.games.get(w.task.game);
+    w.task = undefined;
+    w.playTo = undefined;
+    if (!game) return;
+    game.members = game.members.filter((id) => id !== w.id);
+    if (!game.members.length) this.games.delete(game.id);
+    else if (game.it === w.id) game.it = game.members[0];
+  }
+
+  /** A moment of a game: running after, running away, round in a ring, or looking for someone to play with. */
+  private play(s: GameState, w: Walker, game: Game, speed: number, dt: number, now: number) {
+    const others = game.members.map((id) => this.list.get(id)).filter((o): o is Walker => !!o && o !== w && !o.inside && o.task?.kind === 'play');
+    let tx = w.x, ty = w.y, spd = speed;
+    const wander = (pace: number) => {
+      if (!w.playTo || now > w.playTo.until || Math.hypot(w.playTo.x - w.x, w.playTo.y - w.y) < 0.15) {
+        const h = hashString(`run${w.id}:${Math.floor(now / 700)}`);
+        const a = ((h % 360) * Math.PI) / 180, r = 0.4 + ((h >>> 9) % 100) / 100 * 1.4;
+        const p = this.obstacles.pushOut(game.cx + Math.cos(a) * r, game.cy + Math.sin(a) * r, BODY);
+        w.playTo = this.open(s, p.x, p.y, -1) ? { x: p.x, y: p.y, until: now + 2500 } : { x: game.cx, y: game.cy, until: now + 1500 };
+      }
+      tx = w.playTo.x; ty = w.playTo.y; spd = speed * pace;
+    };
+    if (game.kind === 'ring' && others.length) {
+      // Holding hands round the middle, this way and that.
+      const n = game.members.length, i = game.members.indexOf(w.id);
+      const t = (now - game.start) / 1000;
+      const a = 6 * Math.sin(t * 0.13) + (i * Math.PI * 2) / n;
+      const r = 0.3 + 0.1 * n;
+      tx = game.cx + Math.cos(a) * r; ty = game.cy + Math.sin(a) * r; spd = speed * 1.3;
+    } else if (game.kind === 'tag' && others.length) {
+      if (w.id === game.it) {
+        let near = others[0], nd = Infinity;
+        for (const o of others) { const d = Math.hypot(o.x - w.x, o.y - w.y); if (d < nd) { nd = d; near = o; } }
+        if (now < game.frozen) {
+          // Counting to three before giving chase.
+          w.dir = faceTo(near.x - w.x, near.y - w.y, w.dir);
+          w.vx = 0; w.vy = 0; w.moving = false;
+          return;
+        }
+        tx = near.x; ty = near.y; spd = speed * 1.55;
+        if (nd < 0.4) { game.it = near.id; game.frozen = now + 1400; }
+      } else {
+        const it = this.list.get(game.it);
+        const d = it ? Math.hypot(it.x - w.x, it.y - w.y) : Infinity;
+        if (it && d < 1.4 && now >= game.frozen) {
+          // Running away, but not off out of the game.
+          tx = w.x + ((w.x - it.x) / (d || 1)) * 1.1; ty = w.y + ((w.y - it.y) / (d || 1)) * 1.1;
+          const e = Math.hypot(tx - game.cx, ty - game.cy);
+          if (e > 2.3) { tx = game.cx + ((tx - game.cx) / e) * 2.3; ty = game.cy + ((ty - game.cy) / e) * 2.3; }
+          spd = speed * 1.45;
+        } else wander(0.9);
+      }
+    } else wander(0.55);
+    this.steer(s, w, tx, ty, spd, dt);
+  }
+
+  /** Run toward a point, round things in the way (for games: no path, just the next few steps). */
+  private steer(s: GameState, w: Walker, tx: number, ty: number, spd: number, dt: number) {
+    const dx = tx - w.x, dy = ty - w.y, d = Math.hypot(dx, dy);
+    const ease = Math.min(1, d / 0.4 + 0.15);
+    let ux = d > 0.03 ? (dx / d) * spd * ease : 0, uy = d > 0.03 ? (dy / d) * spd * ease : 0;
+    const around = this.obstacles.avoid(w.x, w.y, ux, uy, BODY);
+    ux += around.x; uy += around.y;
+    const turn = Math.min(1, dt * 8);
+    w.vx += (ux - w.vx) * turn; w.vy += (uy - w.vy) * turn;
+    let { x: nx, y: ny } = this.obstacles.pushOut(w.x + w.vx * dt, w.y + w.vy * dt, BODY);
+    if (!this.open(s, nx, ny, -1)) { nx = w.x; ny = w.y; w.vx *= 0.3; w.vy *= 0.3; }
+    const mx = nx - w.x, my = ny - w.y, moved = Math.hypot(mx, my);
+    w.x = nx; w.y = ny;
+    w.stride += Math.hypot((mx - my) * 32, (mx + my) * 16);
+    w.moving = moved > spd * dt * 0.2;
+    w.alpha = Math.min(1, w.alpha + dt * 3);
+    if (dt > 0) {
+      const k = Math.min(1, dt * 8);
+      w.hx = (w.hx ?? 0) + (mx / dt - (w.hx ?? 0)) * k;
+      w.hy = (w.hy ?? 0) + (my / dt - (w.hy ?? 0)) * k;
+      if (Math.hypot(w.hx, w.hy) > spd * 0.25) w.dir = dirOf(w.hx, w.hy, w.dir);
+      if (Math.abs(mx - my) > 1e-4) w.facing = mx - my > 0 ? 1 : -1;
+    }
   }
 
   /**
@@ -433,9 +670,8 @@ export class Walkers {
     const tiles = findPath(s.map, s.buildings, fx, fy, to.x, to.y, 2500, this.grid ?? undefined);
     if (!tiles || tiles.length < 2) return false;
     w.task = undefined;
-    w.path = this.route(s, w, tiles);
     // Exactly where they're going, if it matters (the well's step, the harvest line).
-    if (to.end) w.path[w.path.length - 1] = to.end;
+    w.path = this.route(s, w, tiles, to.end);
     w.seg = 0;
     w.waitUntil = now;
     w.inside = false;
@@ -453,8 +689,11 @@ export class Walkers {
     const key = this.gridKey;
     const hit = this.doors.get(b.id);
     if (hit && hit.key === key) return hit;
-    const front = doorOf(b);
-    const free = (x: number, y: number) => x >= 0 && y >= 0 && x < s.map.w && y < s.map.h && isFinite(this.grid?.[y * s.map.w + x] ?? 1);
+    decideFacing(s, b);
+    const front = frontOf(b);
+    // Open ground, with nothing standing in the middle of it (a neighbour's woodshed or rack).
+    const free = (x: number, y: number) => x >= 0 && y >= 0 && x < s.map.w && y < s.map.h && isFinite(this.grid?.[y * s.map.w + x] ?? 1)
+      && !this.obstacles.blocked(x + 0.5, y + 0.5, BODY * 0.5);
     let best = free(front.x, front.y) ? front : null;
     if (!best) {
       let bd = Infinity;
@@ -468,6 +707,27 @@ export class Walkers {
     const out = { ...(best ?? front), key };
     this.doors.set(b.id, out);
     return out;
+  }
+
+  /**
+   * Where someone steps up to the building to go in (and comes out again): the doorstep in front,
+   * or, when the front is built over (a crowded street), the side of the building facing the door
+   * they use, never the gap between two buildings.
+   */
+  private stepFor(s: GameState, b: Building): { x: number; y: number } {
+    const door = this.doorFor(s, b);
+    const front = frontOf(b);
+    if (door.x === front.x && door.y === front.y) return this.obstacles.pushOut(doorstep(b).x, doorstep(b).y, BODY);
+    const p = placement(b);
+    const m = BODY + 0.08;
+    const x0 = p.cx - p.hx * 0.92 - m, x1 = p.cx + p.hx * 0.92 + m, y0 = p.cy - p.hy * 0.92 - m, y1 = p.cy + p.hy * 0.92 + m;
+    let x = Math.max(x0, Math.min(x1, door.x + 0.5)), y = Math.max(y0, Math.min(y1, door.y + 0.5));
+    // On the edge of the building (plus a body's width) nearest the door.
+    if (x > x0 && x < x1 && y > y0 && y < y1) {
+      const opts = [[x - x0, x0, y], [x1 - x, x1, y], [y - y0, x, y0], [y1 - y, x, y1]].sort((a, c) => a[0] - c[0]);
+      [, x, y] = opts[0];
+    }
+    return this.obstacles.pushOut(x, y, BODY);
   }
 
   /** A bit of bank (open ground beside the water) within a few steps of somewhere, picked by h. */
@@ -499,6 +759,28 @@ export class Walkers {
    * basket down and cast a line; at the harvest or the bushes, set the basket down and get to work.
    */
   private beginTask(s: GameState, p: Person, w: Walker, now: number) {
+    // Got to their place at the fire: face it, and (if they like) crouch down by it, a while.
+    if (w.task?.kind === 'sit' && !w.task.seated) {
+      w.task.seated = true;
+      w.dir = faceTo(w.task.fx - w.x, w.task.fy - w.y, w.dir);
+      w.facing = facesRight(w.dir) ? 1 : -1;
+      w.waitUntil = now + 18_000 + (hashString(`sit${w.id}:${s.day}`) % 26_000);
+      return;
+    }
+    // Walked up to someone for a word: turn to them.
+    if (w.task?.kind === 'chat') {
+      const o = this.list.get(w.task.with);
+      if (o) w.dir = faceTo(o.x - w.x, o.y - w.y, w.dir);
+      return;
+    }
+    // Arrived somewhere to spend free time (children: their whole day is free time).
+    const age = ageOf(s, p);
+    if (!w.errand && w.task?.kind !== 'sit' && (w.next === 'home' || (p.job === 'child' && w.next === 'social'))) {
+      if (age < 12) { this.joinGame(s, w, now); return; }
+      if (this.atFire(s, w, age)) return;
+      this.standAbout(w, now);
+      return;
+    }
     if (w.next === 'social' && (w.work === 'reap' || w.work === 'gather') && w.load?.kind === 'basket') {
       this.setAside(w, now, w.work === 'reap' ? 'se' : w.dir);
       w.waitUntil += STOOP_MS;
@@ -530,7 +812,7 @@ export class Walkers {
         const n = hashString(`cast${p.id}:${s.day}`);
         const fx = best.x + ((n % 100) / 100 - 0.5) * 0.6, fy = best.y + (((n >> 8) % 100) / 100 - 0.5) * 0.6;
         w.task = { kind: 'fish', fx, fy };
-        const toward = dirOf(fx - w.x, fy - w.y, w.dir);
+        const toward = faceTo(fx - w.x, fy - w.y, w.dir);
         w.waitUntil = Math.max(w.waitUntil, now + 12000);
         // The basket by their side first (away from the water), then the line.
         if (w.load?.kind === 'basket') {
@@ -556,7 +838,7 @@ export class Walkers {
     // They stand at the step if it's free, facing the well.
     if (Math.hypot(spot.x - w.x, spot.y - w.y) < 0.8) { w.x = spot.x; w.y = spot.y; }
     const sx = (w.x - w.y) - (p.cx - p.cy);
-    w.dir = dirOf(p.cx - w.x, p.cy - w.y, w.dir);
+    w.dir = faceTo(p.cx - w.x, p.cy - w.y, w.dir);
     // The jar goes down at the well's foot first, for the bucket to be tipped into.
     let start = now;
     if (w.load?.kind === 'water-jar') {
@@ -578,7 +860,7 @@ export class Walkers {
     // Nudge them off whatever they're wedged against first.
     const n = hashString(`${w.id}:${Math.floor(w.x * 13 + w.y * 7)}`);
     w.offX = ((n % 100) / 100 - 0.5) * 0.5; w.offY = (((n >> 8) % 100) / 100 - 0.5) * 0.5;
-    w.path = this.route(s, w, tiles);
+    w.path = this.route(s, w, tiles, to.end);
     w.seg = 0;
     return true;
   }
@@ -589,7 +871,7 @@ export class Walkers {
    * round (so worn paths and roads still draw people onto them), ending a little off the
    * destination's centre (everyone has their own spot).
    */
-  private route(s: GameState, w: Walker, tiles: number[]): { x: number; y: number }[] {
+  private route(s: GameState, w: Walker, tiles: number[], end?: { x: number; y: number }): { x: number; y: number }[] {
     const mw = s.map.w;
     const goal = tiles[tiles.length - 1];
     const pts = tiles.map((ti, k) => {
@@ -597,10 +879,11 @@ export class Walkers {
       // Each walker keeps a little to one side of the way (where there's room).
       const lane = k === 0 ? null : { x: cx + w.offX * 0.7, y: cy + w.offY * 0.7 };
       const pt = lane && this.open(s, lane.x, lane.y, goal) && !this.obstacles.blocked(lane.x, lane.y, BODY) ? lane : { x: cx, y: cy };
-      // A tile's middle may be a tree trunk: stand beside it instead.
-      return k === tiles.length - 1 ? pt : this.obstacles.pushOut(pt.x, pt.y, BODY);
+      // A tile's middle may be a tree trunk, a woodshed or part of a building site: stand beside it.
+      return this.obstacles.pushOut(pt.x, pt.y, BODY);
     });
     pts[0] = { x: w.x, y: w.y };
+    if (end) pts[pts.length - 1] = this.obstacles.pushOut(end.x, end.y, BODY);
     // The cost of walking the tile path up to each point.
     const cum = [0];
     for (let k = 1; k < tiles.length; k++) {
@@ -619,7 +902,102 @@ export class Walkers {
       out.push(pts[j]);
       i = j;
     }
-    return out.slice(1);
+    // Where a straight stretch would still walk into something (a tree between two tiles, a
+    // woodshed, the corner of a building), find a way round it on a finer grid.
+    const fixed = [out[0]];
+    let detours = 0;
+    for (let k = 1; k < out.length; k++) {
+      const a = fixed[fixed.length - 1], b = out[k];
+      if (detours < 4 && !this.obstacles.clearLine(a.x, a.y, b.x, b.y, BODY * 0.9)) {
+        const way = this.detour(s, a, b, goal);
+        if (way) { fixed.push(...way); detours++; this.stats.detours++; continue; }
+      }
+      fixed.push(b);
+    }
+    return fixed.slice(1);
+  }
+
+  /**
+   * A way from a to b round whatever stands between them: A* over a grid of quarter tiles round
+   * the two (each square open if someone can stand in its middle), then pulled straight wherever a
+   * straight line is clear. Null if there's no way within a tile and a half of them.
+   */
+  private detour(s: GameState, a: { x: number; y: number }, b: { x: number; y: number }, goal: number): { x: number; y: number }[] | null {
+    const R = 4;
+    const x0 = Math.max(0, Math.floor(Math.min(a.x, b.x) - 1.5)), y0 = Math.max(0, Math.floor(Math.min(a.y, b.y) - 1.5));
+    const x1 = Math.min(s.map.w, Math.ceil(Math.max(a.x, b.x) + 1.5)), y1 = Math.min(s.map.h, Math.ceil(Math.max(a.y, b.y) + 1.5));
+    const W = (x1 - x0) * R, H = (y1 - y0) * R;
+    if (W * H > 3600 || W <= 0 || H <= 0) return null;
+    const cx = (i: number) => x0 + ((i % W) + 0.5) / R, cy = (i: number) => y0 + (Math.floor(i / W) + 0.5) / R;
+    const cell = (p: { x: number; y: number }) => Math.max(0, Math.min(H - 1, Math.floor((p.y - y0) * R))) * W + Math.max(0, Math.min(W - 1, Math.floor((p.x - x0) * R)));
+    const start = cell(a), end = cell(b);
+    const free = new Int8Array(W * H).fill(-1);
+    const isFree = (i: number) => {
+      if (free[i] < 0) free[i] = i === start || i === end || (this.open(s, cx(i), cy(i), goal) && !this.obstacles.blocked(cx(i), cy(i), BODY)) ? 1 : 0;
+      return free[i] === 1;
+    };
+    const g = new Float32Array(W * H).fill(Infinity);
+    const from = new Int32Array(W * H).fill(-1);
+    const heap: [number, number][] = [];
+    const push = (f: number, i: number) => {
+      heap.push([f, i]);
+      let k = heap.length - 1;
+      while (k > 0) { const p = (k - 1) >> 1; if (heap[p][0] <= heap[k][0]) break; [heap[p], heap[k]] = [heap[k], heap[p]]; k = p; }
+    };
+    const pop = () => {
+      const top = heap[0], last = heap.pop()!;
+      if (heap.length) {
+        heap[0] = last;
+        let k = 0;
+        for (;;) {
+          const l = 2 * k + 1, r = l + 1;
+          let m = k;
+          if (l < heap.length && heap[l][0] < heap[m][0]) m = l;
+          if (r < heap.length && heap[r][0] < heap[m][0]) m = r;
+          if (m === k) break;
+          [heap[m], heap[k]] = [heap[k], heap[m]]; k = m;
+        }
+      }
+      return top;
+    };
+    const ex = end % W, ey = Math.floor(end / W);
+    const h = (i: number) => { const dx = Math.abs((i % W) - ex), dy = Math.abs(Math.floor(i / W) - ey); return Math.max(dx, dy) + 0.414 * Math.min(dx, dy); };
+    g[start] = 0;
+    push(h(start), start);
+    let steps = 0;
+    while (heap.length && steps++ < 4000) {
+      const [, i] = pop();
+      if (i === end) break;
+      const ix = i % W, iy = Math.floor(i / W);
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy) continue;
+        const nx = ix + dx, ny = iy + dy;
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+        const j = ny * W + nx;
+        if (!isFree(j)) continue;
+        // No cutting a corner between two blocked squares.
+        if (dx && dy && (!isFree(iy * W + nx) || !isFree(ny * W + ix))) continue;
+        const cost = g[i] + (dx && dy ? 1.414 : 1);
+        if (cost < g[j]) { g[j] = cost; from[j] = i; push(cost + h(j), j); }
+      }
+    }
+    if (from[end] < 0 && start !== end) return null;
+    const cells: number[] = [];
+    for (let i = end; i !== start && i >= 0; i = from[i]) cells.push(i);
+    cells.reverse();
+    const pts = cells.map((i) => ({ x: cx(i), y: cy(i) }));
+    pts[pts.length - 1] = b;
+    // Pulled straight: from each point, as far along as a straight line is clear.
+    const out: { x: number; y: number }[] = [];
+    let at = a;
+    for (let k = 0; k < pts.length;) {
+      let j = k;
+      while (j + 1 < pts.length && this.obstacles.clearLine(at.x, at.y, pts[j + 1].x, pts[j + 1].y, BODY * 0.9)) j++;
+      out.push(pts[j]);
+      at = pts[j];
+      k = j + 1;
+    }
+    return out;
   }
 
   private costAt(ti: number, goal: number): number {
@@ -674,6 +1052,8 @@ export class Walkers {
     // Round the corners: move on to the next point a little before reaching this one.
     if (!last && d < 0.35) { w.seg++; wp = path[w.seg]; dx = wp.x - w.x; dy = wp.y - w.y; d = Math.hypot(dx, dy); }
     if (w.seg === path.length - 1 && d < 0.06) { w.x = wp.x; w.y = wp.y; w.seg = path.length; w.vx = 0; w.vy = 0; return true; }
+    // Nearly there and someone's already standing on the spot: stop here, beside them.
+    if (w.seg === path.length - 1 && d < 0.55 && this.taken(w, wp)) { w.seg = path.length; w.vx = 0; w.vy = 0; return true; }
     const goal = Math.floor(path[path.length - 1].y) * s.map.w + Math.floor(path[path.length - 1].x);
     const ease = w.seg === path.length - 1 ? Math.min(1, 0.35 + d / 0.6) : 1;
     let ux = (dx / d) * speed * ease, uy = (dy / d) * speed * ease;
@@ -711,7 +1091,11 @@ export class Walkers {
     if (w.stuck > 1.2) {
       w.stuck = 0;
       w.vx = 0; w.vy = 0;
-      if (!w.goal || !this.replan(s, w)) { w.seg = path.length; return true; }
+      // Held up within a couple of steps of where they're going (a crowd at a door): that'll do.
+      const last = path[path.length - 1];
+      if (Math.hypot(last.x - w.x, last.y - w.y) < 1.1) { w.seg = path.length; return true; }
+      this.stats.replans++;
+      if (!w.goal || !this.replan(s, w)) { this.stats.gaveUp++; w.seg = path.length; return true; }
       return false;
     }
     const mx = nx - w.x, my = ny - w.y;
@@ -719,7 +1103,25 @@ export class Walkers {
     // Steps follow the ground covered on screen (a stride is about 17 px at zoom 1).
     w.stride += Math.hypot((mx - my) * 32, (mx + my) * 16);
     if (Math.abs(mx - my) > 1e-4) w.facing = mx - my > 0 ? 1 : -1;
-    w.dir = dirOf(w.vx, w.vy, w.dir);
+    // They face the way they're really going (smoothed, so a jostle doesn't spin them round),
+    // not the way they're trying to go: someone held back by a crowd doesn't walk backwards.
+    if (dt > 0) {
+      const k = Math.min(1, dt * 8);
+      w.hx = (w.hx ?? 0) + (mx / dt - (w.hx ?? 0)) * k;
+      w.hy = (w.hy ?? 0) + (my / dt - (w.hy ?? 0)) * k;
+      if (Math.hypot(w.hx, w.hy) > speed * 0.25) w.dir = dirOf(w.hx, w.hy, w.dir);
+    }
+    return false;
+  }
+
+  /** Whether someone else is standing (not walking) on or right by a spot. */
+  private taken(w: Walker, p: { x: number; y: number }): boolean {
+    const cx = Math.floor(p.x), cy = Math.floor(p.y);
+    for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++) {
+      for (const o of this.crowd.get((cx + ox) * 4096 + cy + oy) ?? []) {
+        if (o !== w && !o.moving && Math.hypot(o.x - p.x, o.y - p.y) < 0.22) return true;
+      }
+    }
     return false;
   }
 
@@ -731,7 +1133,8 @@ export class Walkers {
 
   private workTarget(s: GameState, p: Person, home: { x: number; y: number }): { x: number; y: number; end?: { x: number; y: number } } | null {
     const h = hashString(`${p.id}:${s.day}`);
-    if (p.job === 'child') return this.near(s, s.hearth, 3, h) ?? this.near(s, home, 2, h);
+    // Children play near home mostly (in the lane, the yard), sometimes by the fire.
+    if (p.job === 'child') return (h % 5 < 1 ? this.near(s, s.hearth, 3, h) : null) ?? this.near(s, home, 4, h) ?? this.near(s, home, 2, h);
     // In winter, farmers go hunting in the woods instead.
     if (p.job === 'farmer' && this.fieldsAsleep) {
       if (this.treeTiles.length && h % 3) {
@@ -773,6 +1176,11 @@ export class Walkers {
   private socialTarget(s: GameState, p: Person, now: number): { x: number; y: number } | null {
     const h = hashString(`${p.id}:${Math.floor(now / 20000)}`);
     const roll = h % 20;
+    // Children go on playing near home.
+    if (ageOf(s, p) < 12 && roll < 15) {
+      const home = p.home !== undefined ? s.buildings[p.home] : undefined;
+      if (home) return this.near(s, home, 4, h);
+    }
     if (roll < 4 && p.spouse === undefined && p.courting) {
       const other = s.people[p.courting.with];
       const ob = other?.home !== undefined ? s.buildings[other.home] : undefined;

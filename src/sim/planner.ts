@@ -62,6 +62,23 @@ export function settlementRegion(s: GameState): Uint8Array {
   return r;
 }
 
+/**
+ * Make the map's record of who stands where match the buildings (older saves could still record
+ * a building that had been rebuilt, on the ground its replacement now stands on).
+ */
+export function repairOcc(s: GameState) {
+  for (let i = 0; i < s.map.occ.length; i++) {
+    const ref = s.map.occ[i];
+    if (ref && s.buildings[ref - 1]?.removed) s.map.occ[i] = 0;
+  }
+  for (const b of s.buildings) {
+    if (b.removed) continue;
+    // An upgrade still being built leaves the ground to the building it replaces.
+    if (!b.built && b.replaces !== undefined && !s.buildings[b.replaces]?.removed) continue;
+    if (s.map.occ[tileIndex(s, b.x, b.y)] === 0) setOcc(s, b, b.id + 1);
+  }
+}
+
 function setOcc(s: GameState, b: Building, value: number) {
   for (let y = b.y; y < b.y + b.h; y++) {
     for (let x = b.x; x < b.x + b.w; x++) {
@@ -265,6 +282,8 @@ function completeBuilding(s: GameState, b: Building) {
   b.era = s.age.era;
   if (b.replaces !== undefined) {
     const old = s.buildings[b.replaces];
+    // The new building takes the ground (the old one held it while this was being built).
+    setOcc(s, b, b.id + 1);
     if (old && !old.removed) {
       for (const p of s.people) if (p.home === old.id) p.home = b.id;
       old.removed = true;
@@ -274,8 +293,7 @@ function completeBuilding(s: GameState, b: Building) {
         return;
       }
     }
-    setOcc(s, b, b.id + 1);
-    }
+  }
   if (b.forPeople?.length) moveIn(s, b, b.forPeople);
   if (b.kind === 'kiln' || b.kind === 'furnace' || b.kind === 'stall' || b.kind === 'alehouse') openBusiness(s, b);
   if (b.kind === 'bridge') { bridgeFinished(s, b); return; }
