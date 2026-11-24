@@ -20,6 +20,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import { fitBase } from '../src/render/footprint';
+import { keyBackground } from './key';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = path.join(ROOT, 'art');
@@ -39,6 +40,19 @@ function walk(dir: string): string[] {
     else if (entry.name.toLowerCase().endsWith('.png')) out.push(p);
   }
   return out;
+}
+
+/**
+ * Read a painting as raw pixels, with any flat background taken out: art made where transparency
+ * isn't offered comes on a single flat colour (magenta is asked for; green or plain white also
+ * work). If the image has hardly any see-through pixels and its border is one flat colour, that
+ * colour is cleared wherever it joins the border, with a soft edge, and its tint is taken back out
+ * of the edge pixels. Paintings that already have a transparent background are left alone.
+ */
+async function readArt(file: string) {
+  const raw = await sharp(file).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  keyBackground(raw.data, raw.info.width, raw.info.height);
+  return raw;
 }
 
 interface Entry { file: string; tilePx: number; anchor: number[]; footprint: number[]; lights: number[][]; smoke: number[][] }
@@ -77,7 +91,7 @@ async function people(problems: string[]): Promise<Record<string, Record<string,
   for (const name of fs.readdirSync(dir).sort()) {
     const m = name.match(/^([a-z-]+?)_([a-z-]+)\.png$/);
     if (!m) { if (name.endsWith('.png')) problems.push(`people/96/${name}: sheets are named <role>_<sheet>.png`); continue; }
-    const raw = await sharp(path.join(dir, name)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    const raw = await readArt(path.join(dir, name));
     const { width: W, height: H } = raw.info;
     if (W % 96 || H % 96) { problems.push(`people/96/${name}: ${W}×${H} isn't a whole number of 96 px frames`); continue; }
     cleanSheet(raw.data, W, H, 96);
@@ -307,7 +321,7 @@ async function items(): Promise<Record<string, { file: string; ax: number; ay: n
     for (const name of fs.readdirSync(path.join(dir, era)).sort()) {
       const m = name.match(/^prop_([a-z-]+)_([a-z]+)(?:_(full|empty))?\.png$/);
       if (!m) continue;
-      const raw = await sharp(path.join(dir, era, name)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+      const raw = await readArt(path.join(dir, era, name));
       const { width: W, height: H } = raw.info;
       defringe(raw.data, W, H, false);
       outlinePass(raw.data, W, H);
@@ -316,8 +330,10 @@ async function items(): Promise<Record<string, { file: string; ax: number; ay: n
       if (x1 < 0) continue;
       const file = `items/${era}/${name}`;
       await sharp(raw.data, { raw: { width: W, height: H, channels: 4 } }).extract({ left: x0, top: y0, width: x1 - x0 + 1, height: y1 - y0 + 1 }).png({ compressionLevel: 9 }).toFile(path.join(OUT, file));
-      // Where it stands (the middle of its foot), and how tall it is, in its own pixels.
-      out[`${m[1]}${m[3] ? `:${m[3]}` : ''}`] = { file, ax: W / 2 - x0, ay: Math.min(y1, 58) - y0 + 1, h: y1 - y0 + 1 };
+      // Where it stands (the middle of its foot), and how tall it is, in its own pixels: on the 64 px
+      // template, the middle of the canvas at y = 58; on any other canvas, the bottom of the object.
+      const template = W === 64 && H === 64;
+      out[`${m[1]}${m[3] ? `:${m[3]}` : ''}`] = { file, ax: template ? W / 2 - x0 : (x1 - x0) / 2, ay: (template ? Math.min(y1, 58) : y1) - y0 + 1, h: y1 - y0 + 1 };
     }
   }
   console.log(`✓ items: ${Object.keys(out).join(', ')}`);
@@ -336,7 +352,7 @@ async function animals(): Promise<Record<string, Record<string, Record<string, s
       const m = name.match(/^ani_([a-z-]+)_([a-z-]+)_([a-z-]+)_(\d+)\.png$/);
       if (!m) continue;
       // Cleaned like the villagers: the white they were cut out of, its outline, and stray bits.
-      const raw = await sharp(path.join(dir, era, name)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+      const raw = await readArt(path.join(dir, era, name));
       const { width: W, height: H } = raw.info;
       const cell = Number(m[4]);
       if (W % cell === 0 && H % cell === 0) { cleanSheet(raw.data, W, H, cell); outlinePass(raw.data, W, H); }
@@ -419,6 +435,8 @@ async function build() {
   manifest.carryShift = shifts;
   manifest.animals = await animals();
   manifest.items = await items();
+  // Each summer painting's framing, for its seasonal versions (which sort after it).
+  const placed = new Map<string, { W: number; H: number; anchor: number[]; tilePx: number; lights: number[][]; smoke: number[][] }>();
   for (const file of walk(SRC).sort()) {
     const rel = path.relative(SRC, file);
     // Textures, villagers, animals and carried things are handled above; citizens/ holds the
@@ -429,7 +447,7 @@ async function build() {
     if (!m) { problems.push(`${rel}: name doesn't follow kind_subject_era_WxH_vNN[_state].png`); continue; }
     const tw = Number(m[4]);
     const th = Number(m[5]);
-    const raw = await sharp(file).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    const raw = await readArt(file);
     const W = raw.info.width;
     const H = raw.info.height;
     // Matted art (plants, rocks, props, places) loses the pale rim of its white background.
@@ -444,14 +462,24 @@ async function build() {
     let lights: number[][] = [];
     let smoke: number[][] = [];
     const sidecar = file.replace(/\.png$/i, '.json');
-    if (fs.existsSync(sidecar)) {
-      const extra = JSON.parse(fs.readFileSync(sidecar, 'utf8'));
-      if (extra.anchorPx) anchor = extra.anchorPx;
-      if (extra.tilePx) tilePx = extra.tilePx;
-      lights = extra.lights ?? [];
-      smoke = extra.smoke ?? [];
-      if (extra.clearPale && !/_winter/.test(base)) clearPale(raw.data, W, H);
+    const extra = fs.existsSync(sidecar) ? JSON.parse(fs.readFileSync(sidecar, 'utf8')) : {};
+    // A seasonal version (…_v01_winter) of a painting made as an edit of it keeps its framing:
+    // if its canvas has the same shape, it stands where the summer one stands, at the same size,
+    // with its window lights and chimney smoke, wherever its own outline would put it.
+    const summer = m[7] ? placed.get(base.slice(0, -(m[7].length + 1))) : undefined;
+    if (summer && !extra.anchorPx && Math.abs(W / H - summer.W / summer.H) < 0.02) {
+      const k = W / summer.W;
+      anchor = [summer.anchor[0] * k, summer.anchor[1] * k];
+      tilePx = summer.tilePx * k;
+      lights = summer.lights.map(([x, y]) => [x * k, y * k]);
+      smoke = summer.smoke.map(([x, y]) => [x * k, y * k]);
     }
+    if (extra.anchorPx) anchor = extra.anchorPx;
+    if (extra.tilePx) tilePx = extra.tilePx;
+    if (extra.lights) lights = extra.lights;
+    if (extra.smoke) smoke = extra.smoke;
+    if (extra.clearPale && !/_winter/.test(base)) clearPale(raw.data, W, H);
+    if (!m[7]) placed.set(base, { W, H, anchor, tilePx, lights, smoke });
 
     // Scale down to the game's resolution, then trim empty margins.
     const scale = Math.min(1, TARGET_TILE_PX / tilePx);

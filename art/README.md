@@ -2,7 +2,7 @@
 
 What's wanted next, with briefs ready to paste to the artist, is in [BRIEFS.md](BRIEFS.md).
 
-Put art from ChatGPT here, exactly as it was made: full size, transparent background. **Don't resize, crop or trim it.** `npm run art` does that, and writes game-ready sprites plus a manifest to `public/art/`. The game finds them by name.
+Put art from ChatGPT (or Gemini) here, exactly as it was made: full size, transparent background, or on a single flat colour (magenta #FF00FF is best; plain white or bright green also work), which the build takes out. **Don't resize, crop or trim it.** `npm run art` does that, and writes game-ready sprites plus a manifest to `public/art/`. The game finds them by name.
 
 Images made against a footprint template line up exactly. Others work too: the art step finds where the building stands from its outline. Check what it found with `npm run art -- --check some-folder`, which saves each image with its footprint drawn on. When an image isn't drawn in true 2:1 isometric (ChatGPT sometimes draws one side flatter), give it hand measurements in a sidecar file (below).
 
@@ -62,7 +62,7 @@ Every building above can also be drawn for a later era: swap `bronze` for `iron`
 
 Trees stand with the foot of the trunk at the middle of their tile. Each season of a tree should keep the same tree at the same size and place, so the tree doesn't jump when the season turns. Spring, autumn and winter versions fall back to the summer one (or to `v01`'s) when missing.
 
-A winter (or other) version painted on a different canvas from its summer one is lined up with it by hand in its sidecar, so it stands in the same place at the same size.
+A seasonal version made as an edit of its summer painting (the same framing, on a canvas of the same shape, at any size) is lined up with it automatically, and keeps its night lights and chimney smoke. One painted on a differently shaped canvas is lined up by hand in its sidecar (`anchorPx`, `tilePx`), so it stands in the same place at the same size.
 
 The broadleaf woods can hold several kinds of tree: `nat_broadleaf`, `nat_oak`, `nat_birch`, `nat_hazel`, `nat_young-tree`, `nat_old-tree` and `nat_snag` mixed through them, and `nat_willow` and `nat_alder` near the water (the mix is `BROADLEAVES` in `src/render/sprites.ts`). Any kind with art in `nature/` is used. Each new kind is sized by its sidecar (`tilePx` sets its height against the people: an oak about four grown-ups, a birch or alder a little less, hazel and saplings under two); `nat_broadleaf` itself is scaled up in the game. All of them are in the woods now (batch 24).
 
@@ -130,12 +130,13 @@ The `guard` waits for the town to have a watch. A villager without a `stoop` she
 
 Where the hands are in each `carry` sheet is measured in `src/render/citizens.ts` (`CARRY`): a new carry sheet whose hands sit somewhere else needs its own line there.
 
-Notes on the current sheets (batches 16, 23 and 24):
+Notes on the current sheets (batches 16, 23, 24 and 25):
 
-- Painted throughout: every villager's carry sheet but the priests'; the stoop sheets of the farmers, crafters, children and elders; and the crafter-man's walk (empty-handed now, hands loosely together in front).
+- Painted throughout: every villager's carry sheet but the priest-man's; the stoop sheets of the farmers, crafters, children, elders, the merchant and the priest; and the crafter-man's walk (empty-handed now, hands loosely together in front).
+- Batch 25's other sheets (leader walk and stoop, leader-man stoop, merchant-woman stoop, priest-man carry and stoop) are painted in different costumes from those characters' other sheets, so they're kept in `_drafts/people/batch25/` until there are matching ones.
 - The leader's and the merchant's walk sheets were cut off down one side, so they walk in their carry sheets (hands folded in front), copied as `leader_walk.png` and `merchant_walk.png`. The cut-off sheets are in `_drafts/people/`, with batch 24's replacements, which weren't used: the leader's is a smaller figure standing higher in its frame, on a pale backdrop, and the merchant's is a different man (cap, waistcoat and trousers, not the cloak and turban of his carry sheet).
 - The priest's first step in the SE, E and NE rows was cut off too, and is the other contact step instead; the farmer's last hoe frame was cut off, and swings back through the second.
-- The priests' carry sheets have forearms added to the walk; the leaders', merchants' and priests' stoop sheets squash the walk rather than bend it. They pass at a distance (what's carried covers the hands), but want painting properly.
+- The priest-man's carry sheet has forearms added to the walk; the leaders', the merchant-woman's and the priest-man's stoop sheets squash the walk rather than bend it (so those villagers stand at the fire rather than crouch). They pass at a distance, but want painting properly.
 - The fishing, net, hunting, chopping and hammering loops in `_drafts/people/` are tools laid over walking frames, so they aren't used.
 - `draw-water` is painted on a man in a blue tunic rather than the crafter's apron, so it's only used for `crafter-man`.
 

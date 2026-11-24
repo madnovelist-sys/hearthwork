@@ -96,7 +96,7 @@ const MAX_WALKERS = 450;
 /** A children's game: tag (one is it, the rest run) or a ring dance round a middle. */
 export interface Game { id: number; kind: 'tag' | 'ring'; cx: number; cy: number; members: number[]; it: number; frozen: number; start: number }
 /** Villagers whose bending art is still the rough placeholder: they stand at the fire. */
-const ROUGH_STOOP = new Set(['leader', 'leader-man', 'merchant', 'merchant-woman', 'priest', 'priest-man']);
+const ROUGH_STOOP = new Set(['leader', 'leader-man', 'merchant-woman', 'priest-man']);
 /** Where people meet, besides the fire. */
 const GATHER = new Set(['well', 'stall', 'alehouse', 'temple', 'shrine', 'guildhall', 'hall']);
 /** How much room someone takes up, in tiles (half a shoulder-width, more or less). */

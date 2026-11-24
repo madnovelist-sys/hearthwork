@@ -1769,6 +1769,11 @@
         "64": "people/64/merchant_carry.png",
         "96": "people/96/merchant_carry.png"
       },
+      "stoop": {
+        "32": "people/32/merchant_stoop.png",
+        "64": "people/64/merchant_stoop.png",
+        "96": "people/96/merchant_stoop.png"
+      },
       "walk": {
         "32": "people/32/merchant_walk.png",
         "64": "people/64/merchant_walk.png",
@@ -1904,10 +1909,10 @@
     ],
     "priest": [
       0,
-      -2,
-      -2,
-      -3,
-      0
+      -1,
+      0,
+      3,
+      2
     ]
   },
   "animals": {

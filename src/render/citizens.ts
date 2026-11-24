@@ -154,11 +154,12 @@ const CARRY: Partial<Record<Role, [number, number][]>> = {
   'elder-woman': [[49, 58], [57, 59], [62, 55], [62, 55]],
   'leader-man': [[49, 55], [59, 54], [67, 53], [67, 51]],
   'merchant-woman': [[49, 53], [63, 51], [66, 54], [64, 52]],
+  priest: [[50, 50], [58, 50], [62, 49], [63, 50]],
 };
 /** How far the art build moved each carry row sideways (from the manifest), by role. */
 const carryShift = new Map<string, number[]>();
 export function setCarryShift(role: string, shifts: number[]) { carryShift.set(role, shifts); }
-/** The carry sheets with forearms added to the walk (the priests'): the hands are lower, at the belt. */
+/** The carry sheets with forearms added to the walk (the priest-man's): the hands are lower, at the belt. */
 const CARRY_ADDED: [number, number][] = [[48, 61], [48, 61], [70, 64], [62, 64]];
 /** Where the hands reach the ground when stooping (rows S, SE, E, NE, N). */
 const GROUND: [number, number][] = [[48, 86], [53, 86], [62, 86], [69, 87], [48, 84]];

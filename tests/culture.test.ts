@@ -180,7 +180,7 @@ describe('culture, and walking', () => {
   });
 
   it('what people carry is held in front of them, and goes down to the ground when they bend', () => {
-    for (const role of ['farmer', 'farmer-woman', 'crafter', 'crafter-man', 'child', 'girl', 'elder', 'elder-woman', 'leader', 'leader-man', 'merchant', 'merchant-woman', 'priest'] as const) {
+    for (const role of ['farmer', 'farmer-woman', 'crafter', 'crafter-man', 'child', 'girl', 'elder', 'elder-woman', 'leader', 'leader-man', 'merchant', 'merchant-woman', 'priest', 'priest-man'] as const) {
       // Facing left is facing right mirrored.
       for (const [r, l] of [['se', 'sw'], ['e', 'w'], ['ne', 'nw']] as const) {
         expect(handsOf(role, l).x).toBeCloseTo(-handsOf(role, r).x);

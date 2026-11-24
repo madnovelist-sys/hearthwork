@@ -4,18 +4,27 @@ Briefs ready to paste to the artist. Everything is a transparent PNG with no bac
 
 Sizes are given against a grown-up villager, who is 77 px tall in a 96 px frame.
 
+Winter versions of the square buildings, objects for scenes and a winter-clothes trial are with Gemini ([BRIEFS-GEMINI.md](BRIEFS-GEMINI.md)), so they aren't in this list.
+
 **In the game already (batches 16, 23 and 24):** five-direction walk sheets for all fifteen villagers; painted carry sheets for everyone but the priests; painted stoop sheets for the farmers, crafters, children and elders; the farmers' reap and hoe loops; a draw-water loop; all the containers; and all ten new kinds of tree. What's below is what's still missing or needs painting properly.
 
 ---
 
 ## 1. Carrying and bending, the last few
 
-Same five-direction layout as before (384 × 480 px: 4 frames across, 96 px cells; rows S, SE, E, NE, N; feet at x = 48, y = 89–90; a grown-up 77 px tall; everyone faces right), drawn like the farmers' and crafters' batch 24 sheets:
+Same five-direction layout as before (384 × 480 px: 4 frames across, 96 px cells; rows S, SE, E, NE, N; feet at x = 48, y = 89–90; a grown-up 77 px tall; everyone faces right), drawn like the farmers' and crafters' batch 24 sheets.
 
-- **`priest_carry.png`, `priest-man_carry.png`**: the walk, both forearms held forward at waist-to-chest height, hands together, nothing in them.
-- **`leader_stoop.png`, `leader-man_stoop.png`, `merchant_stoop.png`, `merchant-woman_stoop.png`, `priest_stoop.png`, `priest-man_stoop.png`**: standing, bending at hips and knees, hands at the ground in front of the feet, halfway back up.
-- **`leader_walk.png`** whole and empty-handed, the same figure as her carry sheet at the same size (77 px tall, feet at y = 89–90), on a transparent background. Batch 24's was smaller, higher in the frame and on a pale backdrop.
-- **`merchant_walk.png`** whole and empty-handed, the same man as his carry sheet (red cloak, patterned turban, satchel). Batch 24's was a different man.
+**Each must be the same person in the same clothes as the character's existing sheets**: attach the character's current walk or carry sheet (from `art/people/96/`) and ask for that exact figure. Batch 25's leader, leader-man, merchant-woman and priest-man sheets were nicely painted but in different costumes (a blue dress for the leader, a blue cloak for the leader-man, a red dress and yellow headscarf for the merchant-woman, a bare-headed man in a lilac cloak for the priest-man), so a villager would change clothes every time they bent down. They're kept in `art/_drafts/people/batch25/`.
+
+| File | The character, as they look now |
+| --- | --- |
+| `priest-man_carry.png` | Deep purple hooded robe with tasselled hem, holding a golden sun-staff; both forearms forward, hands together, nothing in them (the staff tucked against the shoulder). |
+| `priest-man_stoop.png` | The same, bending at hips and knees to the ground and back up. |
+| `leader_stoop.png` | Cream dress, red-orange cloak, gold circlet in long brown hair. |
+| `leader-man_stoop.png` | Red and cream patterned robes, a gold-banded hat, a staff. |
+| `merchant-woman_stoop.png` | Green striped shawl, cream headband, patterned skirt, pouches at the belt. |
+| `leader_walk.png` | Her walk, empty-handed, 77 px tall, feet at y = 89–90, transparent background (batch 24's was smaller and higher in its frame; batch 25's is in the blue dress). |
+| `merchant_walk.png` | His walk, empty-handed: red cloak, patterned turban, satchel. |
 
 ---
 
@@ -106,3 +115,26 @@ Homes and workshops are painted as crisp boxes, so a street of them reads as a g
 - **Uneven lines**: walls not quite straight, the roof's eaves wavy, the ridge a little sagging.
 - **A door a grown-up can walk through**: the doorway about a third of the building's height for a 1 × 1 home (the game sizes buildings so the door fits a person; a door painted much smaller makes the whole house bigger).
 - The ground at the foot of the walls soft and irregular, blending away (the game adds its own shadow).
+
+---
+
+## 8. Activities: the village's life on screen
+
+The game will act out what the Chronicle and the village's customs describe (baking bread on hot stones, painting the doorposts, dancing round the midsummer fire, a wedding, a funeral, a quarrel at the well, someone climbing a tree). These are the poses for it. Each is one sheet of 4 frames across and **2 rows**, SE (three-quarter front) and NE (three-quarter back), 384 × 192 px, 96 px cells, feet at x = 48, y = 89–90, facing right, painted on the character exactly as they look in their walk sheet. Objects they hold are painted in (the game draws fires, bread, garlands and so on beside them).
+
+| File | The loop |
+| --- | --- |
+| `<character>_dance.png` | Dancing in a ring: stepping sideways, arms out as if holding hands, a little hop. |
+| `<character>_drum.png` | Beating a frame drum held in one hand, with a small beater. |
+| `<character>_kneel.png` | Kneeling at a fire or a hearthstone, turning flatbread or tending the embers. |
+| `<character>_paint.png` | Painting a doorpost at shoulder height with a brush: dip, stroke up, stroke down, step back. |
+| `<character>_pray.png` | Standing with arms raised, then bowing: at a shrine, a spring or the standing stones. |
+| `<character>_mourn.png` | Standing with head bowed and hands clasped, a hand to the face. |
+| `<character>_argue.png` | Arguing: pointing, arms wide, hands on hips, turning away. |
+| `<character>_hug.png` | Embracing someone in front of them (meeting, parting, a wedding). |
+| `<character>_carry-baby.png` | Walking with a swaddled baby held in the arms (5 rows like the walk sheets, 384 × 480). |
+| `<character>_climb.png` | Climbing: reaching up, pulling, a foot raised on a branch (the game draws the tree). |
+| `<character>_weave.png` | Sitting at a loom, passing the weft, beating it down. |
+
+Start with `farmer` and `farmer-woman` (most of the village), then `elder`, `elder-woman`, `child` and `girl`.
+
